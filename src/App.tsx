@@ -90,79 +90,21 @@ class VectorDatabase {
     const knowledgeBase = [
       {
         title: "VEX Processing Guidelines",
-        content: `VEX (Vulnerability Exploitability eXchange) provides machine-readable information about vulnerability status:
-        
-        VEX Document Types:
-        - Advisory: Published by product vendor indicating vulnerability status
-        - Statement: Third-party assessment of vulnerability applicability
-        
-        VEX Status Values:
-        - Not Affected: Product not vulnerable to the specific CVE
-        - Affected: Product is vulnerable and remediation required
-        - Fixed: Product was vulnerable but has been remediated
-        - Under Investigation: Vendor is assessing impact
-        
-        Key VEX Fields:
-        - Product Identification: CPE or PURL identifiers
-        - Vulnerability ID: CVE identifier
-        - Status: Current vulnerability state
-        - Action Statement: Required remediation actions
-        - Impact Statement: Description of potential impact
-        - Timestamp: When assessment was made`,
+        content: "VEX (Vulnerability Exploitability eXchange) provides machine-readable information about vulnerability status. VEX Status Values: Not Affected (Product not vulnerable), Affected (Product is vulnerable), Fixed (Product was vulnerable but remediated), Under Investigation (Vendor assessing impact). Key VEX Fields include Product Identification, Vulnerability ID, Status, Action Statement, Impact Statement, and Timestamp.",
         category: "vex",
         tags: ["vex", "vulnerability-exchange", "automation"]
       },
       {
         title: "GitHub Security Advisory Processing",
-        content: `GitHub Security Advisories provide vulnerability information for open source projects:
-        
-        Advisory Types:
-        - GHSA: GitHub-originated security advisories
-        - CVE-mapped: Links CVEs to GitHub repositories
-        - Malware: Identifies malicious packages
-        
-        Key Data Points:
-        - Affected Packages: Ecosystem and package identifiers
-        - Severity Assessment: GitHub's severity rating
-        - Vulnerable Versions: Specific version ranges affected
-        - Patched Versions: Versions containing fixes
-        - References: Links to fixes, advisories, and discussions
-        
-        Ecosystems Covered:
-        - npm (Node.js packages)
-        - PyPI (Python packages)
-        - RubyGems (Ruby packages)
-        - Maven (Java packages)
-        - NuGet (.NET packages)
-        - Composer (PHP packages)`,
+        content: "GitHub Security Advisories provide vulnerability information for open source projects. Types include GHSA (GitHub-originated), CVE-mapped (Links CVEs to repositories), and Malware identification. Key data points: Affected Packages, Severity Assessment, Vulnerable Versions, Patched Versions, and References.",
         category: "github",
         tags: ["github", "open-source", "packages"]
       },
       {
-        title: "Vendor API Integration Best Practices",
-        content: `Best practices for integrating vendor-specific security APIs:
-        
-        Microsoft MSRC (Microsoft Security Response Center):
-        - Security Update Guide API for Windows/Office vulnerabilities
-        - CVE to product mapping with detailed impact assessment
-        - Exploit information and mitigation guidance
-        
-        Red Hat Security API:
-        - Product-specific vulnerability data for RHEL, OpenShift
-        - Package-level vulnerability mapping
-        - Security metrics and severity adjustments
-        
-        Ubuntu Security API:
-        - USN (Ubuntu Security Notice) integration
-        - Package vulnerability status tracking
-        - Distribution-specific patch availability
-        
-        Rate Limiting Considerations:
-        - Implement exponential backoff for failed requests
-        - Cache responses to minimize API calls
-        - Use batch requests when available`,
-        category: "vendor-apis",
-        tags: ["microsoft", "redhat", "ubuntu", "vendor-apis"]
+        title: "EPSS Scoring Methodology",
+        content: "EPSS (Exploit Prediction Scoring System) estimates probability of exploitation. Scores range 0-1 with higher values indicating greater exploitation likelihood. EPSS considers CVE characteristics, threat intelligence, and known exploit activity. Updates daily with new threat data.",
+        category: "epss",
+        tags: ["epss", "exploit-prediction", "scoring"]
       }
     ];
 
@@ -174,20 +116,6 @@ class VectorDatabase {
         source: 'knowledge-base'
       });
     }
-  }
-
-  getStats() {
-    const categories = {};
-    this.documents.forEach(doc => {
-      const category = doc.metadata.category || 'uncategorized';
-      categories[category] = (categories[category] || 0) + 1;
-    });
-
-    return {
-      totalDocuments: this.documents.length,
-      categories,
-      initialized: this.initialized
-    };
   }
 }
 
@@ -261,17 +189,6 @@ const getStyles = (darkMode) => ({
   },
   searchIcon: { position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: darkMode ? '#cbd5e1' : '#6b7280' },
   searchButton: { position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)' },
-  filterPanel: { 
-    display: 'grid', 
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-    gap: '16px', 
-    marginTop: '16px', 
-    padding: '16px', 
-    background: darkMode ? '#0f172a' : '#f9fafb', 
-    borderRadius: '8px', 
-    border: darkMode ? '1px solid #334155' : '1px solid #e5e7eb' 
-  },
-  filterGroup: { display: 'flex', flexDirection: 'column', gap: '4px' },
   dashboardGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', marginBottom: '32px' },
   chartContainer: { 
     background: darkMode ? '#1e293b' : '#ffffff', 
@@ -358,417 +275,7 @@ const getStyles = (darkMode) => ({
 
 const AppContext = createContext({});
 
-// Enhanced API integrations
-const fetchVEXData = async (cveId, setLoadingSteps) => {
-  setLoadingSteps(prev => [...prev, `📋 Checking VEX data for ${cveId}...`]);
-  
-  try {
-    // Simulated VEX data (in production, this would call actual VEX endpoints)
-    const vexResponse = {
-      vex_documents: [
-        {
-          document_id: `vex-${cveId}-vendor-1`,
-          author: "Product Vendor",
-          product: {
-            id: "product-123",
-            name: "Example Software",
-            version_range: ">=1.0.0 <2.0.0"
-          },
-          vulnerability: {
-            id: cveId,
-            status: "affected", // not_affected, affected, fixed, under_investigation
-            action_statement: "Upgrade to version 2.0.0 or apply security patch",
-            impact_statement: "Remote code execution possible in affected versions",
-            timestamp: new Date().toISOString()
-          }
-        }
-      ]
-    };
-    
-    setLoadingSteps(prev => [...prev, `✅ VEX data found for ${cveId}`]);
-    return vexResponse.vex_documents;
-    
-  } catch (error) {
-    console.error(`VEX API Error for ${cveId}:`, error);
-    setLoadingSteps(prev => [...prev, `⚠️ VEX data unavailable for ${cveId}`]);
-    return null;
-  }
-};
-
-const fetchGitHubSecurityAdvisories = async (cveId, setLoadingSteps) => {
-  setLoadingSteps(prev => [...prev, `🐙 Fetching GitHub Security Advisories for ${cveId}...`]);
-  
-  try {
-    const query = `
-      query {
-        securityAdvisories(first: 10, identifier: {type: CVE, value: "${cveId}"}) {
-          nodes {
-            ghsaId
-            summary
-            description
-            severity
-            publishedAt
-            updatedAt
-            withdrawnAt
-            vulnerabilities(first: 5) {
-              nodes {
-                package {
-                  ecosystem
-                  name
-                }
-                vulnerableVersionRange
-                firstPatchedVersion {
-                  identifier
-                }
-              }
-            }
-            references {
-              url
-            }
-          }
-        }
-      }
-    `;
-
-    const response = await fetch('https://api.github.com/graphql', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer YOUR_GITHUB_TOKEN' // In production, this would be from settings
-      },
-      body: JSON.stringify({ query })
-    });
-
-    if (!response.ok) {
-      throw new Error(`GitHub API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    
-    if (data.data?.securityAdvisories?.nodes?.length > 0) {
-      setLoadingSteps(prev => [...prev, `✅ Found ${data.data.securityAdvisories.nodes.length} GitHub advisories for ${cveId}`]);
-      return data.data.securityAdvisories.nodes;
-    } else {
-      setLoadingSteps(prev => [...prev, `ℹ️ No GitHub advisories found for ${cveId}`]);
-      return [];
-    }
-    
-  } catch (error) {
-    console.error(`GitHub API Error for ${cveId}:`, error);
-    setLoadingSteps(prev => [...prev, `⚠️ GitHub advisories unavailable for ${cveId}: ${error.message}`]);
-    return [];
-  }
-};
-
-const fetchVendorSpecificData = async (cveId, setLoadingSteps) => {
-  setLoadingSteps(prev => [...prev, `🏢 Fetching vendor-specific data for ${cveId}...`]);
-  
-  const vendorData = {
-    microsoft: null,
-    redhat: null,
-    ubuntu: null
-  };
-
-  try {
-    // Microsoft MSRC API simulation
-    const msrcResponse = await fetch(`https://api.msrc.microsoft.com/cvrf/v2.0/cvrf/${cveId}`, {
-      headers: {
-        'Api-Version': '2.0',
-        'Accept': 'application/json'
-      }
-    }).catch(() => null);
-
-    if (msrcResponse?.ok) {
-      const msrcData = await msrcResponse.json();
-      vendorData.microsoft = {
-        bulletin_id: msrcData.DocumentTitle,
-        severity: msrcData.DocumentNotes?.find(n => n.Title === "Severity")?.Value,
-        impact: msrcData.DocumentNotes?.find(n => n.Title === "Impact")?.Value,
-        remediation: msrcData.Remediation?.[0]?.Description,
-        affected_products: msrcData.ProductTree?.Branch?.map(b => b.Name) || []
-      };
-      setLoadingSteps(prev => [...prev, `✅ Microsoft MSRC data found for ${cveId}`]);
-    }
-
-    // Red Hat API simulation
-    const redhatResponse = await fetch(`https://access.redhat.com/hydra/rest/securitydata/cve/${cveId}.json`, {
-      headers: { 'Accept': 'application/json' }
-    }).catch(() => null);
-
-    if (redhatResponse?.ok) {
-      const redhatData = await redhatResponse.json();
-      vendorData.redhat = {
-        threat_severity: redhatData.threat_severity,
-        cvss3: redhatData.cvss3,
-        affected_packages: redhatData.affected_packages,
-        package_state: redhatData.package_state,
-        details: redhatData.details
-      };
-      setLoadingSteps(prev => [...prev, `✅ Red Hat security data found for ${cveId}`]);
-    }
-
-    // Ubuntu Security API simulation
-    const ubuntuResponse = await fetch(`https://ubuntu.com/security/api/v1/cve/${cveId}`, {
-      headers: { 'Accept': 'application/json' }
-    }).catch(() => null);
-
-    if (ubuntuResponse?.ok) {
-      const ubuntuData = await ubuntuResponse.json();
-      vendorData.ubuntu = {
-        priority: ubuntuData.priority,
-        discovered_by: ubuntuData.discovered_by,
-        package_statuses: ubuntuData.package_statuses,
-        notices: ubuntuData.notices
-      };
-      setLoadingSteps(prev => [...prev, `✅ Ubuntu security data found for ${cveId}`]);
-    }
-
-    return vendorData;
-
-  } catch (error) {
-    console.error(`Vendor API Error for ${cveId}:`, error);
-    setLoadingSteps(prev => [...prev, `⚠️ Some vendor data unavailable for ${cveId}`]);
-    return vendorData;
-  }
-};
-
-const fetchThreatIntelligenceFeeds = async (cveId, setLoadingSteps) => {
-  setLoadingSteps(prev => [...prev, `🔍 Querying threat intelligence feeds for ${cveId}...`]);
-  
-  try {
-    const threatIntel = {
-      misp_events: [],
-      stix_indicators: [],
-      iocs: [],
-      exploit_availability: null
-    };
-
-    // MISP API simulation (in production, would connect to MISP instance)
-    try {
-      const mispData = {
-        events: [
-          {
-            id: "12345",
-            info: `Exploitation campaign targeting ${cveId}`,
-            threat_level_id: "2",
-            analysis: "2",
-            timestamp: new Date().toISOString(),
-            attributes: [
-              {
-                category: "Network activity",
-                type: "domain",
-                value: "malicious-domain.com",
-                comment: `Used in ${cveId} exploitation`
-              }
-            ],
-            tags: [
-              { name: "apt:group=\"APT28\"" },
-              { name: "misp:threat-level=\"high\"" }
-            ]
-          }
-        ]
-      };
-      
-      threatIntel.misp_events = mispData.events;
-      setLoadingSteps(prev => [...prev, `🎯 MISP threat data found for ${cveId}`]);
-    } catch (error) {
-      console.warn('MISP data unavailable:', error);
-    }
-
-    // STIX/TAXII simulation
-    try {
-      const stixData = {
-        indicators: [
-          {
-            id: "indicator--" + Date.now(),
-            pattern: "[file:hashes.MD5 = 'd41d8cd98f00b204e9800998ecf8427e']",
-            labels: ["malicious-activity"],
-            created: new Date().toISOString(),
-            modified: new Date().toISOString(),
-            description: `Malware exploiting ${cveId}`
-          }
-        ]
-      };
-      
-      threatIntel.stix_indicators = stixData.indicators;
-      setLoadingSteps(prev => [...prev, `📊 STIX threat indicators found for ${cveId}`]);
-    } catch (error) {
-      console.warn('STIX data unavailable:', error);
-    }
-
-    // Check exploit databases
-    threatIntel.exploit_availability = {
-      exploit_db: false,
-      metasploit: false,
-      github_pocs: 0,
-      nuclei_templates: false
-    };
-
-    setLoadingSteps(prev => [...prev, `✅ Threat intelligence analysis complete for ${cveId}`]);
-    return threatIntel;
-
-  } catch (error) {
-    console.error(`Threat Intelligence Error for ${cveId}:`, error);
-    setLoadingSteps(prev => [...prev, `⚠️ Threat intelligence partially unavailable for ${cveId}`]);
-    return null;
-  }
-};
-
-// Utility functions
-const calculateOverallRiskScore = (cveData, epssData, kevData, vexData, githubData, vendorData, threatIntel) => {
-  let score = 0;
-  
-  // Base CVSS score
-  if (cveData.metrics?.cvssMetricV31?.[0]?.cvssData?.baseScore) {
-    score += cveData.metrics.cvssMetricV31[0].cvssData.baseScore;
-  } else if (cveData.metrics?.cvssMetricV30?.[0]?.cvssData?.baseScore) {
-    score += cveData.metrics.cvssMetricV30[0].cvssData.baseScore;
-  } else if (cveData.metrics?.cvssMetricV2?.[0]?.cvssData?.baseScore) {
-    score += cveData.metrics.cvssMetricV2[0].cvssData.baseScore;
-  }
-  
-  // EPSS contribution
-  if (epssData?.epss) {
-    score += epssData.epss * 10;
-  }
-  
-  // KEV listing adds significant weight
-  if (kevData) {
-    score += 3;
-  }
-  
-  // VEX data adjustments
-  if (vexData && vexData.length > 0) {
-    const affectedVex = vexData.filter(v => v.vulnerability.status === 'affected');
-    if (affectedVex.length > 0) {
-      score += 1.5;
-    }
-  }
-  
-  // GitHub advisory presence
-  if (githubData && githubData.length > 0) {
-    score += 1;
-  }
-  
-  // Vendor-specific severity adjustments
-  if (vendorData) {
-    if (vendorData.microsoft?.severity === 'Critical') score += 1;
-    if (vendorData.redhat?.threat_severity === 'Critical') score += 1;
-    if (vendorData.ubuntu?.priority === 'high') score += 0.5;
-  }
-  
-  // Threat intelligence indicators
-  if (threatIntel) {
-    if (threatIntel.misp_events?.length > 0) score += 2;
-    if (threatIntel.exploit_availability?.metasploit) score += 1.5;
-    if (threatIntel.exploit_availability?.github_pocs > 0) score += 1;
-  }
-  
-  return Math.min(score / 2, 10);
-};
-
-const calculatePriority = (cveData, epssData, kevData, vexData, vendorData, threatIntel) => {
-  if (kevData) return 'CRITICAL';
-  
-  const cvssScore = cveData.metrics?.cvssMetricV31?.[0]?.cvssData?.baseScore || 
-                   cveData.metrics?.cvssMetricV30?.[0]?.cvssData?.baseScore || 
-                   cveData.metrics?.cvssMetricV2?.[0]?.cvssData?.baseScore || 0;
-  
-  // Check threat intelligence for active exploitation
-  if (threatIntel?.misp_events?.length > 0 || threatIntel?.exploit_availability?.metasploit) {
-    return 'CRITICAL';
-  }
-  
-  // Vendor-specific critical ratings
-  if (vendorData?.microsoft?.severity === 'Critical' || 
-      vendorData?.redhat?.threat_severity === 'Critical') {
-    return 'CRITICAL';
-  }
-  
-  // VEX status considerations
-  if (vexData?.some(v => v.vulnerability.status === 'affected' && v.vulnerability.impact_statement?.includes('remote code execution'))) {
-    return 'HIGH';
-  }
-  
-  if (cvssScore >= 9 || (epssData?.epss && epssData.epss > 0.5)) return 'HIGH';
-  if (cvssScore >= 7) return 'MEDIUM';
-  return 'LOW';
-};
-
-// Enhanced fetch function with all data sources
-const fetchEnhancedVulnerabilityData = async (cveId, setLoadingSteps, apiKey, settings = {}) => {
-  try {
-    setLoadingSteps(prev => [...prev, `🚀 Starting enhanced analysis for ${cveId}...`]);
-    
-    // Fetch all data sources in parallel
-    const [
-      cveResult,
-      epssResult,
-      kevResult,
-      vexResult,
-      githubResult,
-      vendorResult,
-      threatIntelResult
-    ] = await Promise.allSettled([
-      fetchCVEDataFromNVD(cveId, setLoadingSteps, apiKey),
-      fetchEPSSData(cveId, setLoadingSteps),
-      fetchKEVData(cveId, setLoadingSteps),
-      fetchVEXData(cveId, setLoadingSteps),
-      fetchGitHubSecurityAdvisories(cveId, setLoadingSteps),
-      fetchVendorSpecificData(cveId, setLoadingSteps),
-      fetchThreatIntelligenceFeeds(cveId, setLoadingSteps)
-    ]);
-    
-    const cve = cveResult.status === 'fulfilled' ? cveResult.value : null;
-    const epss = epssResult.status === 'fulfilled' ? epssResult.value : null;
-    const kev = kevResult.status === 'fulfilled' ? kevResult.value : null;
-    const vex = vexResult.status === 'fulfilled' ? vexResult.value : null;
-    const github = githubResult.status === 'fulfilled' ? githubResult.value : null;
-    const vendor = vendorResult.status === 'fulfilled' ? vendorResult.value : null;
-    const threatIntel = threatIntelResult.status === 'fulfilled' ? threatIntelResult.value : null;
-    
-    if (!cve) {
-      throw new Error(`Failed to fetch CVE data for ${cveId}`);
-    }
-    
-    const riskScore = calculateOverallRiskScore(cve, epss, kev, vex, github, vendor, threatIntel);
-    const priority = calculatePriority(cve, epss, kev, vex, vendor, threatIntel);
-    
-    setLoadingSteps(prev => [...prev, `✅ Enhanced analysis complete for ${cveId} - Risk Score: ${riskScore.toFixed(1)}`]);
-    
-    return {
-      cve,
-      epss,
-      kev,
-      vex,
-      github,
-      vendor,
-      threatIntel,
-      riskScore,
-      priority,
-      dataFreshness: 'REAL_TIME',
-      lastUpdated: new Date().toISOString(),
-      searchTimestamp: new Date().toISOString(),
-      enhancedSources: ['NVD', 'EPSS', 'KEV', 'VEX', 'GitHub', 'Vendors', 'ThreatIntel'].filter(source => {
-        switch(source) {
-          case 'EPSS': return epss !== null;
-          case 'KEV': return kev !== null;
-          case 'VEX': return vex !== null;
-          case 'GitHub': return github && github.length > 0;
-          case 'Vendors': return vendor && Object.values(vendor).some(v => v !== null);
-          case 'ThreatIntel': return threatIntel !== null;
-          default: return true;
-        }
-      })
-    };
-    
-  } catch (error) {
-    console.error(`Error processing ${cveId}:`, error);
-    throw error;
-  }
-};
-
-// Add missing API functions (keeping existing ones)
+// Real API functions (no mock data)
 const fetchCVEDataFromNVD = async (cveId, setLoadingSteps, apiKey) => {
   setLoadingSteps(prev => [...prev, `🔍 Fetching ${cveId} from NVD...`]);
   
@@ -943,6 +450,441 @@ const fetchKEVData = async (cveId, setLoadingSteps) => {
   }
 };
 
+// GitHub Security Advisories (real API call)
+const fetchGitHubSecurityAdvisories = async (cveId, setLoadingSteps, githubToken) => {
+  setLoadingSteps(prev => [...prev, `🐙 Fetching GitHub Security Advisories for ${cveId}...`]);
+  
+  if (!githubToken) {
+    setLoadingSteps(prev => [...prev, `⚠️ GitHub token not configured - skipping GitHub advisories`]);
+    return [];
+  }
+  
+  try {
+    const query = `
+      query {
+        securityAdvisories(first: 10, identifier: {type: CVE, value: "${cveId}"}) {
+          nodes {
+            ghsaId
+            summary
+            description
+            severity
+            publishedAt
+            updatedAt
+            withdrawnAt
+            vulnerabilities(first: 5) {
+              nodes {
+                package {
+                  ecosystem
+                  name
+                }
+                vulnerableVersionRange
+                firstPatchedVersion {
+                  identifier
+                }
+              }
+            }
+            references {
+              url
+            }
+          }
+        }
+      }
+    `;
+
+    const response = await fetch('https://api.github.com/graphql', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${githubToken}`
+      },
+      body: JSON.stringify({ query })
+    });
+
+    if (!response.ok) {
+      throw new Error(`GitHub API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.data && data.data.securityAdvisories && data.data.securityAdvisories.nodes && data.data.securityAdvisories.nodes.length > 0) {
+      setLoadingSteps(prev => [...prev, `✅ Found ${data.data.securityAdvisories.nodes.length} GitHub advisories for ${cveId}`]);
+      return data.data.securityAdvisories.nodes;
+    } else {
+      setLoadingSteps(prev => [...prev, `ℹ️ No GitHub advisories found for ${cveId}`]);
+      return [];
+    }
+    
+  } catch (error) {
+    console.error(`GitHub API Error for ${cveId}:`, error);
+    setLoadingSteps(prev => [...prev, `⚠️ GitHub advisories unavailable for ${cveId}: ${error.message}`]);
+    return [];
+  }
+};
+
+// Utility functions
+const calculateOverallRiskScore = (cveData, epssData, kevData) => {
+  let score = 0;
+  
+  // Base CVSS score
+  if (cveData.cvssV3?.baseScore) {
+    score += cveData.cvssV3.baseScore;
+  } else if (cveData.cvssV2?.baseScore) {
+    score += cveData.cvssV2.baseScore;
+  }
+  
+  // EPSS contribution
+  if (epssData?.epss) {
+    score += epssData.epss * 10;
+  }
+  
+  // KEV listing adds significant weight
+  if (kevData) {
+    score += 3;
+  }
+  
+  return Math.min(score / 2, 10);
+};
+
+const calculatePriority = (cveData, epssData, kevData) => {
+  if (kevData) return 'CRITICAL';
+  
+  const cvssScore = cveData.cvssV3?.baseScore || cveData.cvssV2?.baseScore || 0;
+  
+  if (cvssScore >= 9 || (epssData?.epss && epssData.epss > 0.5)) return 'HIGH';
+  if (cvssScore >= 7) return 'MEDIUM';
+  return 'LOW';
+};
+
+// Enhanced AI Analysis
+const generateEnhancedAIAnalysis = async (vulnerability, apiKey, model, settings = {}) => {
+  const cveId = vulnerability.cve.id;
+  const description = vulnerability.cve.description;
+  const cvssScore = vulnerability.cve.cvssV3?.baseScore || vulnerability.cve.cvssV2?.baseScore || 'N/A';
+  const epssScore = vulnerability.epss ? (vulnerability.epss.epss * 100).toFixed(2) + '%' : 'N/A';
+  const kevStatus = vulnerability.kev ? 'Yes' : 'No';
+  const isGemini2 = model.includes('2.0');
+  const modelName = isGemini2 ? 'gemini-2.0-flash' : model;
+
+  const createAnalysisResult = (analysisText, ragDocs = [], webGrounded = false) => {
+    return {
+      analysis: analysisText || '',
+      ragUsed: ragDocs.length > 0,
+      webGrounded: webGrounded,
+      ragDocs: ragDocs.length,
+      ragSources: ragDocs.map(doc => doc.metadata?.title || 'Unknown').filter(Boolean),
+      enhancedSources: vulnerability.enhancedSources || []
+    };
+  };
+
+  try {
+    console.log('🚀 Starting Enhanced AI Analysis for', cveId);
+    
+    if (!ragDatabase.initialized) {
+      console.log('🚀 Initializing RAG database...');
+      await ragDatabase.initialize();
+    }
+
+    console.log('📚 Performing RAG retrieval for', cveId);
+    const ragQuery = `${cveId} ${description.substring(0, 200)} vulnerability analysis security impact mitigation`;
+    const relevantDocs = await ragDatabase.search(ragQuery, 5);
+    
+    const ragContext = relevantDocs.length > 0 ? 
+      relevantDocs.map((doc, index) => 
+        `[Security Knowledge ${index + 1}] ${doc.metadata.title}:\n${doc.content.substring(0, 400)}...`
+      ).join('\n\n') : 
+      'No specific security knowledge found in database.';
+
+    console.log(`📖 Retrieved ${relevantDocs.length} relevant documents from RAG database`);
+
+    const prompt = `You are a senior cybersecurity analyst providing a comprehensive vulnerability assessment for ${cveId}.
+
+VULNERABILITY DETAILS:
+- CVE ID: ${cveId}
+- CVSS Score: ${cvssScore}
+- EPSS Score: ${epssScore}
+- KEV Listed: ${kevStatus}
+- Description: ${description.substring(0, 500)}
+- Enhanced Risk Score: ${vulnerability.riskScore?.toFixed(1) || 'N/A'}/10
+
+SECURITY KNOWLEDGE BASE:
+${ragContext}
+
+${isGemini2 ? 'Search the web for the latest threat intelligence, current exploitation campaigns, and vendor security bulletins for this vulnerability.' : ''}
+
+REQUIREMENTS:
+- Provide a detailed analysis of at least 2000 words
+- Structure the response with clear sections
+- Provide specific actionable recommendations
+- Include threat landscape context
+- Assess business impact and remediation priorities
+
+Write a comprehensive security assessment following this structure:
+
+# EXECUTIVE SUMMARY
+
+Provide a strategic overview of ${cveId} including severity assessment, exploitation likelihood, and immediate concerns.
+
+# TECHNICAL ANALYSIS
+
+Detail the technical vulnerability, attack vectors, and exploitation mechanisms.
+
+# THREAT INTELLIGENCE ASSESSMENT
+
+Analyze current threat landscape, known exploitation, and threat actor interest.
+
+# BUSINESS IMPACT ASSESSMENT
+
+Evaluate potential organizational impact and risk factors.
+
+# REMEDIATION STRATEGY
+
+Provide detailed action plan with prioritized steps and timelines.
+
+# DETECTION AND MONITORING
+
+Recommend specific detection signatures and monitoring approaches.
+
+# STRATEGIC RECOMMENDATIONS
+
+Summarize key findings and provide executive-level guidance.
+
+Ensure each section provides specific, actionable intelligence based on the vulnerability data and security knowledge base.`;
+
+    const requestBody = {
+      contents: [
+        {
+          parts: [
+            { text: prompt }
+          ]
+        }
+      ],
+      generationConfig: {
+        temperature: 0.1,
+        topK: 1,
+        topP: 0.8,
+        maxOutputTokens: 8192,
+        stopSequences: [],
+        candidateCount: 1
+      },
+      safetySettings: [
+        {
+          category: "HARM_CATEGORY_HARASSMENT",
+          threshold: "BLOCK_NONE"
+        },
+        {
+          category: "HARM_CATEGORY_HATE_SPEECH", 
+          threshold: "BLOCK_NONE"
+        },
+        {
+          category: "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+          threshold: "BLOCK_NONE"
+        },
+        {
+          category: "HARM_CATEGORY_DANGEROUS_CONTENT",
+          threshold: "BLOCK_NONE"
+        }
+      ]
+    };
+
+    if (isGemini2) {
+      requestBody.tools = [
+        {
+          google_search: {}
+        }
+      ];
+    }
+
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+    
+    console.log('🔗 Making Enhanced AI API Request:', {
+      url: apiUrl,
+      model: modelName,
+      hasRAG: relevantDocs.length > 0,
+      hasWebGrounding: isGemini2
+    });
+    
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      console.error('❌ Enhanced Gemini API Error:', response.status, errorData);
+      throw new Error(`Enhanced AI API error: ${response.status} - ${JSON.stringify(errorData)}`);
+    }
+
+    const data = await response.json();
+    console.log('✅ Enhanced AI analysis response received');
+    
+    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+      console.error('❌ Invalid enhanced response structure:', data);
+      throw new Error('Invalid enhanced API response format - no content generated');
+    }
+    
+    const content = data.candidates[0].content;
+    let analysisText = '';
+    
+    if (content.parts && Array.isArray(content.parts)) {
+      analysisText = content.parts.map(part => part.text || '').join('');
+      console.log(`📝 Combined ${content.parts.length} enhanced response parts`);
+    } else if (content.parts && content.parts[0] && content.parts[0].text) {
+      analysisText = content.parts[0].text;
+    } else {
+      throw new Error('No valid content parts found in enhanced response');
+    }
+    
+    console.log('📝 Enhanced analysis text length:', analysisText?.length);
+    
+    if (!analysisText || typeof analysisText !== 'string' || analysisText.trim().length === 0) {
+      throw new Error('Empty or invalid enhanced analysis text in response');
+    }
+    
+    if (analysisText.length > 500) {
+      await ragDatabase.addDocument(
+        `Enhanced CVE Analysis: ${cveId}\n\n${analysisText}`,
+        {
+          title: `Enhanced Security Analysis - ${cveId}`,
+          category: 'enhanced-analysis',
+          tags: ['cve-analysis', cveId.toLowerCase(), 'ai-enhanced'],
+          source: 'enhanced-ai-analysis',
+          cvss: cvssScore,
+          epss: epssScore,
+          kev: kevStatus
+        }
+      );
+      console.log('💾 Stored enhanced analysis in RAG database for future retrieval');
+    }
+    
+    return createAnalysisResult(analysisText, relevantDocs, isGemini2);
+    
+  } catch (error) {
+    console.error('💥 Enhanced AI Analysis Error:', error);
+    
+    return createAnalysisResult(
+      `**Enhanced AI Analysis Error**
+
+An error occurred while generating the enhanced security analysis for ${cveId}:
+
+**Error Details:**
+${error.message}
+
+**Manual Analysis Recommendation:**
+- Official NVD details: https://nvd.nist.gov/vuln/detail/${cveId}
+- MITRE CVE database: https://cve.mitre.org/cgi-bin/cvename.cgi?name=${cveId}
+- FIRST EPSS: https://api.first.org/data/v1/epss?cve=${cveId}
+- CISA KEV: https://www.cisa.gov/known-exploited-vulnerabilities-catalog
+
+Consider reviewing vendor-specific advisories and threat intelligence feeds for additional context.`,
+      [],
+      false
+    );
+  }
+};
+
+// Enhanced fetch function
+const fetchEnhancedVulnerabilityData = async (cveId, setLoadingSteps, apiKey, githubToken) => {
+  try {
+    setLoadingSteps(prev => [...prev, `🚀 Starting enhanced analysis for ${cveId}...`]);
+    
+    // Fetch all data sources in parallel
+    const [
+      cveResult,
+      epssResult,
+      kevResult,
+      githubResult
+    ] = await Promise.allSettled([
+      fetchCVEDataFromNVD(cveId, setLoadingSteps, apiKey),
+      fetchEPSSData(cveId, setLoadingSteps),
+      fetchKEVData(cveId, setLoadingSteps),
+      fetchGitHubSecurityAdvisories(cveId, setLoadingSteps, githubToken)
+    ]);
+    
+    const cve = cveResult.status === 'fulfilled' ? cveResult.value : null;
+    const epss = epssResult.status === 'fulfilled' ? epssResult.value : null;
+    const kev = kevResult.status === 'fulfilled' ? kevResult.value : null;
+    const github = githubResult.status === 'fulfilled' ? githubResult.value : null;
+    
+    if (!cve) {
+      throw new Error(`Failed to fetch CVE data for ${cveId}`);
+    }
+    
+    const riskScore = calculateOverallRiskScore(cve, epss, kev);
+    const priority = calculatePriority(cve, epss, kev);
+    
+    setLoadingSteps(prev => [...prev, `✅ Enhanced analysis complete for ${cveId} - Risk Score: ${riskScore.toFixed(1)}`]);
+    
+    const enhancedSources = ['NVD'];
+    if (epss) enhancedSources.push('EPSS');
+    if (kev) enhancedSources.push('KEV');
+    if (github && github.length > 0) enhancedSources.push('GitHub');
+    
+    setLoadingSteps(prev => [...prev, `📊 Data sources integrated: ${enhancedSources.join(', ')}`]);
+    
+    return {
+      cve,
+      epss,
+      kev,
+      github,
+      riskScore,
+      priority,
+      dataFreshness: 'REAL_TIME',
+      lastUpdated: new Date().toISOString(),
+      searchTimestamp: new Date().toISOString(),
+      enhancedSources
+    };
+    
+  } catch (error) {
+    console.error(`Error processing ${cveId}:`, error);
+    throw error;
+  }
+};
+
+const renderThreatIntelligence = (threatIntel) => {
+  if (!threatIntel) return null;
+  
+  const hasThreats = threatIntel.misp_events?.length > 0 || 
+                   threatIntel.stix_indicators?.length > 0 || 
+                   Object.values(threatIntel.exploit_availability || {}).some(v => v);
+  
+  if (!hasThreats) return null;
+  
+  return (
+    <div style={{
+      background: 'rgba(239, 68, 68, 0.1)',
+      border: '1px solid rgba(239, 68, 68, 0.3)',
+      borderRadius: '6px',
+      padding: '12px',
+      marginBottom: '12px'
+    }}>
+      <div style={{ fontWeight: '600', color: '#dc2626', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <Zap size={16} />
+        Active Threat Intelligence
+      </div>
+      <div style={{ display: 'grid', gap: '6px' }}>
+        {threatIntel.misp_events?.length > 0 && (
+          <div style={{ fontSize: '0.875rem', color: '#dc2626' }}>
+            🎯 <strong>{threatIntel.misp_events.length} MISP event(s)</strong> - Active threat campaigns detected
+          </div>
+        )}
+        {threatIntel.exploit_availability?.metasploit && (
+          <div style={{ fontSize: '0.875rem', color: '#dc2626' }}>
+            💥 <strong>Metasploit module available</strong> - Exploitation framework ready
+          </div>
+        )}
+        {threatIntel.exploit_availability?.github_pocs > 0 && (
+          <div style={{ fontSize: '0.875rem', color: '#dc2626' }}>
+            🔬 <strong>{threatIntel.exploit_availability.github_pocs} PoC(s) on GitHub</strong> - Public exploits available
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 // Components
 const NotificationManager = () => {
   const { notifications, settings } = useContext(AppContext);
@@ -1036,7 +978,7 @@ const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
     <div style={styles.modal}>
       <div style={styles.modalContent}>
         <div style={styles.modalHeader}>
-          <h3 style={styles.modalTitle}>Enhanced Settings</h3>
+          <h3 style={styles.modalTitle}>Settings</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
             <X size={20} color={settings.darkMode ? '#e2e8f0' : '#1f2937'} />
           </button>
@@ -1044,10 +986,10 @@ const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
 
         <div style={{ display: 'grid', gap: '24px' }}>
           <div>
-            <h4 style={{ margin: '0 0 16px 0', color: settings.darkMode ? '#e2e8f0' : '#1f2937' }}>Core API Configuration</h4>
+            <h4 style={{ margin: '0 0 16px 0', color: settings.darkMode ? '#e2e8f0' : '#1f2937' }}>API Configuration</h4>
             
             <div style={styles.formGroup}>
-              <label style={styles.label}>NVD API Key (Higher rate limits)</label>
+              <label style={styles.label}>NVD API Key (Optional - Higher rate limits)</label>
               <div style={{ position: 'relative' }}>
                 <input
                   type={showApiKey ? 'text' : 'password'}
@@ -1075,7 +1017,7 @@ const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>Gemini API Key (AI Analysis)</label>
+              <label style={styles.label}>Gemini API Key (For AI Analysis)</label>
               <div style={{ position: 'relative' }}>
                 <input
                   type={showGeminiKey ? 'text' : 'password'}
@@ -1127,7 +1069,7 @@ const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>GitHub Personal Access Token (Security Advisories)</label>
+              <label style={styles.label}>GitHub Personal Access Token (For Security Advisories)</label>
               <div style={{ position: 'relative' }}>
                 <input
                   type={showGitHubKey ? 'text' : 'password'}
@@ -1156,64 +1098,16 @@ const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
           </div>
 
           <div>
-            <h4 style={{ margin: '0 0 16px 0', color: settings.darkMode ? '#e2e8f0' : '#1f2937' }}>Enhanced Data Sources</h4>
-            
-            <div style={styles.formGroup}>
-              <label style={{ ...styles.label, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="checkbox"
-                  checked={localSettings.enableVEX || false}
-                  onChange={(e) => setLocalSettings(prev => ({ ...prev, enableVEX: e.target.checked }))}
-                />
-                Enable VEX (Vulnerability Exploitability eXchange) Integration
-              </label>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={{ ...styles.label, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="checkbox"
-                  checked={localSettings.enableGitHubAdvisories || false}
-                  onChange={(e) => setLocalSettings(prev => ({ ...prev, enableGitHubAdvisories: e.target.checked }))}
-                />
-                Enable GitHub Security Advisories
-              </label>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={{ ...styles.label, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="checkbox"
-                  checked={localSettings.enableVendorAPIs || false}
-                  onChange={(e) => setLocalSettings(prev => ({ ...prev, enableVendorAPIs: e.target.checked }))}
-                />
-                Enable Vendor-Specific APIs (Microsoft MSRC, Red Hat, Ubuntu)
-              </label>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={{ ...styles.label, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input
-                  type="checkbox"
-                  checked={localSettings.enableThreatIntel || false}
-                  onChange={(e) => setLocalSettings(prev => ({ ...prev, enableThreatIntel: e.target.checked }))}
-                />
-                Enable Threat Intelligence Feeds (MISP, STIX/TAXII)
-              </label>
-            </div>
-          </div>
-
-          <div>
-            <h4 style={{ margin: '0 0 16px 0', color: settings.darkMode ? '#e2e8f0' : '#1f2937' }}>Analysis Configuration</h4>
+            <h4 style={{ margin: '0 0 16px 0', color: settings.darkMode ? '#e2e8f0' : '#1f2937' }}>AI Configuration</h4>
             
             <div style={styles.formGroup}>
               <label style={styles.label}>Gemini Model</label>
               <select
                 style={styles.select}
-                value={localSettings.geminiModel || 'gemini-1.5-flash'}
+                value={localSettings.geminiModel || 'gemini-2.0-flash'}
                 onChange={(e) => setLocalSettings(prev => ({ ...prev, geminiModel: e.target.value }))}
               >
-                <option value="gemini-2.0-flash">Gemini 2.0 Flash - 🌐 Internet Grounding + Enhanced APIs</option>
+                <option value="gemini-2.0-flash">Gemini 2.0 Flash - 🌐 Web Search + Enhanced Analysis</option>
                 <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast & Efficient)</option>
                 <option value="gemini-1.5-pro">Gemini 1.5 Pro (Advanced Analysis)</option>
                 <option value="gemini-1.0-pro">Gemini 1.0 Pro (Stable)</option>
@@ -1230,15 +1124,19 @@ const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
                 Enable AI-Powered Security Analysis
               </label>
             </div>
+          </div>
 
+          <div>
+            <h4 style={{ margin: '0 0 16px 0', color: settings.darkMode ? '#e2e8f0' : '#1f2937' }}>Display Options</h4>
+            
             <div style={styles.formGroup}>
               <label style={{ ...styles.label, display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <input
                   type="checkbox"
-                  checked={localSettings.enhancedScoring || false}
-                  onChange={(e) => setLocalSettings(prev => ({ ...prev, enhancedScoring: e.target.checked }))}
+                  checked={localSettings.darkMode || false}
+                  onChange={(e) => setLocalSettings(prev => ({ ...prev, darkMode: e.target.checked }))}
                 />
-                Enhanced Risk Scoring (Uses all data sources)
+                Dark Mode
               </label>
             </div>
           </div>
@@ -1256,7 +1154,7 @@ const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
             onClick={handleSave}
           >
             <Save size={16} />
-            Save Enhanced Settings
+            Save Settings
           </button>
         </div>
       </div>
@@ -1264,9 +1162,8 @@ const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
   );
 };
 
-const EnhancedSearchComponent = () => {
+const SearchComponent = () => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [showFilters, setShowFilters] = useState(false);
   const [bulkFile, setBulkFile] = useState(null);
   const [searchHistory, setSearchHistory] = useState([]);
   const { 
@@ -1274,8 +1171,6 @@ const EnhancedSearchComponent = () => {
     setLoading, 
     loading, 
     setLoadingSteps, 
-    filters, 
-    setFilters,
     addNotification,
     settings
   } = useContext(AppContext);
@@ -1335,7 +1230,7 @@ const EnhancedSearchComponent = () => {
         setSearchHistory(prev => [...new Set([...cveIds, ...prev])].slice(0, 10));
       }
       
-      setLoadingSteps(prev => [...prev, `🎯 Starting enhanced real-time analysis of ${cveIds.length} CVE${cveIds.length > 1 ? 's' : ''}`]);
+      setLoadingSteps(prev => [...prev, `🎯 Starting analysis of ${cveIds.length} CVE${cveIds.length > 1 ? 's' : ''}`]);
       
       const vulnerabilityResults = [];
       const failedCves = [];
@@ -1344,13 +1239,13 @@ const EnhancedSearchComponent = () => {
       
       for (let i = 0; i < cveIds.length; i += batchSize) {
         const batch = cveIds.slice(i, i + batchSize);
-        setLoadingSteps(prev => [...prev, `📋 Processing enhanced batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(cveIds.length / batchSize)}...`]);
+        setLoadingSteps(prev => [...prev, `📋 Processing batch ${Math.floor(i / batchSize) + 1} of ${Math.ceil(cveIds.length / batchSize)}...`]);
         
         const batchPromises = batch.map(async (cveId) => {
           try {
-            const vulnerability = await fetchEnhancedVulnerabilityData(cveId, setLoadingSteps, settings.nvdApiKey, settings);
+            const vulnerability = await fetchEnhancedVulnerabilityData(cveId, setLoadingSteps, settings.nvdApiKey, settings.githubToken);
             vulnerabilityResults.push(vulnerability);
-            setLoadingSteps(prev => [...prev, `✅ Enhanced processing complete for ${cveId}`]);
+            setLoadingSteps(prev => [...prev, `✅ Processing complete for ${cveId}`]);
           } catch (error) {
             failedCves.push(cveId);
             setLoadingSteps(prev => [...prev, `❌ Failed to process ${cveId}: ${error.message}`]);
@@ -1383,29 +1278,25 @@ const EnhancedSearchComponent = () => {
       
       const criticalCount = vulnerabilityResults.filter(v => v.priority === 'CRITICAL').length;
       const kevCount = vulnerabilityResults.filter(v => v.kev).length;
-      const vexCount = vulnerabilityResults.filter(v => v.vex && v.vex.length > 0).length;
       const githubCount = vulnerabilityResults.filter(v => v.github && v.github.length > 0).length;
-      const threatIntelCount = vulnerabilityResults.filter(v => v.threatIntel && v.threatIntel.misp_events?.length > 0).length;
       
-      let message = `Enhanced analysis: ${vulnerabilityResults.length}/${cveIds.length} CVEs`;
+      let message = `Analysis complete: ${vulnerabilityResults.length}/${cveIds.length} CVEs`;
       if (criticalCount > 0) message += ` • ${criticalCount} Critical`;
       if (kevCount > 0) message += ` • ${kevCount} KEV`;
-      if (vexCount > 0) message += ` • ${vexCount} VEX`;
       if (githubCount > 0) message += ` • ${githubCount} GitHub`;
-      if (threatIntelCount > 0) message += ` • ${threatIntelCount} ThreatIntel`;
       
       addNotification({
         type: 'success',
-        title: 'Enhanced Analysis Complete',
+        title: 'Analysis Complete',
         message
       });
       
     } catch (error) {
-      console.error('Error in enhanced vulnerability search:', error);
+      console.error('Error in vulnerability search:', error);
       setLoadingSteps(prev => [...prev, `❌ Search Error: ${error.message}`]);
       addNotification({
         type: 'error',
-        title: 'Enhanced Search Failed',
+        title: 'Search Failed',
         message: error.message
       });
     } finally {
@@ -1448,10 +1339,7 @@ const EnhancedSearchComponent = () => {
 
   const getEnabledSources = () => {
     const sources = ['NIST NVD', 'FIRST EPSS', 'CISA KEV'];
-    if (settings.enableVEX) sources.push('VEX');
-    if (settings.enableGitHubAdvisories && settings.githubToken) sources.push('GitHub');
-    if (settings.enableVendorAPIs) sources.push('Vendor APIs');
-    if (settings.enableThreatIntel) sources.push('Threat Intel');
+    if (settings.githubToken) sources.push('GitHub');
     return sources;
   };
 
@@ -1459,7 +1347,7 @@ const EnhancedSearchComponent = () => {
     <div style={styles.searchContainer}>
       <h2 style={{ margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
         <Search size={24} color="#3b82f6" />
-        Enhanced Vulnerability Intelligence Platform
+        Vulnerability Intelligence Platform
         <span style={{
           ...styles.badge,
           background: '#10b981',
@@ -1468,17 +1356,7 @@ const EnhancedSearchComponent = () => {
         }}>
           LIVE APIs
         </span>
-        {settings.enableVEX && (
-          <span style={{
-            ...styles.badge,
-            background: '#8b5cf6',
-            color: 'white',
-            borderColor: '#8b5cf6'
-          }}>
-            VEX
-          </span>
-        )}
-        {settings.enableGitHubAdvisories && (
+        {settings.githubToken && (
           <span style={{
             ...styles.badge,
             background: '#6b7280',
@@ -1489,17 +1367,6 @@ const EnhancedSearchComponent = () => {
             GITHUB
           </span>
         )}
-        {settings.enableThreatIntel && (
-          <span style={{
-            ...styles.badge,
-            background: '#dc2626',
-            color: 'white',
-            borderColor: '#dc2626'
-          }}>
-            <Zap size={12} style={{ marginRight: '4px' }} />
-            THREAT INTEL
-          </span>
-        )}
         {settings.geminiApiKey && (
           <span style={{
             ...styles.badge,
@@ -1508,7 +1375,7 @@ const EnhancedSearchComponent = () => {
             color: 'white',
             borderColor: settings.geminiModel?.includes('2.0') ? '#667eea' : '#8b5cf6'
           }}>
-            {settings.geminiModel?.includes('2.0') ? '🌐 AI + WEB' : 'AI ENHANCED'}
+            {settings.geminiModel?.includes('2.0') ? '🌐 AI + WEB' : 'AI ENABLED'}
           </span>
         )}
       </h2>
@@ -1533,7 +1400,7 @@ const EnhancedSearchComponent = () => {
           disabled={loading || (!searchTerm.trim() && !bulkFile)}
         >
           {loading ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Search size={16} />}
-          {loading ? 'Analyzing...' : 'Enhanced Analysis'}
+          {loading ? 'Analyzing...' : 'Analyze'}
         </button>
       </div>
 
@@ -1573,15 +1440,6 @@ const EnhancedSearchComponent = () => {
             </button>
           </div>
         )}
-        
-        <button
-          style={{ ...styles.button, ...styles.buttonSecondary }}
-          onClick={() => setShowFilters(!showFilters)}
-          disabled={loading}
-        >
-          <Filter size={16} />
-          Filters {Object.values(filters).filter(v => v).length > 0 && `(${Object.values(filters).filter(v => v).length})`}
-        </button>
       </div>
 
       {searchHistory.length > 0 && (
@@ -1621,91 +1479,6 @@ const EnhancedSearchComponent = () => {
         </div>
       )}
 
-      {showFilters && (
-        <div style={styles.filterPanel}>
-          <div style={styles.filterGroup}>
-            <label style={styles.label}>Severity</label>
-            <select
-              style={styles.select}
-              value={filters.severity || ''}
-              onChange={(e) => setFilters(prev => ({ ...prev, severity: e.target.value }))}
-            >
-              <option value="">All Severities</option>
-              <option value="CRITICAL">Critical</option>
-              <option value="HIGH">High</option>
-              <option value="MEDIUM">Medium</option>
-              <option value="LOW">Low</option>
-            </select>
-          </div>
-          
-          <div style={styles.filterGroup}>
-            <label style={styles.label}>KEV Status</label>
-            <select
-              style={styles.select}
-              value={filters.kevStatus || ''}
-              onChange={(e) => setFilters(prev => ({ ...prev, kevStatus: e.target.value }))}
-            >
-              <option value="">All</option>
-              <option value="true">KEV Listed</option>
-              <option value="false">Not KEV Listed</option>
-            </select>
-          </div>
-
-          {settings.enableVEX && (
-            <div style={styles.filterGroup}>
-              <label style={styles.label}>VEX Status</label>
-              <select
-                style={styles.select}
-                value={filters.vexStatus || ''}
-                onChange={(e) => setFilters(prev => ({ ...prev, vexStatus: e.target.value }))}
-              >
-                <option value="">All</option>
-                <option value="affected">Affected</option>
-                <option value="not_affected">Not Affected</option>
-                <option value="fixed">Fixed</option>
-                <option value="under_investigation">Under Investigation</option>
-              </select>
-            </div>
-          )}
-
-          {settings.enableThreatIntel && (
-            <div style={styles.filterGroup}>
-              <label style={styles.label}>Threat Intelligence</label>
-              <select
-                style={styles.select}
-                value={filters.threatIntel || ''}
-                onChange={(e) => setFilters(prev => ({ ...prev, threatIntel: e.target.value }))}
-              >
-                <option value="">All</option>
-                <option value="misp">MISP Events</option>
-                <option value="exploits">Known Exploits</option>
-                <option value="campaigns">Active Campaigns</option>
-              </select>
-            </div>
-          )}
-          
-          <div style={styles.filterGroup}>
-            <label style={styles.label}>Vendor</label>
-            <input
-              type="text"
-              style={styles.input}
-              placeholder="e.g., Microsoft, Apache"
-              value={filters.vendor || ''}
-              onChange={(e) => setFilters(prev => ({ ...prev, vendor: e.target.value }))}
-            />
-          </div>
-          
-          <div style={{ display: 'flex', gap: '8px', alignItems: 'end' }}>
-            <button
-              style={{ ...styles.button, ...styles.buttonSecondary }}
-              onClick={() => setFilters({})}
-            >
-              Clear Filters
-            </button>
-          </div>
-        </div>
-      )}
-
       <div style={{ 
         fontSize: '0.75rem', 
         color: settings.darkMode ? '#cbd5e1' : '#6b7280', 
@@ -1715,10 +1488,10 @@ const EnhancedSearchComponent = () => {
         borderRadius: '6px',
         border: settings.darkMode ? '1px solid #475569' : '1px solid #e5e7eb'
       }}>
-        <strong style={{ color: settings.darkMode ? '#f1f5f9' : '#1f2937' }}>Enhanced Data Sources:</strong> {getEnabledSources().join(' • ')}
+        <strong style={{ color: settings.darkMode ? '#f1f5f9' : '#1f2937' }}>Data Sources:</strong> {getEnabledSources().join(' • ')}
         {settings.geminiApiKey && (
           <span style={{ marginLeft: '8px' }}>
-            <strong style={{ color: '#8b5cf6' }}>AI Enhanced:</strong> Gemini {settings.geminiModel}
+            <strong style={{ color: '#8b5cf6' }}>AI Enhanced:</strong> {settings.geminiModel}
             {settings.geminiModel?.includes('2.0') && (
               <span style={{ 
                 marginLeft: '4px',
@@ -1728,7 +1501,7 @@ const EnhancedSearchComponent = () => {
                 borderRadius: '4px',
                 fontSize: '0.7rem'
               }}>
-                🌐 WEB GROUNDED
+                🌐 WEB SEARCH
               </span>
             )}
           </span>
@@ -1738,7 +1511,7 @@ const EnhancedSearchComponent = () => {
   );
 };
 
-const EnhancedDashboard = ({ vulnerabilities }) => {
+const Dashboard = ({ vulnerabilities }) => {
   const { settings } = useContext(AppContext);
   const styles = getStyles(settings.darkMode);
 
@@ -1752,15 +1525,7 @@ const EnhancedDashboard = ({ vulnerabilities }) => {
   const dataSourcesData = [
     { name: 'NVD Only', value: vulnerabilities.filter(v => v.enhancedSources?.length === 1).length, color: '#6b7280' },
     { name: '2-3 Sources', value: vulnerabilities.filter(v => v.enhancedSources?.length >= 2 && v.enhancedSources?.length <= 3).length, color: '#3b82f6' },
-    { name: '4-5 Sources', value: vulnerabilities.filter(v => v.enhancedSources?.length >= 4 && v.enhancedSources?.length <= 5).length, color: '#f59e0b' },
-    { name: '6+ Sources', value: vulnerabilities.filter(v => v.enhancedSources?.length >= 6).length, color: '#10b981' }
-  ].filter(item => item.value > 0);
-
-  const threatLevelData = [
-    { name: 'Active Threats', value: vulnerabilities.filter(v => v.kev || (v.threatIntel?.misp_events?.length > 0)).length, color: '#dc2626' },
-    { name: 'High EPSS', value: vulnerabilities.filter(v => v.epss && v.epss.epss > 0.5).length, color: '#ea580c' },
-    { name: 'Vendor Confirmed', value: vulnerabilities.filter(v => v.vendor && Object.values(v.vendor).some(vendor => vendor !== null)).length, color: '#d97706' },
-    { name: 'Standard Risk', value: vulnerabilities.filter(v => !v.kev && (!v.epss || v.epss.epss <= 0.5) && (!v.threatIntel?.misp_events?.length)).length, color: '#65a30d' }
+    { name: '4+ Sources', value: vulnerabilities.filter(v => v.enhancedSources?.length >= 4).length, color: '#10b981' }
   ].filter(item => item.value > 0);
 
   const avgRiskScore = vulnerabilities.reduce((acc, v) => acc + (v.riskScore || 0), 0) / vulnerabilities.length;
@@ -1819,33 +1584,7 @@ const EnhancedDashboard = ({ vulnerabilities }) => {
       </div>
 
       <div style={styles.chartContainer}>
-        <h3 style={{ margin: '0 0 16px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Target size={20} />
-          Threat Intelligence Overview
-        </h3>
-        <ResponsiveContainer width="100%" height={200}>
-          <RechartsPieChart>
-            <Pie
-              data={threatLevelData}
-              cx="50%"
-              cy="50%"
-              outerRadius={80}
-              fill="#8884d8"
-              dataKey="value"
-              label={(entry) => `${entry.value}`}
-            >
-              {threatLevelData.map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={entry.color} />
-              ))}
-            </Pie>
-            <Tooltip formatter={(value, name) => [value, name]} />
-            <Legend />
-          </RechartsPieChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div style={styles.chartContainer}>
-        <h3 style={{ margin: '0 0 16px 0' }}>Enhanced Intelligence Summary</h3>
+        <h3 style={{ margin: '0 0 16px 0' }}>Summary Statistics</h3>
         <div style={{ display: 'grid', gap: '12px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>Total CVEs</span>
@@ -1857,32 +1596,14 @@ const EnhancedDashboard = ({ vulnerabilities }) => {
               {vulnerabilities.filter(v => v.kev).length}
             </span>
           </div>
-          {settings.enableVEX && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>VEX Affected</span>
-              <span style={{ fontWeight: 'bold', fontSize: '1.25rem', color: '#f59e0b' }}>
-                {vulnerabilities.filter(v => v.vex?.some(vex => vex.vulnerability.status === 'affected')).length}
-              </span>
-            </div>
-          )}
-          {settings.enableGitHubAdvisories && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>GitHub Advisories</span>
-              <span style={{ fontWeight: 'bold', fontSize: '1.25rem', color: '#6b7280' }}>
-                {vulnerabilities.filter(v => v.github && v.github.length > 0).length}
-              </span>
-            </div>
-          )}
-          {settings.enableThreatIntel && (
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>Threat Events</span>
-              <span style={{ fontWeight: 'bold', fontSize: '1.25rem', color: '#dc2626' }}>
-                {vulnerabilities.filter(v => v.threatIntel?.misp_events?.length > 0).length}
-              </span>
-            </div>
-          )}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>Avg Enhanced Risk</span>
+            <span>GitHub Advisories</span>
+            <span style={{ fontWeight: 'bold', fontSize: '1.25rem', color: '#6b7280' }}>
+              {vulnerabilities.filter(v => v.github && v.github.length > 0).length}
+            </span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Avg Risk Score</span>
             <span style={{ fontWeight: 'bold', fontSize: '1.25rem', color: '#8b5cf6' }}>
               {avgRiskScore.toFixed(1)}/10
             </span>
@@ -1893,7 +1614,373 @@ const EnhancedDashboard = ({ vulnerabilities }) => {
   );
 };
 
-const EnhancedVulnerabilityList = ({ vulnerabilities }) => {
+const AIAnalysisButton = ({ vulnerability }) => {
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [analysis, setAnalysis] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const { settings, addNotification } = useContext(AppContext);
+  
+  const styles = getStyles(settings.darkMode);
+
+  const generateAIAnalysis = async () => {
+    setAnalysis(null);
+    setShowAnalysis(false);
+    
+    if (!settings.geminiApiKey) {
+      addNotification({
+        type: 'error',
+        title: 'API Key Required',
+        message: 'Please configure your Gemini API key in settings'
+      });
+      return;
+    }
+
+    setLoading(true);
+    
+    try {
+      console.log('🚀 Starting AI Analysis for', vulnerability.cve.id);
+      
+      const enhancedAnalysis = await generateEnhancedAIAnalysis(
+        vulnerability,
+        settings.geminiApiKey,
+        settings.geminiModel,
+        settings
+      );
+      
+      console.log('🔍 AI Analysis Response:', enhancedAnalysis);
+      
+      let normalizedAnalysis;
+      
+      if (typeof enhancedAnalysis === 'string') {
+        normalizedAnalysis = {
+          analysis: enhancedAnalysis,
+          ragUsed: false,
+          webGrounded: false,
+          ragDocs: 0,
+          ragSources: [],
+          enhancedSources: vulnerability.enhancedSources || []
+        };
+      } else if (enhancedAnalysis && typeof enhancedAnalysis === 'object') {
+        if (enhancedAnalysis.analysis && typeof enhancedAnalysis.analysis === 'string') {
+          normalizedAnalysis = {
+            analysis: enhancedAnalysis.analysis,
+            ragUsed: Boolean(enhancedAnalysis.ragUsed),
+            webGrounded: Boolean(enhancedAnalysis.webGrounded),
+            ragDocs: Number(enhancedAnalysis.ragDocs) || 0,
+            ragSources: Array.isArray(enhancedAnalysis.ragSources) ? enhancedAnalysis.ragSources : [],
+            enhancedSources: enhancedAnalysis.enhancedSources || vulnerability.enhancedSources || []
+          };
+        } else {
+          throw new Error(`Invalid analysis object response: missing analysis property`);
+        }
+      } else {
+        throw new Error(`Invalid response format: expected string or object, got ${typeof enhancedAnalysis}`);
+      }
+      
+      if (!normalizedAnalysis.analysis || normalizedAnalysis.analysis.trim().length === 0) {
+        throw new Error('Empty analysis content received');
+      }
+      
+      console.log('✅ Analysis Normalized:', normalizedAnalysis);
+      
+      setAnalysis(normalizedAnalysis);
+      setShowAnalysis(true);
+      
+      const enhancedInfo = [];
+      if (normalizedAnalysis.ragUsed) enhancedInfo.push(`${normalizedAnalysis.ragDocs} RAG docs`);
+      if (normalizedAnalysis.webGrounded) enhancedInfo.push('web search');
+      if (normalizedAnalysis.enhancedSources?.length > 1) enhancedInfo.push(`${normalizedAnalysis.enhancedSources.length} data sources`);
+      
+      addNotification({
+        type: 'success',
+        title: 'AI Analysis Complete',
+        message: `Analysis generated (${normalizedAnalysis.analysis.length} chars)${enhancedInfo.length > 0 ? ` with ${enhancedInfo.join(', ')}` : ''}`
+      });
+      
+    } catch (error) {
+      console.error('💥 AI Analysis Error:', error);
+      
+      setAnalysis(null);
+      setShowAnalysis(false);
+      
+      addNotification({
+        type: 'error',
+        title: 'AI Analysis Failed',
+        message: `Error: ${error.message}`
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const renderAnalysisContent = () => {
+    if (!analysis) {
+      return (
+        <div style={{ color: '#ef4444', fontStyle: 'italic' }}>
+          No analysis available
+        </div>
+      );
+    }
+    
+    if (typeof analysis !== 'object' || !analysis.analysis) {
+      console.error('Invalid analysis object:', analysis);
+      return (
+        <div style={{ color: '#ef4444', fontStyle: 'italic' }}>
+          Invalid analysis format
+        </div>
+      );
+    }
+    
+    if (typeof analysis.analysis !== 'string' || analysis.analysis.trim().length === 0) {
+      return (
+        <div style={{ color: '#ef4444', fontStyle: 'italic' }}>
+          Empty analysis content
+        </div>
+      );
+    }
+    
+    return (
+      <div style={{ 
+        width: '100%',
+        display: 'block',
+        whiteSpace: 'pre-wrap',
+        wordWrap: 'break-word',
+        overflowWrap: 'break-word'
+      }}>
+        {analysis.analysis}
+      </div>
+    );
+  };
+
+  const renderMetadata = () => {
+    if (!analysis || typeof analysis !== 'object') {
+      return null;
+    }
+    
+    const parts = [`🤖 AI Analysis by ${settings.geminiModel || 'Gemini'}`];
+    
+    if (settings.geminiModel?.includes('2.0')) {
+      parts.push('🌐 Web-enhanced with real-time search');
+    }
+    
+    if (analysis.enhancedSources?.length > 1) {
+      parts.push(`📊 ${analysis.enhancedSources.length} Data Sources: ${analysis.enhancedSources.join(', ')}`);
+    }
+    
+    if (analysis.ragUsed && analysis.ragDocs > 0) {
+      parts.push(`📚 Enhanced with security knowledge base (${analysis.ragDocs} docs)`);
+    }
+    
+    return parts.join(' • ');
+  };
+
+  return (
+    <>
+      <button
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          padding: '4px 12px',
+          background: settings.geminiApiKey ? 
+            (loading ? '#6b7280' : 
+             vulnerability.enhancedSources?.length > 1 ? 
+               'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)' : '#8b5cf6'
+            ) : '#6b7280',
+          color: 'white',
+          border: 'none',
+          borderRadius: '6px',
+          fontSize: '0.8rem',
+          fontWeight: '500',
+          cursor: settings.geminiApiKey && !loading ? 'pointer' : 'not-allowed',
+          opacity: settings.geminiApiKey ? 1 : 0.7
+        }}
+        onClick={generateAIAnalysis}
+        disabled={!settings.geminiApiKey || loading}
+        title={
+          !settings.geminiApiKey ? 'Configure Gemini API key in settings' :
+          loading ? 'Generating analysis...' :
+          'AI Security Analysis'
+        }
+      >
+        {loading ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Brain size={14} />}
+        {loading ? 'Analyzing...' : 'AI Analysis'}
+        {vulnerability.enhancedSources?.length > 1 && !loading && (
+          <span style={{
+            fontSize: '0.7rem',
+            background: 'rgba(255, 255, 255, 0.3)',
+            color: 'white',
+            padding: '2px 6px',
+            borderRadius: '4px',
+            marginLeft: '4px'
+          }}>
+            {vulnerability.enhancedSources.length} SOURCES
+          </span>
+        )}
+        {settings.geminiModel?.includes('2.0') && !loading && (
+          <span style={{
+            fontSize: '0.6rem',
+            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            color: 'white',
+            padding: '1px 4px',
+            borderRadius: '3px',
+            marginLeft: '4px'
+          }}>
+            WEB
+          </span>
+        )}
+      </button>
+
+      {showAnalysis && (
+        <div style={{
+          marginTop: '16px',
+          padding: '16px',
+          background: settings.darkMode ? '#312e81' : '#f3e8ff',
+          borderRadius: '8px',
+          border: settings.darkMode ? '1px solid #4338ca' : '1px solid #c084fc',
+          width: '100%',
+          boxSizing: 'border-box'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            marginBottom: '12px' 
+          }}>
+            <span style={{ 
+              fontWeight: '600', 
+              fontSize: '0.9rem',
+              color: settings.darkMode ? '#a5b4fc' : '#7c3aed',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}>
+              🤖 AI Security Analysis
+              {vulnerability.enhancedSources?.length > 1 && (
+                <span style={{
+                  fontSize: '0.7rem',
+                  background: 'linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%)',
+                  color: 'white',
+                  padding: '3px 8px',
+                  borderRadius: '4px'
+                }}>
+                  {vulnerability.enhancedSources.length} SOURCES
+                </span>
+              )}
+              {settings.geminiModel?.includes('2.0') && (
+                <span style={{
+                  fontSize: '0.7rem',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  color: 'white',
+                  padding: '3px 8px',
+                  borderRadius: '4px'
+                }}>
+                  🌐 WEB ENHANCED
+                </span>
+              )}
+              {analysis && (
+                <span style={{
+                  fontSize: '0.6rem',
+                  background: '#10b981',
+                  color: 'white',
+                  padding: '2px 6px',
+                  borderRadius: '4px'
+                }}>
+                  {analysis.analysis?.length || 0} chars
+                </span>
+              )}
+            </span>
+            <button
+              onClick={() => setShowAnalysis(false)}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: settings.darkMode ? '#a5b4fc' : '#7c3aed'
+              }}
+            >
+              <X size={16} />
+            </button>
+          </div>
+          
+          <div style={{
+            fontSize: '0.9rem',
+            lineHeight: '1.7',
+            color: settings.darkMode ? '#e2e8f0' : '#1f2937',
+            whiteSpace: 'pre-wrap',
+            wordWrap: 'break-word',
+            overflowWrap: 'break-word',
+            wordBreak: 'break-word',
+            maxHeight: 'none',
+            height: 'auto',
+            overflow: 'visible',
+            padding: '20px',
+            background: settings.darkMode ? 'rgba(15, 23, 42, 0.5)' : 'rgba(248, 250, 252, 0.8)',
+            borderRadius: '8px',
+            border: settings.darkMode ? '1px solid rgba(71, 85, 105, 0.3)' : '1px solid rgba(226, 232, 240, 0.5)',
+            fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+            width: '100%',
+            boxSizing: 'border-box',
+            display: 'block'
+          }}>
+            {renderAnalysisContent()}
+          </div>
+          
+          {analysis && (
+            <div style={{
+              marginTop: '12px',
+              padding: '12px',
+              background: settings.darkMode ? 'rgba(139, 92, 246, 0.15)' : 'rgba(139, 92, 246, 0.08)',
+              borderRadius: '6px',
+              fontSize: '0.75rem',
+              color: settings.darkMode ? '#a78bfa' : '#7c3aed',
+              borderLeft: '3px solid #8b5cf6'
+            }}>
+              {renderMetadata()}
+            </div>
+          )}
+          
+          {analysis && analysis.analysis && analysis.analysis.length > 100 && (
+            <div style={{
+              marginTop: '12px',
+              display: 'flex',
+              gap: '8px',
+              flexWrap: 'wrap'
+            }}>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(analysis.analysis).then(() => {
+                    addNotification({
+                      type: 'success',
+                      title: 'Copied to Clipboard',
+                      message: 'AI analysis copied to clipboard'
+                    });
+                  }).catch(() => {
+                    addNotification({
+                      type: 'error',
+                      title: 'Copy Failed',
+                      message: 'Could not copy to clipboard'
+                    });
+                  });
+                }}
+                style={{
+                  ...styles.button,
+                  ...styles.buttonSecondary,
+                  fontSize: '0.75rem',
+                  padding: '6px 12px'
+                }}
+              >
+                📋 Copy Analysis
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+};
+
+const VulnerabilityList = ({ vulnerabilities }) => {
   const { settings } = useContext(AppContext);
   const styles = getStyles(settings.darkMode);
 
@@ -1905,44 +1992,6 @@ const EnhancedVulnerabilityList = ({ vulnerabilities }) => {
       case 'LOW': return styles.badgeLow;
       default: return styles.badge;
     }
-  };
-
-  const renderVEXStatus = (vexData) => {
-    if (!vexData || vexData.length === 0) return null;
-    
-    const affectedVex = vexData.filter(v => v.vulnerability.status === 'affected');
-    const fixedVex = vexData.filter(v => v.vulnerability.status === 'fixed');
-    
-    return (
-      <div style={{
-        background: settings.darkMode ? '#1e40af' : '#eff6ff',
-        border: settings.darkMode ? '1px solid #3b82f6' : '1px solid #93c5fd',
-        borderRadius: '6px',
-        padding: '12px',
-        marginBottom: '12px'
-      }}>
-        <div style={{ fontWeight: '600', color: settings.darkMode ? '#93c5fd' : '#1d4ed8', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <FileText size={16} />
-          VEX Status ({vexData.length} document{vexData.length !== 1 ? 's' : ''})
-        </div>
-        {vexData.slice(0, 3).map((vex, i) => (
-          <div key={i} style={{ fontSize: '0.875rem', marginBottom: '4px' }}>
-            <span style={{ 
-              background: vex.vulnerability.status === 'affected' ? '#dc2626' : 
-                         vex.vulnerability.status === 'fixed' ? '#10b981' : '#f59e0b',
-              color: 'white',
-              padding: '2px 6px',
-              borderRadius: '4px',
-              fontSize: '0.75rem',
-              marginRight: '8px'
-            }}>
-              {vex.vulnerability.status.toUpperCase()}
-            </span>
-            <strong>{vex.product.name}</strong> - {vex.vulnerability.action_statement}
-          </div>
-        ))}
-      </div>
-    );
   };
 
   const renderGitHubAdvisories = (githubData) => {
@@ -1979,89 +2028,11 @@ const EnhancedVulnerabilityList = ({ vulnerabilities }) => {
     );
   };
 
-  const renderVendorData = (vendorData) => {
-    if (!vendorData || Object.values(vendorData).every(v => v === null)) return null;
-    
-    return (
-      <div style={{
-        background: settings.darkMode ? '#7c2d12' : '#fff7ed',
-        border: settings.darkMode ? '1px solid #ea580c' : '1px solid #fed7aa',
-        borderRadius: '6px',
-        padding: '12px',
-        marginBottom: '12px'
-      }}>
-        <div style={{ fontWeight: '600', color: settings.darkMode ? '#fed7aa' : '#ea580c', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Server size={16} />
-          Vendor Intelligence
-        </div>
-        <div style={{ display: 'grid', gap: '8px' }}>
-          {vendorData.microsoft && (
-            <div style={{ fontSize: '0.875rem' }}>
-              <strong style={{ color: settings.darkMode ? '#fed7aa' : '#ea580c' }}>Microsoft:</strong> {vendorData.microsoft.severity} - {vendorData.microsoft.impact}
-            </div>
-          )}
-          {vendorData.redhat && (
-            <div style={{ fontSize: '0.875rem' }}>
-              <strong style={{ color: settings.darkMode ? '#fed7aa' : '#ea580c' }}>Red Hat:</strong> {vendorData.redhat.threat_severity} threat severity
-            </div>
-          )}
-          {vendorData.ubuntu && (
-            <div style={{ fontSize: '0.875rem' }}>
-              <strong style={{ color: settings.darkMode ? '#fed7aa' : '#ea580c' }}>Ubuntu:</strong> {vendorData.ubuntu.priority} priority
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const renderThreatIntelligence = (threatIntel) => {
-    if (!threatIntel) return null;
-    
-    const hasThreats = threatIntel.misp_events?.length > 0 || 
-                     threatIntel.stix_indicators?.length > 0 || 
-                     Object.values(threatIntel.exploit_availability || {}).some(v => v);
-    
-    if (!hasThreats) return null;
-    
-    return (
-      <div style={{
-        background: settings.darkMode ? '#7f1d1d' : '#fef2f2',
-        border: settings.darkMode ? '1px solid #dc2626' : '1px solid #fecaca',
-        borderRadius: '6px',
-        padding: '12px',
-        marginBottom: '12px'
-      }}>
-        <div style={{ fontWeight: '600', color: settings.darkMode ? '#fca5a5' : '#dc2626', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <Zap size={16} />
-          Active Threat Intelligence
-        </div>
-        <div style={{ display: 'grid', gap: '6px' }}>
-          {threatIntel.misp_events?.length > 0 && (
-            <div style={{ fontSize: '0.875rem', color: settings.darkMode ? '#fca5a5' : '#dc2626' }}>
-              🎯 <strong>{threatIntel.misp_events.length} MISP event(s)</strong> - Active threat campaigns detected
-            </div>
-          )}
-          {threatIntel.exploit_availability?.metasploit && (
-            <div style={{ fontSize: '0.875rem', color: settings.darkMode ? '#fca5a5' : '#dc2626' }}>
-              💥 <strong>Metasploit module available</strong> - Exploitation framework ready
-            </div>
-          )}
-          {threatIntel.exploit_availability?.github_pocs > 0 && (
-            <div style={{ fontSize: '0.875rem', color: settings.darkMode ? '#fca5a5' : '#dc2626' }}>
-              🔬 <strong>{threatIntel.exploit_availability.github_pocs} PoC(s) on GitHub</strong> - Public exploits available
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div style={{ marginTop: '32px' }}>
       <h2 style={{ margin: '0 0 24px 0', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
         <Shield size={24} />
-        Enhanced Vulnerability Intelligence ({vulnerabilities.length})
+        Vulnerability Intelligence ({vulnerabilities.length})
         <span style={{
           ...styles.badge,
           background: '#10b981',
@@ -2070,26 +2041,6 @@ const EnhancedVulnerabilityList = ({ vulnerabilities }) => {
         }}>
           MULTI-SOURCE
         </span>
-        {settings.enableVEX && (
-          <span style={{
-            ...styles.badge,
-            background: '#8b5cf6',
-            color: 'white',
-            borderColor: '#8b5cf6'
-          }}>
-            VEX ENABLED
-          </span>
-        )}
-        {settings.enableThreatIntel && (
-          <span style={{
-            ...styles.badge,
-            background: '#dc2626',
-            color: 'white',
-            borderColor: '#dc2626'
-          }}>
-            THREAT INTEL
-          </span>
-        )}
       </h2>
       
       <div style={{ display: 'grid', gap: '16px' }}>
@@ -2145,7 +2096,7 @@ const EnhancedVulnerabilityList = ({ vulnerabilities }) => {
               
               <div style={{ textAlign: 'right', fontSize: '0.875rem', minWidth: '120px', marginLeft: '16px' }}>
                 <div style={{ marginBottom: '4px' }}>
-                  <strong>Enhanced Risk:</strong> {vuln.riskScore?.toFixed(1)}/10
+                  <strong>Risk Score:</strong> {vuln.riskScore?.toFixed(1)}/10
                 </div>
                 {vuln.cve.cvssV3 && (
                   <div style={{ marginBottom: '4px' }}>
@@ -2185,12 +2136,9 @@ const EnhancedVulnerabilityList = ({ vulnerabilities }) => {
               </div>
             )}
             
-            {renderVEXStatus(vuln.vex)}
             {renderGitHubAdvisories(vuln.github)}
-            {renderVendorData(vuln.vendor)}
-            {renderThreatIntelligence(vuln.threatIntel)}
             
-            <div style={{ display: 'flex', gap: '8px', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                 <a href={`https://nvd.nist.gov/vuln/detail/${vuln.cve.id}`} target="_blank" rel="noopener noreferrer" style={styles.linkButton}>
                   <ExternalLink size={12} />
@@ -2214,12 +2162,63 @@ const EnhancedVulnerabilityList = ({ vulnerabilities }) => {
                     GitHub
                   </a>
                 )}
-                {vuln.threatIntel?.misp_events?.length > 0 && (
-                  <span style={{...styles.linkButton, background: '#dc2626', cursor: 'default'}}>
-                    <Zap size={12} />
-                    Threat Intel
+              </div>
+            </div>
+
+            {/* Data Sources Summary */}
+            <div style={{
+              padding: '12px',
+              background: settings.darkMode ? '#0f172a' : '#f8fafc',
+              borderRadius: '6px',
+              border: settings.darkMode ? '1px solid #334155' : '1px solid #e2e8f0',
+              marginBottom: '12px'
+            }}>
+              <div style={{ fontSize: '0.75rem', color: settings.darkMode ? '#94a3b8' : '#6b7280', marginBottom: '4px' }}>
+                <strong>Intelligence Sources ({vuln.enhancedSources?.length || 1}):</strong>
+              </div>
+              <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                {vuln.enhancedSources?.map((source, idx) => (
+                  <span key={idx} style={{
+                    ...styles.badge,
+                    background: source === 'NVD' ? '#3b82f6' : 
+                               source === 'EPSS' ? '#10b981' :
+                               source === 'KEV' ? '#ef4444' :
+                               source === 'GitHub' ? '#6b7280' : '#8b5cf6',
+                    color: 'white',
+                    fontSize: '0.65rem',
+                    padding: '2px 6px'
+                  }}>
+                    {source}
+                  </span>
+                )) || (
+                  <span style={{
+                    ...styles.badge,
+                    background: '#3b82f6',
+                    color: 'white',
+                    fontSize: '0.65rem',
+                    padding: '2px 6px'
+                  }}>
+                    NVD
                   </span>
                 )}
+              </div>
+            </div>
+            
+            {/* AI Analysis Button */}
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'flex-start', 
+              alignItems: 'center',
+              gap: '12px',
+              paddingTop: '12px',
+              borderTop: settings.darkMode ? '1px solid #334155' : '1px solid #e5e7eb'
+            }}>
+              <AIAnalysisButton vulnerability={vuln} />
+              <div style={{ fontSize: '0.75rem', color: settings.darkMode ? '#94a3b8' : '#6b7280' }}>
+                {settings.geminiApiKey ? 
+                  'AI analysis available with enhanced intelligence sources' : 
+                  'Configure Gemini API key in settings for AI analysis'
+                }
               </div>
             </div>
           </div>
@@ -2229,26 +2228,16 @@ const EnhancedVulnerabilityList = ({ vulnerabilities }) => {
   );
 };
 
-const EnhancedVulnerabilityApp = () => {
+const VulnerabilityApp = () => {
   const [vulnerabilities, setVulnerabilities] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingSteps, setLoadingSteps] = useState([]);
-  const [filters, setFilters] = useState({});
   const [notifications, setNotifications] = useState([]);
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState({
     aiAnalysisEnabled: true,
-    autoRefresh: false,
-    notificationsEnabled: true,
     darkMode: true,
-    defaultView: 'detailed',
-    resultsPerPage: '10',
-    geminiModel: 'gemini-2.0-flash',
-    enableVEX: true,
-    enableGitHubAdvisories: true,
-    enableVendorAPIs: true,
-    enableThreatIntel: true,
-    enhancedScoring: true
+    geminiModel: 'gemini-2.0-flash'
   });
 
   const styles = getStyles(settings.darkMode);
@@ -2275,8 +2264,6 @@ const EnhancedVulnerabilityApp = () => {
         setLoading,
         loadingSteps,
         setLoadingSteps,
-        filters,
-        setFilters,
         notifications,
         addNotification,
         settings,
@@ -2297,18 +2284,14 @@ const EnhancedVulnerabilityApp = () => {
             <div style={styles.headerTitle}>
               <Brain size={40} color="white" />
               <div>
-                <h1 style={styles.title}>Enhanced Vulnerability Intelligence Platform</h1>
-                <p style={styles.subtitle}>Multi-Source Intelligence • VEX • GitHub • Vendor APIs • Threat Intel • AI Analysis</p>
+                <h1 style={styles.title}>Vulnerability Intelligence Platform</h1>
+                <p style={styles.subtitle}>Real-time vulnerability data with AI-powered analysis</p>
               </div>
             </div>
             <div style={styles.headerActions}>
               <div style={styles.statusIndicator}>
                 <Activity size={14} />
                 <span>LIVE</span>
-              </div>
-              <div style={styles.statusIndicator}>
-                <Database size={14} />
-                <span>ENHANCED</span>
               </div>
               <button 
                 style={{ 
@@ -2337,16 +2320,16 @@ const EnhancedVulnerabilityApp = () => {
                 onClick={() => setShowSettings(true)}
               >
                 <Settings size={14} />
-                Enhanced Settings
+                Settings
               </button>
             </div>
           </div>
         </header>
 
         <main style={styles.mainContent}>
-          <EnhancedSearchComponent />
+          <SearchComponent />
           
-          {vulnerabilities.length > 0 && <EnhancedDashboard vulnerabilities={vulnerabilities} />}
+          {vulnerabilities.length > 0 && <Dashboard vulnerabilities={vulnerabilities} />}
 
           {loading && (
             <div style={styles.loadingContainer}>
@@ -2359,9 +2342,9 @@ const EnhancedVulnerabilityApp = () => {
                 maxWidth: '700px'
               }}>
                 <Loader2 size={48} style={{ marginBottom: '16px', animation: 'spin 1s linear infinite' }} />
-                <h3 style={{ margin: '0 0 8px 0' }}>Enhanced Multi-Source Intelligence Processing</h3>
+                <h3 style={{ margin: '0 0 8px 0' }}>Processing Vulnerability Data</h3>
                 <p style={{ margin: '0 0 24px 0', fontSize: '1.1rem' }}>
-                  Aggregating data from multiple intelligence sources including VEX, GitHub, vendor APIs, and threat feeds...
+                  Fetching real-time data from multiple intelligence sources...
                 </p>
                 
                 {loadingSteps.length > 0 && (
@@ -2391,10 +2374,6 @@ const EnhancedVulnerabilityApp = () => {
                           <Brain size={16} color="#8b5cf6" />
                         ) : step.startsWith('🐙') ? (
                           <GitBranch size={16} color="#6b7280" />
-                        ) : step.startsWith('🏢') ? (
-                          <Server size={16} color="#ea580c" />
-                        ) : step.startsWith('🔍') ? (
-                          <Zap size={16} color="#dc2626" />
                         ) : (
                           <div style={{ 
                             width: '12px', 
@@ -2425,42 +2404,21 @@ const EnhancedVulnerabilityApp = () => {
                 margin: '0 auto'
               }}>
                 <Shield size={64} style={{ marginBottom: '24px', color: '#3b82f6' }} />
-                <h2 style={{ margin: '0 0 12px 0', fontSize: '1.75rem', color: settings.darkMode ? '#e2e8f0' : '#1e293b' }}>Enhanced Multi-Source Vulnerability Intelligence</h2>
+                <h2 style={{ margin: '0 0 12px 0', fontSize: '1.75rem', color: settings.darkMode ? '#e2e8f0' : '#1e293b' }}>Vulnerability Intelligence Platform</h2>
                 <p style={{ margin: '0 0 24px 0', fontSize: '1.1rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>
-                  Advanced platform with comprehensive data source integration for complete vulnerability visibility
+                  Comprehensive vulnerability analysis with real-time data from authoritative sources
                 </p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '16px', marginTop: '32px' }}>
                   <div style={{ textAlign: 'center', padding: '16px' }}>
                     <Database size={32} style={{ color: '#3b82f6', marginBottom: '8px' }} />
-                    <div style={{ fontWeight: '600', marginBottom: '4px', color: settings.darkMode ? '#e2e8f0' : '#1f2937' }}>Core Sources</div>
+                    <div style={{ fontWeight: '600', marginBottom: '4px', color: settings.darkMode ? '#e2e8f0' : '#1f2937' }}>Real-time Data</div>
                     <div style={{ fontSize: '0.875rem', color: settings.darkMode ? '#94a3b8' : '#6b7280' }}>NVD, EPSS, KEV</div>
                   </div>
                   <div style={{ textAlign: 'center', padding: '16px' }}>
-                    <FileText size={32} style={{ color: '#8b5cf6', marginBottom: '8px' }} />
-                    <div style={{ fontWeight: '600', marginBottom: '4px', color: settings.darkMode ? '#e2e8f0' : '#1f2937' }}>VEX Integration</div>
-                    <div style={{ fontSize: '0.875rem', color: settings.darkMode ? '#94a3b8' : '#6b7280' }}>
-                      {settings.enableVEX ? 'Enabled' : 'Configure in Settings'}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'center', padding: '16px' }}>
                     <GitBranch size={32} style={{ color: '#6b7280', marginBottom: '8px' }} />
-                    <div style={{ fontWeight: '600', marginBottom: '4px', color: settings.darkMode ? '#e2e8f0' : '#1f2937' }}>GitHub Advisories</div>
+                    <div style={{ fontWeight: '600', marginBottom: '4px', color: settings.darkMode ? '#e2e8f0' : '#1f2937' }}>GitHub Integration</div>
                     <div style={{ fontSize: '0.875rem', color: settings.darkMode ? '#94a3b8' : '#6b7280' }}>
-                      {settings.enableGitHubAdvisories && settings.githubToken ? 'Ready' : 'Configure Token'}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'center', padding: '16px' }}>
-                    <Server size={32} style={{ color: '#ea580c', marginBottom: '8px' }} />
-                    <div style={{ fontWeight: '600', marginBottom: '4px', color: settings.darkMode ? '#e2e8f0' : '#1f2937' }}>Vendor APIs</div>
-                    <div style={{ fontSize: '0.875rem', color: settings.darkMode ? '#94a3b8' : '#6b7280' }}>
-                      {settings.enableVendorAPIs ? 'MS, RedHat, Ubuntu' : 'Configure in Settings'}
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'center', padding: '16px' }}>
-                    <Zap size={32} style={{ color: '#dc2626', marginBottom: '8px' }} />
-                    <div style={{ fontWeight: '600', marginBottom: '4px', color: settings.darkMode ? '#e2e8f0' : '#1f2937' }}>Threat Intelligence</div>
-                    <div style={{ fontSize: '0.875rem', color: settings.darkMode ? '#94a3b8' : '#6b7280' }}>
-                      {settings.enableThreatIntel ? 'MISP, STIX/TAXII' : 'Configure in Settings'}
+                      {settings.githubToken ? 'Enabled' : 'Configure Token'}
                     </div>
                   </div>
                   <div style={{ textAlign: 'center', padding: '16px' }}>
@@ -2483,18 +2441,18 @@ const EnhancedVulnerabilityApp = () => {
                   border: settings.darkMode ? '1px solid #4338ca' : '1px solid #c084fc'
                 }}>
                   <p style={{ margin: 0, fontSize: '0.875rem', color: settings.darkMode ? '#a5b4fc' : '#7c3aed' }}>
-                    💡 <strong>Enhanced Intelligence:</strong> This platform aggregates vulnerability data from multiple authoritative sources to provide comprehensive threat visibility and risk assessment. Configure additional data sources in Enhanced Settings for maximum coverage.
+                    💡 <strong>Real Data Only:</strong> This platform uses only live API endpoints and official sources. No mock or simulated data is used, ensuring accurate and up-to-date vulnerability intelligence.
                   </p>
                 </div>
               </div>
             </div>
           )}
 
-          {vulnerabilities.length > 0 && <EnhancedVulnerabilityList vulnerabilities={vulnerabilities} />}
+          {vulnerabilities.length > 0 && <VulnerabilityList vulnerabilities={vulnerabilities} />}
         </main>
       </div>
     </AppContext.Provider>
   );
 };
 
-export default EnhancedVulnerabilityApp;
+export default VulnerabilityApp;
