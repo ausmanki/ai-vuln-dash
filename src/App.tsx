@@ -1999,29 +1999,180 @@ const VulnerabilityList = ({ vulnerabilities }) => {
     
     return (
       <div style={{
-        background: settings.darkMode ? '#374151' : '#f9fafb',
-        border: settings.darkMode ? '1px solid #6b7280' : '1px solid #d1d5db',
-        borderRadius: '6px',
-        padding: '12px',
-        marginBottom: '12px'
+        background: settings.darkMode ? '#1f2937' : '#f9fafb',
+        border: settings.darkMode ? '1px solid #374151' : '1px solid #d1d5db',
+        borderRadius: '8px',
+        padding: '16px',
+        marginBottom: '16px'
       }}>
-        <div style={{ fontWeight: '600', color: settings.darkMode ? '#f3f4f6' : '#1f2937', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <GitBranch size={16} />
+        <div style={{ 
+          fontWeight: '600', 
+          color: settings.darkMode ? '#f3f4f6' : '#1f2937', 
+          marginBottom: '12px', 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '8px',
+          fontSize: '0.95rem'
+        }}>
+          <GitBranch size={18} />
           GitHub Security Advisories ({githubData.length})
+          <span style={{
+            ...styles.badge,
+            background: '#6b7280',
+            color: 'white',
+            fontSize: '0.7rem',
+            padding: '2px 6px'
+          }}>
+            OPEN SOURCE
+          </span>
         </div>
-        {githubData.slice(0, 2).map((advisory, i) => (
-          <div key={i} style={{ fontSize: '0.875rem', marginBottom: '8px', padding: '8px', background: settings.darkMode ? '#1f2937' : '#ffffff', borderRadius: '4px' }}>
-            <div style={{ fontWeight: '500', marginBottom: '4px' }}>
-              {advisory.ghsaId} - {advisory.severity?.toUpperCase()}
-            </div>
-            <div style={{ color: settings.darkMode ? '#d1d5db' : '#4b5563' }}>
-              {advisory.summary}
-            </div>
-            {advisory.vulnerabilities?.nodes?.map((vuln, j) => (
-              <div key={j} style={{ fontSize: '0.75rem', marginTop: '4px', color: settings.darkMode ? '#9ca3af' : '#6b7280' }}>
-                📦 {vuln.package.ecosystem}/{vuln.package.name} - {vuln.vulnerableVersionRange}
+        
+        {githubData.map((advisory, i) => (
+          <div key={i} style={{ 
+            fontSize: '0.875rem', 
+            marginBottom: i === githubData.length - 1 ? '0' : '16px', 
+            padding: '12px', 
+            background: settings.darkMode ? '#111827' : '#ffffff', 
+            borderRadius: '6px',
+            border: settings.darkMode ? '1px solid #374151' : '1px solid #e5e7eb'
+          }}>
+            <div style={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'start',
+              marginBottom: '8px' 
+            }}>
+              <div style={{ fontWeight: '600', marginBottom: '4px', color: settings.darkMode ? '#f9fafb' : '#1f2937' }}>
+                <a 
+                  href={`https://github.com/advisories/${advisory.ghsaId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ 
+                    color: settings.darkMode ? '#60a5fa' : '#2563eb',
+                    textDecoration: 'none'
+                  }}
+                >
+                  {advisory.ghsaId}
+                </a>
               </div>
-            ))}
+              <span style={{
+                ...styles.badge,
+                background: advisory.severity === 'CRITICAL' ? '#dc2626' :
+                           advisory.severity === 'HIGH' ? '#ea580c' :
+                           advisory.severity === 'MODERATE' ? '#f59e0b' : '#10b981',
+                color: 'white',
+                fontSize: '0.7rem',
+                padding: '2px 8px'
+              }}>
+                {advisory.severity?.toUpperCase() || 'UNKNOWN'}
+              </span>
+            </div>
+            
+            <div style={{ 
+              color: settings.darkMode ? '#d1d5db' : '#4b5563', 
+              marginBottom: '12px',
+              lineHeight: '1.5'
+            }}>
+              {advisory.summary || advisory.description?.substring(0, 200) + '...' || 'No description available'}
+            </div>
+
+            {/* Affected Packages */}
+            {advisory.vulnerabilities?.nodes && advisory.vulnerabilities.nodes.length > 0 && (
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ 
+                  fontSize: '0.8rem', 
+                  fontWeight: '600', 
+                  marginBottom: '6px',
+                  color: settings.darkMode ? '#f3f4f6' : '#374151'
+                }}>
+                  📦 Affected Packages:
+                </div>
+                {advisory.vulnerabilities.nodes.map((vuln, j) => (
+                  <div key={j} style={{ 
+                    fontSize: '0.75rem', 
+                    marginBottom: '4px',
+                    padding: '6px 8px',
+                    background: settings.darkMode ? '#1f2937' : '#f3f4f6',
+                    borderRadius: '4px',
+                    color: settings.darkMode ? '#9ca3af' : '#6b7280'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>
+                        <strong>{vuln.package.ecosystem}</strong>/{vuln.package.name}
+                      </span>
+                      {vuln.firstPatchedVersion?.identifier && (
+                        <span style={{
+                          background: '#10b981',
+                          color: 'white',
+                          padding: '2px 6px',
+                          borderRadius: '3px',
+                          fontSize: '0.65rem',
+                          fontWeight: '600'
+                        }}>
+                          PATCHED: {vuln.firstPatchedVersion.identifier}
+                        </span>
+                      )}
+                    </div>
+                    <div style={{ marginTop: '2px' }}>
+                      <strong>Vulnerable:</strong> {vuln.vulnerableVersionRange || 'Not specified'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* References and Links */}
+            {advisory.references && advisory.references.length > 0 && (
+              <div style={{ marginBottom: '8px' }}>
+                <div style={{ 
+                  fontSize: '0.8rem', 
+                  fontWeight: '600', 
+                  marginBottom: '6px',
+                  color: settings.darkMode ? '#f3f4f6' : '#374151'
+                }}>
+                  🔗 References:
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  {advisory.references.slice(0, 3).map((ref, k) => (
+                    <a
+                      key={k}
+                      href={ref.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        fontSize: '0.7rem',
+                        padding: '4px 8px',
+                        background: '#3b82f6',
+                        color: 'white',
+                        textDecoration: 'none',
+                        borderRadius: '4px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px'
+                      }}
+                    >
+                      <ExternalLink size={10} />
+                      Reference {k + 1}
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Publication Date */}
+            <div style={{ 
+              fontSize: '0.7rem', 
+              color: settings.darkMode ? '#9ca3af' : '#6b7280',
+              borderTop: settings.darkMode ? '1px solid #374151' : '1px solid #e5e7eb',
+              paddingTop: '8px'
+            }}>
+              📅 Published: {new Date(advisory.publishedAt).toLocaleDateString()}
+              {advisory.updatedAt !== advisory.publishedAt && (
+                <span style={{ marginLeft: '12px' }}>
+                  🔄 Updated: {new Date(advisory.updatedAt).toLocaleDateString()}
+                </span>
+              )}
+            </div>
           </div>
         ))}
       </div>
@@ -2137,6 +2288,159 @@ const VulnerabilityList = ({ vulnerabilities }) => {
             )}
             
             {renderGitHubAdvisories(vuln.github)}
+
+            {/* CVE References and Patches */}
+            {vuln.cve.references && vuln.cve.references.length > 0 && (
+              <div style={{
+                background: settings.darkMode ? '#1e293b' : '#f8fafc',
+                border: settings.darkMode ? '1px solid #334155' : '1px solid #e2e8f0',
+                borderRadius: '8px',
+                padding: '16px',
+                marginBottom: '16px'
+              }}>
+                <div style={{ 
+                  fontWeight: '600', 
+                  color: settings.darkMode ? '#f1f5f9' : '#1f2937', 
+                  marginBottom: '12px', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px',
+                  fontSize: '0.95rem'
+                }}>
+                  🔗 References & Patches ({vuln.cve.references.length})
+                  <span style={{
+                    ...styles.badge,
+                    background: '#3b82f6',
+                    color: 'white',
+                    fontSize: '0.7rem',
+                    padding: '2px 6px'
+                  }}>
+                    OFFICIAL
+                  </span>
+                </div>
+                
+                <div style={{ display: 'grid', gap: '8px' }}>
+                  {vuln.cve.references.slice(0, 8).map((ref, i) => {
+                    const isPatch = ref.tags?.includes('Patch') || 
+                                   ref.tags?.includes('VendorFix') ||
+                                   ref.url.toLowerCase().includes('patch') ||
+                                   ref.url.toLowerCase().includes('update') ||
+                                   ref.url.toLowerCase().includes('fix');
+                    
+                    const isAdvisory = ref.tags?.includes('VendorAdvisory') ||
+                                      ref.tags?.includes('ThirdPartyAdvisory') ||
+                                      ref.url.toLowerCase().includes('advisory') ||
+                                      ref.url.toLowerCase().includes('security');
+                    
+                    const isExploit = ref.tags?.includes('Exploit') ||
+                                     ref.url.toLowerCase().includes('exploit') ||
+                                     ref.url.toLowerCase().includes('poc');
+
+                    return (
+                      <div key={i} style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '8px 12px',
+                        background: settings.darkMode ? '#0f172a' : '#ffffff',
+                        borderRadius: '6px',
+                        border: settings.darkMode ? '1px solid #334155' : '1px solid #e5e7eb'
+                      }}>
+                        <div style={{ flex: 1, marginRight: '12px' }}>
+                          <a
+                            href={ref.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              color: settings.darkMode ? '#60a5fa' : '#2563eb',
+                              textDecoration: 'none',
+                              fontSize: '0.875rem',
+                              fontWeight: '500',
+                              display: 'block',
+                              marginBottom: '4px'
+                            }}
+                          >
+                            {ref.source || new URL(ref.url).hostname}
+                          </a>
+                          <div style={{
+                            fontSize: '0.75rem',
+                            color: settings.darkMode ? '#94a3b8' : '#6b7280'
+                          }}>
+                            {ref.url.length > 60 ? ref.url.substring(0, 60) + '...' : ref.url}
+                          </div>
+                        </div>
+                        
+                        <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                          {isPatch && (
+                            <span style={{
+                              background: '#10b981',
+                              color: 'white',
+                              padding: '2px 6px',
+                              borderRadius: '3px',
+                              fontSize: '0.65rem',
+                              fontWeight: '600'
+                            }}>
+                              🔧 PATCH
+                            </span>
+                          )}
+                          {isAdvisory && (
+                            <span style={{
+                              background: '#f59e0b',
+                              color: 'white',
+                              padding: '2px 6px',
+                              borderRadius: '3px',
+                              fontSize: '0.65rem',
+                              fontWeight: '600'
+                            }}>
+                              📋 ADVISORY
+                            </span>
+                          )}
+                          {isExploit && (
+                            <span style={{
+                              background: '#dc2626',
+                              color: 'white',
+                              padding: '2px 6px',
+                              borderRadius: '3px',
+                              fontSize: '0.65rem',
+                              fontWeight: '600'
+                            }}>
+                              💥 EXPLOIT
+                            </span>
+                          )}
+                          <a
+                            href={ref.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              background: '#3b82f6',
+                              color: 'white',
+                              padding: '4px 6px',
+                              borderRadius: '4px',
+                              textDecoration: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center'
+                            }}
+                          >
+                            <ExternalLink size={12} />
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  
+                  {vuln.cve.references.length > 8 && (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '8px',
+                      fontSize: '0.75rem',
+                      color: settings.darkMode ? '#94a3b8' : '#6b7280'
+                    }}>
+                      +{vuln.cve.references.length - 8} more references available in full CVE details
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
             
             <div style={{ display: 'flex', gap: '8px', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
               <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
