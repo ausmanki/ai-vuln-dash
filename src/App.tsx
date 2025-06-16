@@ -488,7 +488,20 @@ CRITICAL REQUIREMENTS:
 - Structure the response with clear sections but write in full paragraphs
 
 Write a comprehensive security assessment following this structure:
+Write a comprehensive security assessment following this structure:
 
+# EXECUTIVE CONCLUSION
+
+Based on comprehensive analysis of CVE ${cveId}, CVSS ${cvssScore}, EPSS ${epssScore}, KEV status "${kevStatus}", and vulnerability description analysis, provide a critical 4-line executive conclusion:
+
+Line 1: State the fundamental nature and primary threat classification of ${cveId} based on the technical description and attack vectors identified.
+Line 2: Severity Assessment - Analyze if the current CVSS score of ${cvssScore} accurately reflects real-world risk or should be adjusted higher/lower considering the vulnerability description, affected systems, and exploitation complexity.
+Line 3: Exploitation Probability - Evaluate if the EPSS score of ${epssScore} correctly represents exploitation likelihood, or if threat intelligence, proof-of-concepts, and ${kevStatus === 'Yes' ? 'active KEV exploitation' : 'current threat landscape'} suggest higher/lower probability.
+Line 4: Critical Action - Provide definitive guidance on whether to patch immediately, adjust timelines, or modify organizational risk rating based on the integrated analysis of all factors.
+
+# EXECUTIVE SUMMARY
+
+Provide a thorough strategic overview (minimum 500 words) covering:
 # EXECUTIVE SUMMARY
 
 Provide a thorough strategic overview (minimum 500 words) covering:
