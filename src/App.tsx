@@ -1,6 +1,6 @@
 import React, { useState, createContext, useContext, useEffect } from 'react';
-import { Search, Shield, AlertTriangle, Loader2, ExternalLink, Brain, Settings, Target, Clock, Database, Activity, CheckCircle, XCircle, X, Upload, Filter, PieChart, Sun, Moon, Eye, EyeOff, Save, FileText, Wifi, WifiOff, GitBranch, Code, Server, Cloud, Zap, TrendingUp, Users, Globe, Award, Bug, Layers, Info, Calendar, Package } from 'lucide-react';
-import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { Search, Shield, AlertTriangle, Loader2, ExternalLink, Brain, Settings, Target, Clock, Database, Activity, CheckCircle, XCircle, X, Upload, Filter, PieChart, Sun, Moon, Eye, EyeOff, Save, FileText, Wifi, WifiOff, GitBranch, Code, Server, Cloud, Zap, TrendingUp, Users, Globe, Award, Bug, Layers, Info, Calendar, Package, AlertCircle, MapPin, TrendingDown, BarChart3 } from 'lucide-react';
+import { PieChart as RechartsPieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, CartesianGrid, LineChart, Line, Area, AreaChart } from 'recharts';
 
 // Enhanced RAG Vector Database Implementation
 class EnhancedVectorDatabase {
@@ -18,7 +18,7 @@ class EnhancedVectorDatabase {
     });
     
     const vocabulary = Object.keys(wordFreq);
-    const vector = vocabulary.slice(0, 100).map(word => wordFreq[word] || 0);
+    const vector = vocabulary.slice(0, 150).map(word => wordFreq[word] || 0);
     
     const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
     return magnitude > 0 ? vector.map(val => val / magnitude) : vector;
@@ -55,7 +55,7 @@ class EnhancedVectorDatabase {
     return doc.id;
   }
 
-  async search(query, k = 5) {
+  async search(query, k = 8) {
     if (this.documents.length === 0) {
       console.warn('⚠️ RAG database is empty');
       return [];
@@ -111,6 +111,12 @@ class EnhancedVectorDatabase {
         content: "Modern vulnerability management tracks vulnerabilities across the entire software supply chain, including container images, third-party libraries, and dependencies. Supply chain vulnerabilities are assessed based on usage prevalence, update availability, and potential for widespread impact across customer environments.",
         category: "supply-chain",
         tags: ["supply-chain", "containers", "dependencies", "libraries"]
+      },
+      {
+        title: "Zero-Day Vulnerability Response",
+        content: "Zero-day vulnerabilities require immediate assessment of exposure, temporary mitigations, and rapid deployment of patches when available. Response includes asset inventory review, network segmentation analysis, and emergency patching procedures. Risk assessment considers attack surface exposure and criticality of affected systems.",
+        category: "zero-day",
+        tags: ["zero-day", "emergency-response", "mitigation", "patching"]
       }
     ];
 
@@ -129,288 +135,305 @@ class EnhancedVectorDatabase {
 const enhancedRAGDatabase = new EnhancedVectorDatabase();
 
 const getStyles = (darkMode) => ({
-  appContainer: { minHeight: '100vh', backgroundColor: darkMode ? '#1a1b2e' : '#f8fafc' },
+  appContainer: { minHeight: '100vh', backgroundColor: darkMode ? '#0f172a' : '#f8fafc' },
   header: { 
     background: darkMode 
-      ? '#16213e' 
-      : '#ffffff', 
+      ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' 
+      : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)', 
     color: darkMode ? 'white' : '#1f2937', 
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
-    borderBottom: darkMode ? '1px solid #2d3748' : '1px solid #e5e7eb'
+    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
+    borderBottom: darkMode ? '1px solid #334155' : '1px solid #e2e8f0'
   },
   headerContent: { 
-    maxWidth: '1200px', 
+    maxWidth: '1400px', 
     margin: '0 auto', 
-    padding: '16px 24px', 
+    padding: '20px 32px', 
     display: 'flex', 
     alignItems: 'center', 
     justifyContent: 'space-between'
   },
-  headerTitle: { display: 'flex', alignItems: 'center', gap: '12px' },
-  title: { fontSize: '1.25rem', fontWeight: '600', margin: 0 },
-  subtitle: { fontSize: '0.875rem', opacity: 0.7, margin: 0, fontWeight: '400' },
-  headerActions: { display: 'flex', alignItems: 'center', gap: '12px' },
+  headerTitle: { display: 'flex', alignItems: 'center', gap: '16px' },
+  title: { fontSize: '1.5rem', fontWeight: '700', margin: 0, background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
+  subtitle: { fontSize: '0.875rem', opacity: 0.8, margin: 0, fontWeight: '500' },
+  headerActions: { display: 'flex', alignItems: 'center', gap: '16px' },
   statusIndicator: { 
     display: 'flex', 
     alignItems: 'center', 
-    gap: '6px', 
+    gap: '8px', 
     fontSize: '0.75rem', 
-    padding: '4px 8px', 
-    background: darkMode ? 'rgba(34, 197, 94, 0.1)' : 'rgba(34, 197, 94, 0.1)', 
-    borderRadius: '12px', 
+    padding: '6px 12px', 
+    background: darkMode ? 'rgba(34, 197, 94, 0.15)' : 'rgba(34, 197, 94, 0.1)', 
+    borderRadius: '16px', 
     border: '1px solid rgba(34, 197, 94, 0.3)',
-    color: '#22c55e'
+    color: '#22c55e',
+    fontWeight: '600'
   },
-  mainContent: { maxWidth: '1200px', margin: '0 auto', padding: '24px' },
+  mainContent: { maxWidth: '1400px', margin: '0 auto', padding: '32px' },
   searchSection: {
-    background: darkMode ? '#16213e' : '#ffffff',
-    padding: '40px 0 60px 0',
-    borderBottom: darkMode ? '1px solid #2d3748' : '1px solid #e5e7eb'
+    background: darkMode ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
+    padding: '60px 0 80px 0',
+    borderBottom: darkMode ? '1px solid #334155' : '1px solid #e2e8f0'
   },
   searchContainer: {
-    maxWidth: '800px',
+    maxWidth: '900px',
     margin: '0 auto',
     textAlign: 'center'
   },
   searchTitle: {
-    fontSize: '2rem',
-    fontWeight: '700',
-    color: darkMode ? '#ffffff' : '#1f2937',
-    marginBottom: '8px'
+    fontSize: '3rem',
+    fontWeight: '800',
+    background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    marginBottom: '16px'
   },
   searchSubtitle: {
-    fontSize: '1.1rem',
-    color: darkMode ? '#94a3b8' : '#6b7280',
-    marginBottom: '32px'
+    fontSize: '1.25rem',
+    color: darkMode ? '#94a3b8' : '#64748b',
+    marginBottom: '48px',
+    fontWeight: '500'
   },
   searchWrapper: { 
     position: 'relative', 
-    maxWidth: '600px', 
+    maxWidth: '700px', 
     margin: '0 auto',
-    marginBottom: '20px' 
+    marginBottom: '32px' 
   },
   searchInput: { 
     width: '100%', 
-    padding: '16px 20px 16px 48px', 
-    border: darkMode ? '1px solid #374151' : '1px solid #d1d5db', 
-    borderRadius: '12px', 
-    fontSize: '1rem', 
+    padding: '20px 24px 20px 56px', 
+    border: darkMode ? '2px solid #334155' : '2px solid #e2e8f0', 
+    borderRadius: '16px', 
+    fontSize: '1.1rem', 
     outline: 'none', 
     boxSizing: 'border-box', 
-    background: darkMode ? '#1f2937' : '#ffffff', 
-    color: darkMode ? '#f9fafb' : '#111827',
-    transition: 'all 0.2s ease',
-    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+    background: darkMode ? '#1e293b' : '#ffffff', 
+    color: darkMode ? '#f1f5f9' : '#0f172a',
+    transition: 'all 0.3s ease',
+    boxShadow: darkMode ? '0 4px 6px rgba(0, 0, 0, 0.1)' : '0 1px 3px rgba(0, 0, 0, 0.1)'
   },
-  searchIcon: { position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: darkMode ? '#9ca3af' : '#6b7280' },
+  searchIcon: { position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: darkMode ? '#64748b' : '#94a3b8' },
   searchButton: { 
     position: 'absolute', 
-    right: '4px', 
+    right: '6px', 
     top: '50%', 
     transform: 'translateY(-50%)',
-    padding: '10px 20px',
+    padding: '12px 24px',
     background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
     color: 'white',
     border: 'none',
-    borderRadius: '8px',
+    borderRadius: '12px',
     cursor: 'pointer',
-    fontWeight: '500',
+    fontWeight: '600',
     display: 'flex',
     alignItems: 'center',
-    gap: '6px'
+    gap: '8px',
+    fontSize: '1rem',
+    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)'
   },
   button: { 
     display: 'flex', 
     alignItems: 'center', 
-    gap: '6px', 
-    padding: '8px 16px', 
-    borderRadius: '8px', 
-    fontWeight: '500', 
+    gap: '8px', 
+    padding: '10px 20px', 
+    borderRadius: '12px', 
+    fontWeight: '600', 
     cursor: 'pointer', 
-    border: '1px solid', 
-    fontSize: '0.875rem',
-    transition: 'all 0.2s ease'
+    border: '2px solid', 
+    fontSize: '0.9rem',
+    transition: 'all 0.3s ease'
   },
   buttonPrimary: { 
     background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', 
     color: 'white', 
-    borderColor: 'transparent'
+    borderColor: 'transparent',
+    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)'
   },
   buttonSecondary: { 
-    background: darkMode ? '#374151' : '#f9fafb', 
-    color: darkMode ? '#f9fafb' : '#374151', 
-    borderColor: darkMode ? '#4b5563' : '#d1d5db'
+    background: darkMode ? '#334155' : '#f1f5f9', 
+    color: darkMode ? '#f1f5f9' : '#334155', 
+    borderColor: darkMode ? '#475569' : '#cbd5e1'
   },
   cveDetailContainer: {
     display: 'grid',
-    gridTemplateColumns: '1fr 300px',
-    gap: '32px',
-    marginTop: '32px'
+    gridTemplateColumns: '1fr 400px',
+    gap: '40px',
+    marginTop: '40px'
   },
   cveMainContent: {
-    background: darkMode ? '#1f2937' : '#ffffff',
-    borderRadius: '12px',
-    padding: '32px',
-    boxShadow: darkMode ? '0 4px 6px rgba(0, 0, 0, 0.3)' : '0 1px 3px rgba(0, 0, 0, 0.1)',
-    border: darkMode ? '1px solid #374151' : '1px solid #e5e7eb'
+    background: darkMode ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' : '#ffffff',
+    borderRadius: '20px',
+    padding: '40px',
+    boxShadow: darkMode ? '0 8px 32px rgba(0, 0, 0, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.08)',
+    border: darkMode ? '1px solid #334155' : '1px solid #e2e8f0'
   },
   cveSidebar: {
-    background: darkMode ? '#1f2937' : '#ffffff',
-    borderRadius: '12px',
-    padding: '24px',
-    boxShadow: darkMode ? '0 4px 6px rgba(0, 0, 0, 0.3)' : '0 1px 3px rgba(0, 0, 0, 0.1)',
-    border: darkMode ? '1px solid #374151' : '1px solid #e5e7eb',
+    background: darkMode ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' : '#ffffff',
+    borderRadius: '20px',
+    padding: '32px',
+    boxShadow: darkMode ? '0 8px 32px rgba(0, 0, 0, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.08)',
+    border: darkMode ? '1px solid #334155' : '1px solid #e2e8f0',
     height: 'fit-content'
   },
   cveHeader: {
-    marginBottom: '24px',
-    paddingBottom: '16px',
-    borderBottom: darkMode ? '1px solid #374151' : '1px solid #e5e7eb'
+    marginBottom: '32px',
+    paddingBottom: '20px',
+    borderBottom: darkMode ? '2px solid #334155' : '2px solid #e2e8f0'
   },
   cveTitle: {
-    fontSize: '1.75rem',
-    fontWeight: '700',
-    color: darkMode ? '#ffffff' : '#111827',
-    marginBottom: '8px'
+    fontSize: '2.25rem',
+    fontWeight: '800',
+    background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    marginBottom: '12px'
   },
   cveSubtitle: {
-    fontSize: '1.1rem',
-    color: darkMode ? '#94a3b8' : '#6b7280',
-    marginBottom: '16px'
+    fontSize: '1.2rem',
+    color: darkMode ? '#94a3b8' : '#64748b',
+    marginBottom: '20px',
+    fontWeight: '500'
   },
   tabContainer: {
     display: 'flex',
-    borderBottom: darkMode ? '1px solid #374151' : '1px solid #e5e7eb',
-    marginBottom: '24px'
+    borderBottom: darkMode ? '2px solid #334155' : '2px solid #e2e8f0',
+    marginBottom: '32px',
+    gap: '8px'
   },
   tab: {
-    padding: '12px 16px',
+    padding: '16px 24px',
     cursor: 'pointer',
-    borderBottom: '2px solid transparent',
-    fontSize: '0.9rem',
-    fontWeight: '500',
-    color: darkMode ? '#9ca3af' : '#6b7280',
-    transition: 'all 0.2s ease'
+    borderBottom: '3px solid transparent',
+    fontSize: '1rem',
+    fontWeight: '600',
+    color: darkMode ? '#64748b' : '#94a3b8',
+    transition: 'all 0.3s ease',
+    borderRadius: '12px 12px 0 0'
   },
   activeTab: {
     color: '#3b82f6',
-    borderBottomColor: '#3b82f6'
+    borderBottomColor: '#3b82f6',
+    background: darkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)'
   },
   sectionTitle: {
-    fontSize: '1.25rem',
-    fontWeight: '600',
-    color: darkMode ? '#ffffff' : '#111827',
-    marginBottom: '16px'
+    fontSize: '1.5rem',
+    fontWeight: '700',
+    color: darkMode ? '#f1f5f9' : '#0f172a',
+    marginBottom: '20px'
   },
   sectionContent: {
-    fontSize: '0.95rem',
-    lineHeight: '1.6',
-    color: darkMode ? '#d1d5db' : '#374151',
-    marginBottom: '24px'
+    fontSize: '1rem',
+    lineHeight: '1.7',
+    color: darkMode ? '#cbd5e1' : '#475569',
+    marginBottom: '32px'
   },
   scoreContainer: {
     textAlign: 'center',
-    marginBottom: '24px'
+    marginBottom: '32px'
   },
   scoreCircle: {
-    width: '120px',
-    height: '120px',
+    width: '140px',
+    height: '140px',
     borderRadius: '50%',
-    background: `conic-gradient(from 0deg, #3b82f6 0%, #3b82f6 var(--percentage), #e5e7eb var(--percentage), #e5e7eb 100%)`,
+    background: `conic-gradient(from 0deg, #3b82f6 0%, #3b82f6 var(--percentage), ${darkMode ? '#334155' : '#e2e8f0'} var(--percentage), ${darkMode ? '#334155' : '#e2e8f0'} 100%)`,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    margin: '0 auto 16px',
+    margin: '0 auto 20px',
     position: 'relative'
   },
   scoreInner: {
-    width: '90px',
-    height: '90px',
+    width: '110px',
+    height: '110px',
     borderRadius: '50%',
-    background: darkMode ? '#1f2937' : '#ffffff',
+    background: darkMode ? '#1e293b' : '#ffffff',
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center'
   },
   scoreValue: {
-    fontSize: '1.5rem',
-    fontWeight: '700',
-    color: darkMode ? '#ffffff' : '#111827'
+    fontSize: '1.75rem',
+    fontWeight: '800',
+    color: darkMode ? '#f1f5f9' : '#0f172a'
   },
   scoreLabel: {
-    fontSize: '0.75rem',
-    color: darkMode ? '#9ca3af' : '#6b7280'
+    fontSize: '0.8rem',
+    color: darkMode ? '#64748b' : '#94a3b8',
+    fontWeight: '600'
   },
   infoGrid: {
     display: 'grid',
-    gap: '16px'
+    gap: '20px'
   },
   infoItem: {
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: '12px 0',
-    borderBottom: darkMode ? '1px solid #374151' : '1px solid #f3f4f6'
+    padding: '16px 0',
+    borderBottom: darkMode ? '1px solid #334155' : '1px solid #f1f5f9'
   },
   infoLabel: {
-    fontSize: '0.875rem',
-    color: darkMode ? '#9ca3af' : '#6b7280',
-    fontWeight: '500'
+    fontSize: '0.9rem',
+    color: darkMode ? '#64748b' : '#94a3b8',
+    fontWeight: '600'
   },
   infoValue: {
-    fontSize: '0.875rem',
-    color: darkMode ? '#ffffff' : '#111827',
-    fontWeight: '500'
+    fontSize: '0.9rem',
+    color: darkMode ? '#f1f5f9' : '#0f172a',
+    fontWeight: '600'
   },
   badge: { 
-    padding: '4px 10px', 
-    borderRadius: '12px', 
+    padding: '6px 12px', 
+    borderRadius: '16px', 
     fontSize: '0.75rem', 
-    fontWeight: '600', 
-    display: 'inline-block'
+    fontWeight: '700', 
+    display: 'inline-block',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px'
   },
-  badgeCritical: { background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' },
-  badgeHigh: { background: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' },
-  badgeMedium: { background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' },
-  badgeLow: { background: 'rgba(34, 197, 94, 0.1)', color: '#22c55e' },
+  badgeCritical: { background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' },
+  badgeHigh: { background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' },
+  badgeMedium: { background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' },
+  badgeLow: { background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)' },
   sourcesList: {
     display: 'grid',
-    gap: '12px',
-    marginTop: '16px'
+    gap: '16px',
+    marginTop: '20px'
   },
   sourceItem: {
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    padding: '8px',
-    background: darkMode ? '#374151' : '#f9fafb',
-    borderRadius: '8px',
-    fontSize: '0.875rem'
+    gap: '12px',
+    padding: '12px',
+    background: darkMode ? '#334155' : '#f8fafc',
+    borderRadius: '12px',
+    fontSize: '0.9rem',
+    border: darkMode ? '1px solid #475569' : '1px solid #e2e8f0'
   },
   linkButton: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: '4px',
-    padding: '6px 12px',
-    background: '#3b82f6',
+    gap: '6px',
+    padding: '8px 16px',
+    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
     color: 'white',
     textDecoration: 'none',
-    borderRadius: '6px',
-    fontSize: '0.8rem',
-    fontWeight: '500'
+    borderRadius: '8px',
+    fontSize: '0.85rem',
+    fontWeight: '600'
   },
   notification: { 
     position: 'fixed', 
-    top: '20px', 
-    right: '20px', 
-    background: darkMode ? '#1f2937' : '#ffffff', 
-    borderRadius: '8px', 
-    padding: '16px', 
-    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.15)', 
+    top: '24px', 
+    right: '24px', 
+    background: darkMode ? '#1e293b' : '#ffffff', 
+    borderRadius: '12px', 
+    padding: '20px', 
+    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)', 
     zIndex: 1000, 
-    maxWidth: '400px', 
-    border: darkMode ? '1px solid #374151' : '1px solid #e5e7eb'
+    maxWidth: '420px', 
+    border: darkMode ? '1px solid #334155' : '1px solid #e2e8f0'
   },
   notificationSuccess: { borderLeft: '4px solid #22c55e' },
   notificationError: { borderLeft: '4px solid #ef4444' },
@@ -420,78 +443,103 @@ const getStyles = (darkMode) => ({
     flexDirection: 'column', 
     alignItems: 'center', 
     justifyContent: 'center', 
-    padding: '64px 0',
+    padding: '80px 0',
     textAlign: 'center'
   },
   emptyState: { 
     textAlign: 'center', 
-    padding: '64px 0', 
-    color: darkMode ? '#94a3b8' : '#6b7280' 
+    padding: '80px 0', 
+    color: darkMode ? '#94a3b8' : '#64748b' 
   },
   modal: { 
     position: 'fixed', 
     inset: 0, 
-    background: 'rgba(0, 0, 0, 0.5)', 
+    background: 'rgba(0, 0, 0, 0.7)', 
     display: 'flex', 
     alignItems: 'center', 
     justifyContent: 'center', 
-    zIndex: 50 
+    zIndex: 50,
+    backdropFilter: 'blur(8px)'
   },
   modalContent: { 
-    background: darkMode ? '#1f2937' : '#ffffff', 
-    borderRadius: '12px', 
-    padding: '24px', 
+    background: darkMode ? '#1e293b' : '#ffffff', 
+    borderRadius: '20px', 
+    padding: '32px', 
     width: '100%', 
-    maxWidth: '600px', 
+    maxWidth: '700px', 
     maxHeight: '90vh', 
     overflowY: 'auto', 
-    margin: '16px',
-    border: darkMode ? '1px solid #374151' : 'none'
+    margin: '20px',
+    border: darkMode ? '1px solid #334155' : 'none',
+    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
   },
   modalHeader: { 
     display: 'flex', 
     alignItems: 'center', 
     justifyContent: 'space-between', 
-    marginBottom: '24px', 
-    paddingBottom: '16px', 
-    borderBottom: darkMode ? '1px solid #374151' : '1px solid #e5e7eb' 
+    marginBottom: '32px', 
+    paddingBottom: '20px', 
+    borderBottom: darkMode ? '2px solid #334155' : '2px solid #e2e8f0' 
   },
-  modalTitle: { fontSize: '1.25rem', fontWeight: '600', margin: 0, color: darkMode ? '#ffffff' : '#111827' },
-  formGroup: { marginBottom: '16px' },
+  modalTitle: { fontSize: '1.5rem', fontWeight: '700', margin: 0, color: darkMode ? '#f1f5f9' : '#0f172a' },
+  formGroup: { marginBottom: '20px' },
   label: { 
     display: 'block', 
-    fontSize: '0.875rem', 
-    fontWeight: '500', 
-    color: darkMode ? '#f3f4f6' : '#374151', 
-    marginBottom: '6px' 
+    fontSize: '0.9rem', 
+    fontWeight: '600', 
+    color: darkMode ? '#cbd5e1' : '#475569', 
+    marginBottom: '8px' 
   },
   input: { 
     width: '100%', 
-    padding: '10px 12px', 
-    border: darkMode ? '1px solid #4b5563' : '1px solid #d1d5db', 
-    borderRadius: '6px', 
-    fontSize: '0.875rem', 
+    padding: '12px 16px', 
+    border: darkMode ? '2px solid #475569' : '2px solid #cbd5e1', 
+    borderRadius: '12px', 
+    fontSize: '0.9rem', 
     outline: 'none', 
     boxSizing: 'border-box',
-    background: darkMode ? '#374151' : '#ffffff',
-    color: darkMode ? '#f9fafb' : '#111827'
+    background: darkMode ? '#334155' : '#ffffff',
+    color: darkMode ? '#f1f5f9' : '#0f172a',
+    transition: 'border-color 0.3s ease'
   },
   select: { 
     width: '100%', 
-    padding: '10px 12px', 
-    border: darkMode ? '1px solid #4b5563' : '1px solid #d1d5db', 
-    borderRadius: '6px', 
-    fontSize: '0.875rem', 
+    padding: '12px 16px', 
+    border: darkMode ? '2px solid #475569' : '2px solid #cbd5e1', 
+    borderRadius: '12px', 
+    fontSize: '0.9rem', 
     outline: 'none', 
-    background: darkMode ? '#374151' : '#ffffff', 
+    background: darkMode ? '#334155' : '#ffffff', 
     boxSizing: 'border-box',
-    color: darkMode ? '#f9fafb' : '#111827'
+    color: darkMode ? '#f1f5f9' : '#0f172a',
+    transition: 'border-color 0.3s ease'
+  },
+  packageCard: {
+    background: darkMode ? '#334155' : '#f8fafc',
+    border: darkMode ? '1px solid #475569' : '1px solid #e2e8f0',
+    borderRadius: '12px',
+    padding: '16px',
+    marginBottom: '12px'
+  },
+  affectedVersions: {
+    background: darkMode ? 'rgba(239, 68, 68, 0.1)' : 'rgba(239, 68, 68, 0.05)',
+    border: '1px solid rgba(239, 68, 68, 0.2)',
+    borderRadius: '8px',
+    padding: '12px',
+    marginTop: '12px'
+  },
+  patchedVersions: {
+    background: darkMode ? 'rgba(34, 197, 94, 0.1)' : 'rgba(34, 197, 94, 0.05)',
+    border: '1px solid rgba(34, 197, 94, 0.2)',
+    borderRadius: '8px',
+    padding: '12px',
+    marginTop: '12px'
   }
 });
 
 const AppContext = createContext({});
 
-// CVE data fetching functions
+// Enhanced CVE data fetching functions
 const fetchCVEDataFromNVD = async (cveId, setLoadingSteps, apiKey) => {
   setLoadingSteps(prev => [...prev, `🔍 Fetching ${cveId} from NVD...`]);
   
@@ -499,7 +547,7 @@ const fetchCVEDataFromNVD = async (cveId, setLoadingSteps, apiKey) => {
     const url = `https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=${cveId}`;
     const headers = { 
       'Accept': 'application/json',
-      'User-Agent': 'VulnerabilityIntelligence/2.0'
+      'User-Agent': 'VulnerabilityIntelligence/3.0'
     };
     
     if (apiKey) {
@@ -587,7 +635,7 @@ const fetchEPSSData = async (cveId, setLoadingSteps) => {
     const response = await fetch(`https://api.first.org/data/v1/epss?cve=${cveId}`, {
       headers: {
         'Accept': 'application/json',
-        'User-Agent': 'VulnerabilityIntelligence/2.0'
+        'User-Agent': 'VulnerabilityIntelligence/3.0'
       }
     });
     
@@ -631,7 +679,7 @@ const fetchKEVData = async (cveId, setLoadingSteps) => {
     const response = await fetch('https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json', {
       headers: {
         'Accept': 'application/json',
-        'User-Agent': 'VulnerabilityIntelligence/2.0'
+        'User-Agent': 'VulnerabilityIntelligence/3.0'
       }
     });
     
@@ -693,7 +741,7 @@ const fetchGitHubSecurityAdvisories = async (cveId, setLoadingSteps, githubToken
             severity
             publishedAt
             updatedAt
-            vulnerabilities(first: 5) {
+            vulnerabilities(first: 10) {
               nodes {
                 package {
                   ecosystem
@@ -743,44 +791,123 @@ const fetchGitHubSecurityAdvisories = async (cveId, setLoadingSteps, githubToken
   }
 };
 
-// Enhanced fetch function
+// New function to fetch OSV data for comprehensive package information
+const fetchOSVData = async (cveId, setLoadingSteps) => {
+  setLoadingSteps(prev => [...prev, `📦 Fetching OSV database for ${cveId}...`]);
+  
+  try {
+    const response = await fetch('https://api.osv.dev/v1/query', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        version: '1.0',
+        query: cveId
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`OSV API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (data.vulns && data.vulns.length > 0) {
+      setLoadingSteps(prev => [...prev, `✅ Found ${data.vulns.length} OSV entries for ${cveId}`]);
+      return data.vulns;
+    } else {
+      setLoadingSteps(prev => [...prev, `ℹ️ No OSV data found for ${cveId}`]);
+      return [];
+    }
+    
+  } catch (error) {
+    console.error(`OSV API Error for ${cveId}:`, error);
+    setLoadingSteps(prev => [...prev, `⚠️ OSV data unavailable for ${cveId}: ${error.message}`]);
+    return [];
+  }
+};
+
+// New function to fetch VulnDB data for additional intelligence
+const fetchVulnDBData = async (cveId, setLoadingSteps) => {
+  setLoadingSteps(prev => [...prev, `🔍 Checking VulnDB for ${cveId}...`]);
+  
+  try {
+    // Note: VulnDB API requires authentication, this is a placeholder for real implementation
+    const response = await fetch(`https://vulndb.cyberriskanalytics.com/api/v1/vulnerabilities/${cveId}`, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'VulnerabilityIntelligence/3.0'
+      }
+    });
+
+    if (!response.ok) {
+      if (response.status === 404) {
+        setLoadingSteps(prev => [...prev, `ℹ️ No VulnDB data found for ${cveId}`]);
+        return null;
+      }
+      throw new Error(`VulnDB API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    setLoadingSteps(prev => [...prev, `✅ Retrieved VulnDB data for ${cveId}`]);
+    return data;
+    
+  } catch (error) {
+    console.error(`VulnDB API Error for ${cveId}:`, error);
+    setLoadingSteps(prev => [...prev, `⚠️ VulnDB data unavailable for ${cveId}: ${error.message}`]);
+    return null;
+  }
+};
+
+// Enhanced fetch function with more data sources
 const fetchVulnerabilityData = async (cveId, setLoadingSteps, apiKeys) => {
   try {
-    setLoadingSteps(prev => [...prev, `🚀 Starting analysis for ${cveId}...`]);
+    setLoadingSteps(prev => [...prev, `🚀 Starting comprehensive analysis for ${cveId}...`]);
     
     const [
       cveResult,
       epssResult,
       kevResult,
-      githubResult
+      githubResult,
+      osvResult,
+      vulndbResult
     ] = await Promise.allSettled([
       fetchCVEDataFromNVD(cveId, setLoadingSteps, apiKeys.nvd),
       fetchEPSSData(cveId, setLoadingSteps),
       fetchKEVData(cveId, setLoadingSteps),
-      fetchGitHubSecurityAdvisories(cveId, setLoadingSteps, apiKeys.github)
+      fetchGitHubSecurityAdvisories(cveId, setLoadingSteps, apiKeys.github),
+      fetchOSVData(cveId, setLoadingSteps),
+      fetchVulnDBData(cveId, setLoadingSteps)
     ]);
     
     const cve = cveResult.status === 'fulfilled' ? cveResult.value : null;
     const epss = epssResult.status === 'fulfilled' ? epssResult.value : null;
     const kev = kevResult.status === 'fulfilled' ? kevResult.value : null;
     const github = githubResult.status === 'fulfilled' ? githubResult.value : null;
+    const osv = osvResult.status === 'fulfilled' ? osvResult.value : null;
+    const vulndb = vulndbResult.status === 'fulfilled' ? vulndbResult.value : null;
     
     if (!cve) {
       throw new Error(`Failed to fetch CVE data for ${cveId}`);
     }
     
-    setLoadingSteps(prev => [...prev, `✅ Analysis complete for ${cveId}`]);
+    setLoadingSteps(prev => [...prev, `✅ Comprehensive analysis complete for ${cveId}`]);
     
     const enhancedSources = ['NVD'];
     if (epss) enhancedSources.push('EPSS');
     if (kev) enhancedSources.push('KEV');
     if (github && github.length > 0) enhancedSources.push('GitHub');
+    if (osv && osv.length > 0) enhancedSources.push('OSV');
+    if (vulndb) enhancedSources.push('VulnDB');
     
     return {
       cve,
       epss,
       kev,
       github,
+      osv,
+      vulndb,
       dataFreshness: 'REAL_TIME',
       lastUpdated: new Date().toISOString(),
       searchTimestamp: new Date().toISOString(),
@@ -793,7 +920,7 @@ const fetchVulnerabilityData = async (cveId, setLoadingSteps, apiKeys) => {
   }
 };
 
-// AI Analysis
+// Enhanced AI Analysis with better context
 const generateAIAnalysis = async (vulnerability, apiKey, model, settings = {}) => {
   const cveId = vulnerability.cve.id;
   const description = vulnerability.cve.description;
@@ -823,16 +950,39 @@ const generateAIAnalysis = async (vulnerability, apiKey, model, settings = {}) =
     }
 
     console.log('📚 Performing RAG retrieval for', cveId);
-    const ragQuery = `${cveId} ${description.substring(0, 200)} vulnerability analysis security impact mitigation`;
-    const relevantDocs = await enhancedRAGDatabase.search(ragQuery, 5);
+    const ragQuery = `${cveId} ${description.substring(0, 200)} vulnerability analysis security impact mitigation threat intelligence`;
+    const relevantDocs = await enhancedRAGDatabase.search(ragQuery, 8);
     
     const ragContext = relevantDocs.length > 0 ? 
       relevantDocs.map((doc, index) => 
-        `[Security Knowledge ${index + 1}] ${doc.metadata.title}:\n${doc.content.substring(0, 400)}...`
+        `[Security Knowledge ${index + 1}] ${doc.metadata.title}:\n${doc.content.substring(0, 500)}...`
       ).join('\n\n') : 
       'No specific security knowledge found in database.';
 
     console.log(`📖 Retrieved ${relevantDocs.length} relevant documents from RAG database`);
+
+    // Build comprehensive context from all data sources
+    const githubPackages = vulnerability.github?.flatMap(advisory => 
+      advisory.vulnerabilities?.nodes?.map(vuln => ({
+        ecosystem: vuln.package.ecosystem,
+        name: vuln.package.name,
+        vulnerable: vuln.vulnerableVersionRange,
+        patched: vuln.firstPatchedVersion?.identifier
+      })) || []
+    ) || [];
+
+    const osvPackages = vulnerability.osv?.flatMap(entry => 
+      entry.affected?.map(affected => ({
+        ecosystem: affected.package?.ecosystem,
+        name: affected.package?.name,
+        versions: affected.ranges?.map(range => range.events).flat() || []
+      })) || []
+    ) || [];
+
+    const packageContext = [...githubPackages, ...osvPackages].length > 0 ? 
+      `\n\nAFFECTED PACKAGES:\n${[...githubPackages, ...osvPackages].map(pkg => 
+        `- ${pkg.ecosystem || 'Unknown'}/${pkg.name || 'Unknown'} (${pkg.vulnerable || pkg.versions || 'Version info unavailable'})`
+      ).join('\n')}` : '';
 
     const prompt = `You are a senior cybersecurity analyst providing a comprehensive vulnerability assessment for ${cveId}.
 
@@ -841,22 +991,24 @@ VULNERABILITY DETAILS:
 - CVSS Score: ${cvssScore}
 - EPSS Score: ${epssScore}
 - KEV Listed: ${kevStatus}
-- Description: ${description.substring(0, 500)}
+- Description: ${description.substring(0, 800)}${packageContext}
 
 SECURITY KNOWLEDGE BASE:
 ${ragContext}
 
-${isGemini2 ? 'Search the web for the latest threat intelligence, current exploitation campaigns, and vendor security bulletins for this vulnerability.' : ''}
+${isGemini2 ? 'Search the web for the latest threat intelligence, current exploitation campaigns, vendor security bulletins, and real-world attacks involving this vulnerability.' : ''}
 
 Provide a detailed technical analysis including:
-1. Executive Summary
-2. Technical Analysis
-3. Threat Assessment
-4. Business Impact
-5. Remediation Strategy
-6. Detection Methods
+1. **Executive Summary** - Key findings and risk assessment
+2. **Technical Analysis** - Root cause, attack vectors, and technical details
+3. **Threat Landscape** - Current exploitation status and threat actor activity
+4. **Business Impact** - Potential consequences and affected systems
+5. **Affected Software & Packages** - Comprehensive list of vulnerable components
+6. **Remediation Strategy** - Immediate actions, patches, and mitigations
+7. **Detection & Monitoring** - IOCs, signatures, and monitoring recommendations
+8. **Risk Prioritization** - Context-based risk scoring and urgency assessment
 
-Write a comprehensive security assessment of at least 1500 words.`;
+Write a comprehensive security assessment of at least 2000 words with actionable intelligence.`;
 
     const requestBody = {
       contents: [
@@ -942,9 +1094,9 @@ Write a comprehensive security assessment of at least 1500 words.`;
       await enhancedRAGDatabase.addDocument(
         `CVE Analysis: ${cveId}\n\n${analysisText}`,
         {
-          title: `Security Analysis - ${cveId}`,
+          title: `Enhanced Security Analysis - ${cveId}`,
           category: 'analysis',
-          tags: ['cve-analysis', cveId.toLowerCase(), 'ai-enhanced'],
+          tags: ['cve-analysis', cveId.toLowerCase(), 'ai-enhanced', 'threat-intelligence'],
           source: 'ai-analysis',
           cvss: cvssScore,
           epss: epssScore,
@@ -961,7 +1113,7 @@ Write a comprehensive security assessment of at least 1500 words.`;
     return createAnalysisResult(
       `**AI Analysis Error**
 
-An error occurred while generating the security analysis for ${cveId}:
+An error occurred while generating the enhanced security analysis for ${cveId}:
 
 **Error Details:**
 ${error.message}
@@ -971,6 +1123,7 @@ ${error.message}
 - MITRE CVE database: https://cve.mitre.org/cgi-bin/cvename.cgi?name=${cveId}
 - FIRST EPSS: https://api.first.org/data/v1/epss?cve=${cveId}
 - CISA KEV: https://www.cisa.gov/known-exploited-vulnerabilities-catalog
+- OSV Database: https://osv.dev/vulnerability/${cveId}
 
 Consider reviewing vendor-specific advisories and threat intelligence feeds for additional context.`,
       [],
@@ -985,7 +1138,7 @@ const NotificationManager = () => {
   const styles = getStyles(settings.darkMode);
   
   return (
-    <div style={{ position: 'fixed', top: '20px', right: '20px', zIndex: 1000 }}>
+    <div style={{ position: 'fixed', top: '24px', right: '24px', zIndex: 1000 }}>
       {notifications.map((notification) => (
         <div
           key={notification.id}
@@ -994,16 +1147,16 @@ const NotificationManager = () => {
             ...(notification.type === 'success' ? styles.notificationSuccess : 
                notification.type === 'error' ? styles.notificationError : 
                styles.notificationWarning),
-            marginBottom: '8px'
+            marginBottom: '12px'
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {notification.type === 'success' && <CheckCircle size={16} color="#22c55e" />}
-            {notification.type === 'error' && <XCircle size={16} color="#ef4444" />}
-            {notification.type === 'warning' && <AlertTriangle size={16} color="#f59e0b" />}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {notification.type === 'success' && <CheckCircle size={20} color="#22c55e" />}
+            {notification.type === 'error' && <XCircle size={20} color="#ef4444" />}
+            {notification.type === 'warning' && <AlertTriangle size={20} color="#f59e0b" />}
             <div>
-              <div style={{ fontWeight: '500', fontSize: '0.875rem', color: settings.darkMode ? '#ffffff' : '#111827' }}>{notification.title}</div>
-              <div style={{ fontSize: '0.75rem', color: settings.darkMode ? '#9ca3af' : '#6b7280' }}>{notification.message}</div>
+              <div style={{ fontWeight: '600', fontSize: '0.95rem', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>{notification.title}</div>
+              <div style={{ fontSize: '0.8rem', color: settings.darkMode ? '#64748b' : '#94a3b8' }}>{notification.message}</div>
             </div>
           </div>
         </div>
@@ -1034,30 +1187,30 @@ const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
     <div style={styles.modal}>
       <div style={styles.modalContent}>
         <div style={styles.modalHeader}>
-          <h3 style={styles.modalTitle}>Settings</h3>
+          <h3 style={styles.modalTitle}>Platform Settings</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-            <X size={20} color={settings.darkMode ? '#ffffff' : '#111827'} />
+            <X size={24} color={settings.darkMode ? '#f1f5f9' : '#0f172a'} />
           </button>
         </div>
 
-        <div style={{ display: 'grid', gap: '24px' }}>
+        <div style={{ display: 'grid', gap: '32px' }}>
           <div>
-            <h4 style={{ margin: '0 0 16px 0', color: settings.darkMode ? '#ffffff' : '#111827' }}>API Configuration</h4>
+            <h4 style={{ margin: '0 0 20px 0', color: settings.darkMode ? '#f1f5f9' : '#0f172a', fontSize: '1.2rem', fontWeight: '700' }}>API Configuration</h4>
             
             <div style={styles.formGroup}>
-              <label style={styles.label}>NVD API Key (Optional)</label>
+              <label style={styles.label}>NVD API Key (Optional - Increases Rate Limits)</label>
               <div style={{ position: 'relative' }}>
                 <input
                   type={showApiKey ? 'text' : 'password'}
                   style={styles.input}
-                  placeholder="Enter your NVD API key"
+                  placeholder="Enter your NVD API key for higher rate limits"
                   value={localSettings.nvdApiKey || ''}
                   onChange={(e) => setLocalSettings(prev => ({ ...prev, nvdApiKey: e.target.value }))}
                 />
                 <button
                   style={{ 
                     position: 'absolute', 
-                    right: '8px', 
+                    right: '12px', 
                     top: '50%', 
                     transform: 'translateY(-50%)',
                     background: 'none',
@@ -1066,25 +1219,25 @@ const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
                   }}
                   onClick={() => setShowApiKey(!showApiKey)}
                 >
-                  {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showApiKey ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>Gemini API Key</label>
+              <label style={styles.label}>Gemini API Key (Required for AI Analysis)</label>
               <div style={{ position: 'relative' }}>
                 <input
                   type={showGeminiKey ? 'text' : 'password'}
                   style={styles.input}
-                  placeholder="Enter your Gemini API key"
+                  placeholder="Enter your Gemini API key for AI-powered analysis"
                   value={localSettings.geminiApiKey || ''}
                   onChange={(e) => setLocalSettings(prev => ({ ...prev, geminiApiKey: e.target.value }))}
                 />
                 <button
                   style={{ 
                     position: 'absolute', 
-                    right: '8px', 
+                    right: '12px', 
                     top: '50%', 
                     transform: 'translateY(-50%)',
                     background: 'none',
@@ -1093,25 +1246,25 @@ const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
                   }}
                   onClick={() => setShowGeminiKey(!showGeminiKey)}
                 >
-                  {showGeminiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showGeminiKey ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>GitHub Token</label>
+              <label style={styles.label}>GitHub Personal Access Token</label>
               <div style={{ position: 'relative' }}>
                 <input
                   type={showGitHubKey ? 'text' : 'password'}
                   style={styles.input}
-                  placeholder="Enter GitHub PAT"
+                  placeholder="Enter GitHub PAT for supply chain intelligence"
                   value={localSettings.githubToken || ''}
                   onChange={(e) => setLocalSettings(prev => ({ ...prev, githubToken: e.target.value }))}
                 />
                 <button
                   style={{ 
                     position: 'absolute', 
-                    right: '8px', 
+                    right: '12px', 
                     top: '50%', 
                     transform: 'translateY(-50%)',
                     background: 'none',
@@ -1120,58 +1273,60 @@ const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
                   }}
                   onClick={() => setShowGitHubKey(!showGitHubKey)}
                 >
-                  {showGitHubKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  {showGitHubKey ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
           </div>
 
           <div>
-            <h4 style={{ margin: '0 0 16px 0', color: settings.darkMode ? '#ffffff' : '#111827' }}>AI Configuration</h4>
+            <h4 style={{ margin: '0 0 20px 0', color: settings.darkMode ? '#f1f5f9' : '#0f172a', fontSize: '1.2rem', fontWeight: '700' }}>AI Intelligence Configuration</h4>
             
             <div style={styles.formGroup}>
-              <label style={styles.label}>Gemini Model</label>
+              <label style={styles.label}>Gemini Model Selection</label>
               <select
                 style={styles.select}
                 value={localSettings.geminiModel || 'gemini-2.0-flash'}
                 onChange={(e) => setLocalSettings(prev => ({ ...prev, geminiModel: e.target.value }))}
               >
-                <option value="gemini-2.0-flash">Gemini 2.0 Flash (Web Search)</option>
-                <option value="gemini-1.5-flash">Gemini 1.5 Flash</option>
-                <option value="gemini-1.5-pro">Gemini 1.5 Pro</option>
-                <option value="gemini-1.0-pro">Gemini 1.0 Pro</option>
+                <option value="gemini-2.0-flash">Gemini 2.0 Flash (Real-time Web Search)</option>
+                <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast Analysis)</option>
+                <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep Analysis)</option>
+                <option value="gemini-1.0-pro">Gemini 1.0 Pro (Stable)</option>
               </select>
             </div>
 
             <div style={styles.formGroup}>
-              <label style={{ ...styles.label, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ ...styles.label, display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <input
                   type="checkbox"
                   checked={localSettings.aiAnalysisEnabled || false}
                   onChange={(e) => setLocalSettings(prev => ({ ...prev, aiAnalysisEnabled: e.target.checked }))}
+                  style={{ width: 'auto' }}
                 />
-                Enable AI Analysis
+                Enable Enhanced AI Analysis
               </label>
             </div>
           </div>
 
           <div>
-            <h4 style={{ margin: '0 0 16px 0', color: settings.darkMode ? '#ffffff' : '#111827' }}>Display Options</h4>
+            <h4 style={{ margin: '0 0 20px 0', color: settings.darkMode ? '#f1f5f9' : '#0f172a', fontSize: '1.2rem', fontWeight: '700' }}>Display Preferences</h4>
             
             <div style={styles.formGroup}>
-              <label style={{ ...styles.label, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <label style={{ ...styles.label, display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <input
                   type="checkbox"
                   checked={localSettings.darkMode || false}
                   onChange={(e) => setLocalSettings(prev => ({ ...prev, darkMode: e.target.checked }))}
+                  style={{ width: 'auto' }}
                 />
-                Dark Mode
+                Dark Mode Interface
               </label>
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', paddingTop: '16px', borderTop: settings.darkMode ? '1px solid #374151' : '1px solid #e5e7eb' }}>
+        <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end', paddingTop: '24px', borderTop: settings.darkMode ? '2px solid #334155' : '2px solid #e2e8f0' }}>
           <button
             style={{ ...styles.button, ...styles.buttonSecondary }}
             onClick={onClose}
@@ -1182,10 +1337,177 @@ const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
             style={{ ...styles.button, ...styles.buttonPrimary }}
             onClick={handleSave}
           >
-            <Save size={16} />
-            Save Settings
+            <Save size={18} />
+            Save Configuration
           </button>
         </div>
+      </div>
+    </div>
+  );
+};
+
+const AffectedPackagesView = ({ vulnerability }) => {
+  const { settings } = useContext(AppContext);
+  const styles = getStyles(settings.darkMode);
+
+  const allPackages = [];
+
+  // GitHub packages
+  if (vulnerability.github) {
+    vulnerability.github.forEach(advisory => {
+      advisory.vulnerabilities?.nodes?.forEach(vuln => {
+        allPackages.push({
+          source: 'GitHub',
+          ecosystem: vuln.package.ecosystem,
+          name: vuln.package.name,
+          vulnerableVersions: vuln.vulnerableVersionRange,
+          patchedVersion: vuln.firstPatchedVersion?.identifier,
+          ghsaId: advisory.ghsaId,
+          severity: advisory.severity
+        });
+      });
+    });
+  }
+
+  // OSV packages
+  if (vulnerability.osv) {
+    vulnerability.osv.forEach(entry => {
+      entry.affected?.forEach(affected => {
+        const versions = affected.ranges?.map(range => 
+          range.events?.map(event => 
+            Object.entries(event).map(([key, value]) => `${key}: ${value}`).join(', ')
+          ).join('; ')
+        ).join(' | ') || 'Version info unavailable';
+
+        allPackages.push({
+          source: 'OSV',
+          ecosystem: affected.package?.ecosystem || 'Unknown',
+          name: affected.package?.name || 'Unknown',
+          vulnerableVersions: versions,
+          patchedVersion: affected.ranges?.find(r => r.type === 'SEMVER')?.events?.find(e => e.fixed)?.fixed,
+          osvId: entry.id,
+          severity: entry.database_specific?.severity
+        });
+      });
+    });
+  }
+
+  if (allPackages.length === 0) {
+    return (
+      <div style={styles.sectionContent}>
+        <div style={{
+          textAlign: 'center',
+          padding: '40px',
+          background: settings.darkMode ? '#334155' : '#f8fafc',
+          borderRadius: '12px',
+          border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0'
+        }}>
+          <Package size={48} style={{ color: settings.darkMode ? '#64748b' : '#94a3b8', marginBottom: '16px' }} />
+          <h3 style={{ margin: '0 0 8px 0', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>No Package Information Available</h3>
+          <p style={{ margin: 0, color: settings.darkMode ? '#94a3b8' : '#64748b' }}>
+            Package data will be displayed when available from GitHub Security Advisories or OSV database.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom: '24px' }}>
+        <div style={{
+          background: settings.darkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)',
+          border: '1px solid rgba(59, 130, 246, 0.2)',
+          borderRadius: '12px',
+          padding: '16px',
+          marginBottom: '24px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+            <AlertCircle size={20} color="#3b82f6" />
+            <span style={{ fontWeight: '600', color: '#3b82f6' }}>Supply Chain Impact</span>
+          </div>
+          <p style={{ margin: 0, fontSize: '0.9rem', color: settings.darkMode ? '#cbd5e1' : '#475569' }}>
+            This vulnerability affects {allPackages.length} package{allPackages.length !== 1 ? 's' : ''} across multiple ecosystems. 
+            Review affected versions and apply patches immediately.
+          </p>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gap: '20px' }}>
+        {allPackages.map((pkg, index) => (
+          <div key={index} style={styles.packageCard}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '12px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                  <h4 style={{ 
+                    margin: 0, 
+                    fontSize: '1.1rem', 
+                    fontWeight: '700',
+                    color: settings.darkMode ? '#f1f5f9' : '#0f172a'
+                  }}>
+                    {pkg.name}
+                  </h4>
+                  <span style={{
+                    ...styles.badge,
+                    background: settings.darkMode ? '#475569' : '#e2e8f0',
+                    color: settings.darkMode ? '#f1f5f9' : '#475569',
+                    fontSize: '0.7rem'
+                  }}>
+                    {pkg.ecosystem}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>
+                  Source: {pkg.source} {pkg.ghsaId && `(${pkg.ghsaId})`} {pkg.osvId && `(${pkg.osvId})`}
+                </div>
+              </div>
+              {pkg.severity && (
+                <span style={{
+                  ...styles.badge,
+                  ...(pkg.severity === 'CRITICAL' ? styles.badgeCritical :
+                     pkg.severity === 'HIGH' ? styles.badgeHigh :
+                     pkg.severity === 'MEDIUM' ? styles.badgeMedium :
+                     styles.badgeLow)
+                }}>
+                  {pkg.severity}
+                </span>
+              )}
+            </div>
+
+            {pkg.vulnerableVersions && (
+              <div style={styles.affectedVersions}>
+                <div style={{ fontWeight: '600', marginBottom: '6px', color: '#ef4444' }}>
+                  Vulnerable Versions:
+                </div>
+                <code style={{ 
+                  fontSize: '0.85rem', 
+                  background: 'rgba(0, 0, 0, 0.1)', 
+                  padding: '4px 8px', 
+                  borderRadius: '4px',
+                  color: settings.darkMode ? '#f1f5f9' : '#0f172a'
+                }}>
+                  {pkg.vulnerableVersions}
+                </code>
+              </div>
+            )}
+
+            {pkg.patchedVersion && (
+              <div style={styles.patchedVersions}>
+                <div style={{ fontWeight: '600', marginBottom: '6px', color: '#22c55e' }}>
+                  Patched Version:
+                </div>
+                <code style={{ 
+                  fontSize: '0.85rem', 
+                  background: 'rgba(0, 0, 0, 0.1)', 
+                  padding: '4px 8px', 
+                  borderRadius: '4px',
+                  color: settings.darkMode ? '#f1f5f9' : '#0f172a'
+                }}>
+                  {pkg.patchedVersion}
+                </code>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -1202,6 +1524,7 @@ const CVEDetailView = ({ vulnerability }) => {
   const epss = vulnerability.epss;
   const kev = vulnerability.kev;
   const github = vulnerability.github;
+  const osv = vulnerability.osv;
 
   const cvssScore = cve.cvssV3?.baseScore || cve.cvssV2?.baseScore || 0;
   const severity = cve.cvssV3?.baseSeverity || 
@@ -1246,10 +1569,11 @@ const CVEDetailView = ({ vulnerability }) => {
         settings
       );
       setAiAnalysis(result);
+      setActiveTab('ai');
       addNotification({
         type: 'success',
         title: 'AI Analysis Complete',
-        message: 'Comprehensive security analysis generated'
+        message: 'Comprehensive security analysis generated with real-time intelligence'
       });
     } catch (error) {
       addNotification({
@@ -1268,8 +1592,40 @@ const CVEDetailView = ({ vulnerability }) => {
       <div style={styles.cveMainContent}>
         {/* Header */}
         <div style={styles.cveHeader}>
-          <h1 style={styles.cveTitle}>{cve.id}:</h1>
-          <p style={styles.cveSubtitle}>Vulnerability analysis and mitigation</p>
+          <h1 style={styles.cveTitle}>{cve.id}</h1>
+          <p style={styles.cveSubtitle}>Enhanced vulnerability intelligence and threat analysis</p>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <span style={{
+              ...styles.badge,
+              ...getSeverityStyle(severity),
+              fontSize: '0.9rem',
+              padding: '8px 16px'
+            }}>
+              {severity} - {cvssScore.toFixed(1)}
+            </span>
+            {kev && (
+              <span style={{
+                ...styles.badge,
+                ...styles.badgeCritical,
+                fontSize: '0.8rem',
+                padding: '6px 12px'
+              }}>
+                CISA KEV
+              </span>
+            )}
+            {epss && epss.epss > 0.5 && (
+              <span style={{
+                ...styles.badge,
+                background: 'rgba(245, 158, 11, 0.15)',
+                color: '#f59e0b',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                fontSize: '0.8rem',
+                padding: '6px 12px'
+              }}>
+                HIGH EPSS
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Tabs */}
@@ -1281,7 +1637,18 @@ const CVEDetailView = ({ vulnerability }) => {
             }}
             onClick={() => setActiveTab('overview')}
           >
+            <Info size={16} style={{ marginRight: '6px' }} />
             Overview
+          </div>
+          <div 
+            style={{
+              ...styles.tab,
+              ...(activeTab === 'packages' ? styles.activeTab : {})
+            }}
+            onClick={() => setActiveTab('packages')}
+          >
+            <Package size={16} style={{ marginRight: '6px' }} />
+            Affected Packages
           </div>
           <div 
             style={{
@@ -1290,7 +1657,8 @@ const CVEDetailView = ({ vulnerability }) => {
             }}
             onClick={() => setActiveTab('cvss')}
           >
-            CVSS Information
+            <BarChart3 size={16} style={{ marginRight: '6px' }} />
+            CVSS Details
           </div>
           {aiAnalysis && (
             <div 
@@ -1300,6 +1668,7 @@ const CVEDetailView = ({ vulnerability }) => {
               }}
               onClick={() => setActiveTab('ai')}
             >
+              <Brain size={16} style={{ marginRight: '6px' }} />
               AI Analysis
             </div>
           )}
@@ -1308,141 +1677,250 @@ const CVEDetailView = ({ vulnerability }) => {
         {/* Tab Content */}
         {activeTab === 'overview' && (
           <div>
-            <h2 style={styles.sectionTitle}>Overview</h2>
+            <h2 style={styles.sectionTitle}>Vulnerability Overview</h2>
             <div style={styles.sectionContent}>
-              <p>{cve.description}</p>
+              <p style={{ fontSize: '1.05rem', lineHeight: '1.7' }}>{cve.description}</p>
             </div>
 
-            <h2 style={styles.sectionTitle}>Technical details</h2>
+            <h2 style={styles.sectionTitle}>Technical Analysis</h2>
             <div style={styles.sectionContent}>
-              <p>The vulnerability stems from an implementation flaw that could be exploited by attackers. 
-              The issue was assigned a {severity.toLowerCase()} security severity rating with a CVSS score of {cvssScore}.</p>
+              <p>This vulnerability has been assigned a {severity.toLowerCase()} security severity rating with a CVSS score of {cvssScore}. 
+              The issue stems from an implementation flaw that could be exploited by threat actors to compromise system security.</p>
+              
+              {cve.cvssV3 && (
+                <div style={{ marginTop: '20px' }}>
+                  <h4 style={{ margin: '0 0 12px 0', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>Attack Vector Analysis:</h4>
+                  <ul style={{ marginLeft: '20px', lineHeight: '1.6' }}>
+                    <li><strong>Attack Vector:</strong> {cve.cvssV3.attackVector}</li>
+                    <li><strong>Attack Complexity:</strong> {cve.cvssV3.attackComplexity}</li>
+                    <li><strong>Privileges Required:</strong> {cve.cvssV3.privilegesRequired}</li>
+                    <li><strong>User Interaction:</strong> {cve.cvssV3.userInteraction}</li>
+                  </ul>
+                </div>
+              )}
             </div>
 
-            <h2 style={styles.sectionTitle}>Impact</h2>
-            <div style={styles.sectionContent}>
-              <p>If exploited, this vulnerability could allow attackers to compromise system security. 
-              The impact severity is considered {severity.toLowerCase()} based on the assessment.</p>
-            </div>
-
-            {kev && (
+            {epss && (
               <div>
-                <h2 style={styles.sectionTitle}>CISA KEV Information</h2>
+                <h2 style={styles.sectionTitle}>Exploitation Probability</h2>
                 <div style={styles.sectionContent}>
                   <div style={{
-                    background: 'rgba(239, 68, 68, 0.1)',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                    borderRadius: '8px',
-                    padding: '16px',
-                    marginBottom: '16px'
+                    background: epss.epss > 0.5 ? 'rgba(245, 158, 11, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+                    border: `1px solid ${epss.epss > 0.5 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
+                    borderRadius: '12px',
+                    padding: '20px',
+                    marginBottom: '20px'
                   }}>
-                    <p><strong>Vendor Project:</strong> {kev.vendorProject}</p>
-                    <p><strong>Product:</strong> {kev.product}</p>
-                    <p><strong>Required Action:</strong> {kev.requiredAction}</p>
-                    <p><strong>Due Date:</strong> {kev.dueDate}</p>
-                    {kev.knownRansomwareCampaignUse === 'Known' && (
-                      <p style={{ color: '#ef4444', fontWeight: '600' }}>
-                        ⚠️ Known to be used in ransomware campaigns
-                      </p>
-                    )}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                      <Target size={24} color={epss.epss > 0.5 ? '#f59e0b' : '#22c55e'} />
+                      <div>
+                        <div style={{ fontWeight: '700', fontSize: '1.1rem' }}>
+                          EPSS Score: {(epss.epss * 100).toFixed(2)}%
+                        </div>
+                        <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>
+                          Percentile: {epss.percentile.toFixed(1)}
+                        </div>
+                      </div>
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.95rem' }}>
+                      {epss.epss > 0.5 
+                        ? 'This vulnerability has a HIGH probability of exploitation in the wild. Immediate patching recommended.'
+                        : epss.epss > 0.1 
+                          ? 'This vulnerability has a MODERATE probability of exploitation. Monitor for patches and updates.'
+                          : 'This vulnerability has a LOW probability of exploitation, but still requires attention.'}
+                    </p>
                   </div>
                 </div>
               </div>
             )}
 
-            <h2 style={styles.sectionTitle}>Mitigation and workarounds</h2>
-            <div style={styles.sectionContent}>
-              <p>The vulnerability has been addressed in updated versions. Users are advised to update to the latest version 
-              or apply the recommended patches to protect against potential exploitation.</p>
-            </div>
+            {kev && (
+              <div>
+                <h2 style={styles.sectionTitle}>CISA Known Exploited Vulnerability</h2>
+                <div style={styles.sectionContent}>
+                  <div style={{
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    borderRadius: '12px',
+                    padding: '20px',
+                    marginBottom: '20px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                      <AlertTriangle size={24} color="#ef4444" />
+                      <span style={{ fontWeight: '700', fontSize: '1.1rem', color: '#ef4444' }}>
+                        ACTIVE EXPLOITATION CONFIRMED
+                      </span>
+                    </div>
+                    <div style={{ display: 'grid', gap: '12px' }}>
+                      <div><strong>Vendor/Product:</strong> {kev.vendorProject} / {kev.product}</div>
+                      <div><strong>Vulnerability Name:</strong> {kev.vulnerabilityName}</div>
+                      <div><strong>Required Action:</strong> {kev.requiredAction}</div>
+                      <div><strong>Due Date:</strong> {kev.dueDate}</div>
+                      {kev.knownRansomwareCampaignUse === 'Known' && (
+                        <div style={{ color: '#ef4444', fontWeight: '700' }}>
+                          ⚠️ Known to be used in ransomware campaigns
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
-            <h2 style={styles.sectionTitle}>Additional resources</h2>
+            <h2 style={styles.sectionTitle}>Business Impact Assessment</h2>
             <div style={styles.sectionContent}>
-              <ul>
-                <li><a href={`https://nvd.nist.gov/vuln/detail/${cve.id}`} target="_blank" rel="noopener noreferrer">NVD Details</a></li>
-                <li><a href={`https://cve.mitre.org/cgi-bin/cvename.cgi?name=${cve.id}`} target="_blank" rel="noopener noreferrer">CVE Details</a></li>
-                {epss && (
-                  <li><a href={`https://api.first.org/data/v1/epss?cve=${cve.id}`} target="_blank" rel="noopener noreferrer">EPSS Information</a></li>
-                )}
+              <p>The potential business impact of this vulnerability depends on several factors including system exposure, 
+              data sensitivity, and the presence of compensating controls. Organizations should prioritize remediation based on:</p>
+              <ul style={{ marginLeft: '20px', lineHeight: '1.6' }}>
+                <li>Asset criticality and business function importance</li>
+                <li>Network exposure and attack surface</li>
+                <li>Data classification and regulatory requirements</li>
+                <li>Existing security controls and monitoring capabilities</li>
               </ul>
             </div>
 
+            <h2 style={styles.sectionTitle}>Remediation Strategy</h2>
+            <div style={styles.sectionContent}>
+              <p>Immediate actions recommended for this vulnerability:</p>
+              <ol style={{ marginLeft: '20px', lineHeight: '1.6' }}>
+                <li>Identify all affected systems and assets in your environment</li>
+                <li>Apply vendor patches as soon as they become available</li>
+                <li>Implement temporary mitigations if patches are not yet available</li>
+                <li>Monitor for indicators of compromise and suspicious activity</li>
+                <li>Update security controls and detection rules</li>
+              </ol>
+            </div>
+
             {/* AI Analysis Button */}
-            <div style={{ marginTop: '32px', paddingTop: '24px', borderTop: settings.darkMode ? '1px solid #374151' : '1px solid #e5e7eb' }}>
+            <div style={{ 
+              marginTop: '40px', 
+              paddingTop: '32px', 
+              borderTop: settings.darkMode ? '2px solid #334155' : '2px solid #e2e8f0',
+              textAlign: 'center'
+            }}>
               <button
                 style={{
                   ...styles.button,
                   ...styles.buttonPrimary,
-                  opacity: aiLoading ? 0.7 : 1
+                  opacity: aiLoading ? 0.7 : 1,
+                  fontSize: '1rem',
+                  padding: '16px 32px'
                 }}
                 onClick={generateAI}
                 disabled={aiLoading || !settings.geminiApiKey}
               >
                 {aiLoading ? (
                   <>
-                    <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} />
-                    Generating AI Analysis...
+                    <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
+                    Generating Enhanced Analysis...
                   </>
                 ) : (
                   <>
-                    <Brain size={16} />
-                    Generate AI Analysis
+                    <Brain size={20} />
+                    Generate AI-Powered Analysis
                   </>
                 )}
               </button>
               {!settings.geminiApiKey && (
-                <p style={{ fontSize: '0.875rem', color: settings.darkMode ? '#9ca3af' : '#6b7280', marginTop: '8px' }}>
-                  Configure Gemini API key in settings to enable AI analysis
+                <p style={{ fontSize: '0.9rem', color: settings.darkMode ? '#64748b' : '#94a3b8', marginTop: '12px' }}>
+                  Configure Gemini API key in settings to enable AI-powered threat intelligence
                 </p>
               )}
             </div>
           </div>
         )}
 
+        {activeTab === 'packages' && (
+          <div>
+            <h2 style={styles.sectionTitle}>Affected Packages & Libraries</h2>
+            <AffectedPackagesView vulnerability={vulnerability} />
+          </div>
+        )}
+
         {activeTab === 'cvss' && cve.cvssV3 && (
           <div>
-            <h2 style={styles.sectionTitle}>CVSS v3.1 Information</h2>
+            <h2 style={styles.sectionTitle}>CVSS v3.1 Detailed Metrics</h2>
             <div style={styles.sectionContent}>
-              <div style={{ display: 'grid', gap: '12px' }}>
-                <div style={styles.infoItem}>
-                  <span style={styles.infoLabel}>Base Score:</span>
-                  <span style={styles.infoValue}>{cve.cvssV3.baseScore}</span>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+                <div style={{
+                  background: settings.darkMode ? '#334155' : '#f8fafc',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0'
+                }}>
+                  <h4 style={{ margin: '0 0 16px 0', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>Base Metrics</h4>
+                  <div style={{ display: 'grid', gap: '12px' }}>
+                    <div style={styles.infoItem}>
+                      <span style={styles.infoLabel}>Base Score:</span>
+                      <span style={styles.infoValue}>{cve.cvssV3.baseScore}</span>
+                    </div>
+                    <div style={styles.infoItem}>
+                      <span style={styles.infoLabel}>Vector String:</span>
+                      <span style={styles.infoValue}>{cve.cvssV3.vectorString}</span>
+                    </div>
+                    <div style={styles.infoItem}>
+                      <span style={styles.infoLabel}>Exploitability Score:</span>
+                      <span style={styles.infoValue}>{cve.cvssV3.exploitabilityScore}</span>
+                    </div>
+                    <div style={styles.infoItem}>
+                      <span style={styles.infoLabel}>Impact Score:</span>
+                      <span style={styles.infoValue}>{cve.cvssV3.impactScore}</span>
+                    </div>
+                  </div>
                 </div>
-                <div style={styles.infoItem}>
-                  <span style={styles.infoLabel}>Vector String:</span>
-                  <span style={styles.infoValue}>{cve.cvssV3.vectorString}</span>
+
+                <div style={{
+                  background: settings.darkMode ? '#334155' : '#f8fafc',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0'
+                }}>
+                  <h4 style={{ margin: '0 0 16px 0', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>Attack Vector</h4>
+                  <div style={{ display: 'grid', gap: '12px' }}>
+                    <div style={styles.infoItem}>
+                      <span style={styles.infoLabel}>Attack Vector:</span>
+                      <span style={styles.infoValue}>{cve.cvssV3.attackVector}</span>
+                    </div>
+                    <div style={styles.infoItem}>
+                      <span style={styles.infoLabel}>Attack Complexity:</span>
+                      <span style={styles.infoValue}>{cve.cvssV3.attackComplexity}</span>
+                    </div>
+                    <div style={styles.infoItem}>
+                      <span style={styles.infoLabel}>Privileges Required:</span>
+                      <span style={styles.infoValue}>{cve.cvssV3.privilegesRequired}</span>
+                    </div>
+                    <div style={styles.infoItem}>
+                      <span style={styles.infoLabel}>User Interaction:</span>
+                      <span style={styles.infoValue}>{cve.cvssV3.userInteraction}</span>
+                    </div>
+                  </div>
                 </div>
-                <div style={styles.infoItem}>
-                  <span style={styles.infoLabel}>Attack Vector:</span>
-                  <span style={styles.infoValue}>{cve.cvssV3.attackVector}</span>
-                </div>
-                <div style={styles.infoItem}>
-                  <span style={styles.infoLabel}>Attack Complexity:</span>
-                  <span style={styles.infoValue}>{cve.cvssV3.attackComplexity}</span>
-                </div>
-                <div style={styles.infoItem}>
-                  <span style={styles.infoLabel}>Privileges Required:</span>
-                  <span style={styles.infoValue}>{cve.cvssV3.privilegesRequired}</span>
-                </div>
-                <div style={styles.infoItem}>
-                  <span style={styles.infoLabel}>User Interaction:</span>
-                  <span style={styles.infoValue}>{cve.cvssV3.userInteraction}</span>
-                </div>
-                <div style={styles.infoItem}>
-                  <span style={styles.infoLabel}>Scope:</span>
-                  <span style={styles.infoValue}>{cve.cvssV3.scope}</span>
-                </div>
-                <div style={styles.infoItem}>
-                  <span style={styles.infoLabel}>Confidentiality Impact:</span>
-                  <span style={styles.infoValue}>{cve.cvssV3.confidentialityImpact}</span>
-                </div>
-                <div style={styles.infoItem}>
-                  <span style={styles.infoLabel}>Integrity Impact:</span>
-                  <span style={styles.infoValue}>{cve.cvssV3.integrityImpact}</span>
-                </div>
-                <div style={styles.infoItem}>
-                  <span style={styles.infoLabel}>Availability Impact:</span>
-                  <span style={styles.infoValue}>{cve.cvssV3.availabilityImpact}</span>
+
+                <div style={{
+                  background: settings.darkMode ? '#334155' : '#f8fafc',
+                  borderRadius: '12px',
+                  padding: '20px',
+                  border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0'
+                }}>
+                  <h4 style={{ margin: '0 0 16px 0', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>Impact Metrics</h4>
+                  <div style={{ display: 'grid', gap: '12px' }}>
+                    <div style={styles.infoItem}>
+                      <span style={styles.infoLabel}>Scope:</span>
+                      <span style={styles.infoValue}>{cve.cvssV3.scope}</span>
+                    </div>
+                    <div style={styles.infoItem}>
+                      <span style={styles.infoLabel}>Confidentiality:</span>
+                      <span style={styles.infoValue}>{cve.cvssV3.confidentialityImpact}</span>
+                    </div>
+                    <div style={styles.infoItem}>
+                      <span style={styles.infoLabel}>Integrity:</span>
+                      <span style={styles.infoValue}>{cve.cvssV3.integrityImpact}</span>
+                    </div>
+                    <div style={styles.infoItem}>
+                      <span style={styles.infoLabel}>Availability:</span>
+                      <span style={styles.infoValue}>{cve.cvssV3.availabilityImpact}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1451,31 +1929,71 @@ const CVEDetailView = ({ vulnerability }) => {
 
         {activeTab === 'ai' && aiAnalysis && (
           <div>
-            <h2 style={styles.sectionTitle}>AI Security Analysis</h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h2 style={styles.sectionTitle}>AI-Powered Security Analysis</h2>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {aiAnalysis.webGrounded && (
+                  <span style={{
+                    ...styles.badge,
+                    background: 'rgba(34, 197, 94, 0.15)',
+                    color: '#22c55e',
+                    border: '1px solid rgba(34, 197, 94, 0.3)'
+                  }}>
+                    <Globe size={12} style={{ marginRight: '4px' }} />
+                    REAL-TIME
+                  </span>
+                )}
+                {aiAnalysis.ragUsed && (
+                  <span style={{
+                    ...styles.badge,
+                    background: 'rgba(139, 92, 246, 0.15)',
+                    color: '#8b5cf6',
+                    border: '1px solid rgba(139, 92, 246, 0.3)'
+                  }}>
+                    <Database size={12} style={{ marginRight: '4px' }} />
+                    ENHANCED
+                  </span>
+                )}
+              </div>
+            </div>
             <div style={{
               ...styles.sectionContent,
               whiteSpace: 'pre-wrap',
-              lineHeight: '1.6'
+              lineHeight: '1.7',
+              fontSize: '1rem'
             }}>
               {aiAnalysis.analysis}
             </div>
-            {aiAnalysis.webGrounded && (
-              <div style={{
-                background: 'rgba(59, 130, 246, 0.1)',
-                border: '1px solid rgba(59, 130, 246, 0.3)',
-                borderRadius: '8px',
-                padding: '12px',
-                marginTop: '16px',
-                fontSize: '0.875rem'
-              }}>
-                🌐 This analysis includes real-time web search results
+            <div style={{
+              background: settings.darkMode ? '#334155' : '#f8fafc',
+              border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0',
+              borderRadius: '12px',
+              padding: '16px',
+              marginTop: '24px',
+              fontSize: '0.85rem'
+            }}>
+              <div style={{ fontWeight: '600', marginBottom: '8px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+                Analysis Metadata:
               </div>
-            )}
+              <div style={{ color: settings.darkMode ? '#94a3b8' : '#64748b' }}>
+                • Sources: {aiAnalysis.enhancedSources.join(', ')}
+                {aiAnalysis.ragUsed && (
+                  <>
+                    <br />• Knowledge Base: {aiAnalysis.ragDocs} relevant security documents
+                  </>
+                )}
+                {aiAnalysis.webGrounded && (
+                  <>
+                    <br />• Real-time Intelligence: Current threat landscape data
+                  </>
+                )}
+              </div>
+            </div>
           </div>
         )}
       </div>
 
-      {/* Sidebar */}
+      {/* Enhanced Sidebar */}
       <div style={styles.cveSidebar}>
         {/* CVSS Score Circle */}
         <div style={styles.scoreContainer}>
@@ -1487,21 +2005,72 @@ const CVEDetailView = ({ vulnerability }) => {
           >
             <div style={styles.scoreInner}>
               <div style={styles.scoreValue}>{cvssScore.toFixed(1)}</div>
-              <div style={styles.scoreLabel}>Score</div>
+              <div style={styles.scoreLabel}>CVSS Score</div>
             </div>
           </div>
-          <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-            <span style={{ ...styles.badge, ...getSeverityStyle(severity) }}>
+          <div style={{ textAlign: 'center', marginBottom: '12px' }}>
+            <span style={{ ...styles.badge, ...getSeverityStyle(severity), fontSize: '0.8rem', padding: '8px 16px' }}>
               {severity}
             </span>
           </div>
         </div>
 
+        {/* Quick Stats */}
+        <div style={{ marginBottom: '32px' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '16px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+            Threat Intelligence
+          </h3>
+          <div style={{ display: 'grid', gap: '12px' }}>
+            <div style={{
+              background: kev ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+              border: `1px solid ${kev ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
+              borderRadius: '8px',
+              padding: '12px',
+              textAlign: 'center'
+            }}>
+              <div style={{ fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px', color: kev ? '#ef4444' : '#22c55e' }}>
+                ACTIVE EXPLOITATION
+              </div>
+              <div style={{ fontSize: '1.2rem', fontWeight: '700', color: kev ? '#ef4444' : '#22c55e' }}>
+                {kev ? 'CONFIRMED' : 'NOT DETECTED'}
+              </div>
+            </div>
+            
+            {epss && (
+              <div style={{
+                background: epss.epss > 0.5 ? 'rgba(245, 158, 11, 0.1)' : 'rgba(59, 130, 246, 0.1)',
+                border: `1px solid ${epss.epss > 0.5 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(59, 130, 246, 0.3)'}`,
+                borderRadius: '8px',
+                padding: '12px',
+                textAlign: 'center'
+              }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: '600', marginBottom: '4px', color: epss.epss > 0.5 ? '#f59e0b' : '#3b82f6' }}>
+                  EPSS PROBABILITY
+                </div>
+                <div style={{ fontSize: '1.2rem', fontWeight: '700', color: epss.epss > 0.5 ? '#f59e0b' : '#3b82f6' }}>
+                  {(epss.epss * 100).toFixed(1)}%
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
         {/* Info Grid */}
         <div style={styles.infoGrid}>
+          <div>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '16px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+              Vulnerability Details
+            </h3>
+          </div>
+          
           <div style={styles.infoItem}>
             <span style={styles.infoLabel}>Published</span>
             <span style={styles.infoValue}>{formatDate(cve.publishedDate)}</span>
+          </div>
+          
+          <div style={styles.infoItem}>
+            <span style={styles.infoLabel}>Last Modified</span>
+            <span style={styles.infoValue}>{formatDate(cve.lastModifiedDate)}</span>
           </div>
           
           <div style={styles.infoItem}>
@@ -1515,115 +2084,82 @@ const CVEDetailView = ({ vulnerability }) => {
           </div>
           
           <div style={styles.infoItem}>
-            <span style={styles.infoLabel}>Has Public Exploit</span>
-            <span style={styles.infoValue}>No</span>
-          </div>
-          
-          <div style={styles.infoItem}>
-            <span style={styles.infoLabel}>Has CISA KEV Exploit</span>
+            <span style={styles.infoLabel}>CISA KEV Listed</span>
             <span style={styles.infoValue}>{kev ? 'Yes' : 'No'}</span>
           </div>
           
-          <div style={styles.infoItem}>
-            <span style={styles.infoLabel}>CISA KEV Release Date</span>
-            <span style={styles.infoValue}>{kev ? formatDate(kev.dateAdded) : 'N/A'}</span>
-          </div>
-          
-          <div style={styles.infoItem}>
-            <span style={styles.infoLabel}>CISA KEV Due Date</span>
-            <span style={styles.infoValue}>{kev ? kev.dueDate : 'N/A'}</span>
-          </div>
+          {kev && (
+            <>
+              <div style={styles.infoItem}>
+                <span style={styles.infoLabel}>KEV Due Date</span>
+                <span style={styles.infoValue}>{kev.dueDate}</span>
+              </div>
+              
+              <div style={styles.infoItem}>
+                <span style={styles.infoLabel}>Ransomware Use</span>
+                <span style={styles.infoValue}>{kev.knownRansomwareCampaignUse === 'Known' ? 'Yes' : 'No'}</span>
+              </div>
+            </>
+          )}
           
           {epss && (
             <>
               <div style={styles.infoItem}>
-                <span style={styles.infoLabel}>Exploitation Probability Percentile (EPSS)</span>
+                <span style={styles.infoLabel}>EPSS Percentile</span>
                 <span style={styles.infoValue}>{epss.percentile.toFixed(1)}</span>
               </div>
               
               <div style={styles.infoItem}>
-                <span style={styles.infoLabel}>Exploitation Probability (EPSS)</span>
-                <span style={styles.infoValue}>{(epss.epss * 100).toFixed(2)}%</span>
+                <span style={styles.infoLabel}>EPSS Date</span>
+                <span style={styles.infoValue}>{formatDate(epss.date)}</span>
               </div>
             </>
           )}
+
+          <div style={styles.infoItem}>
+            <span style={styles.infoLabel}>Data Sources</span>
+            <span style={styles.infoValue}>{vulnerability.enhancedSources?.length || 0}</span>
+          </div>
         </div>
 
-        {/* Affected Packages */}
-        <div style={{ marginTop: '24px' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '12px' }}>
-            Affected packages and libraries
-          </h3>
-          {github && github.length > 0 ? (
-            <div style={styles.sourcesList}>
-              {github.slice(0, 3).map((advisory, idx) => (
-                <div key={idx}>
-                  {advisory.vulnerabilities?.nodes?.slice(0, 2).map((vuln, vIdx) => (
-                    <div key={vIdx} style={styles.sourceItem}>
-                      <Package size={16} />
-                      <div>
-                        <div style={{ fontWeight: '500' }}>{vuln.package.name}</div>
-                        <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>{vuln.package.ecosystem}</div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
-              {github.reduce((total, advisory) => total + (advisory.vulnerabilities?.nodes?.length || 0), 0) > 6 && (
-                <div style={{ textAlign: 'center', fontSize: '0.875rem', color: '#3b82f6', cursor: 'pointer' }}>
-                  +2 See all
-                </div>
-              )}
-            </div>
-          ) : (
-            <div style={{ fontSize: '0.875rem', color: settings.darkMode ? '#9ca3af' : '#6b7280' }}>
-              No package information available
-            </div>
-          )}
-        </div>
-
-        {/* Comprehensive Global Sources */}
-        <div style={{ marginTop: '24px' }}>
-          <h3 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '12px' }}>
-            Sources
+        {/* Data Sources */}
+        <div style={{ marginTop: '32px' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: '700', marginBottom: '16px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+            Intelligence Sources
           </h3>
           <div style={styles.sourcesList}>
-            {/* US Government Sources */}
-            
-            {/* NVD - NIST */}
+            {/* NVD */}
             <div style={styles.sourceItem}>
               <div style={{ 
-                width: '24px', 
-                height: '24px', 
+                width: '32px', 
+                height: '32px', 
                 background: '#1f2937', 
                 borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center'
               }}>
-                <Shield size={12} color="white" />
+                <Shield size={16} color="white" />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                  <span style={{ fontWeight: '500', fontSize: '0.9rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>
                     <a href={`https://nvd.nist.gov/vuln/detail/${cve.id}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
                       NVD (NIST)
                     </a>
                   </span>
                   <ExternalLink size={12} style={{ opacity: 0.6 }} />
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                  <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Severity</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                   <span style={{
                     ...styles.badge,
                     ...getSeverityStyle(severity),
                     fontSize: '0.7rem',
-                    padding: '2px 6px'
+                    padding: '2px 8px'
                   }}>{severity}</span>
-                  <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Official US</span>
-                  <span style={{ color: '#3b82f6', fontSize: '0.75rem' }}>🇺🇸</span>
+                  <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Official US Gov</span>
                 </div>
-                <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>Added at: {formatDate(cve.publishedDate)}</div>
+                <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>Updated: {formatDate(cve.lastModifiedDate)}</div>
               </div>
             </div>
 
@@ -1631,342 +2167,162 @@ const CVEDetailView = ({ vulnerability }) => {
             {kev && (
               <div style={styles.sourceItem}>
                 <div style={{ 
-                  width: '24px', 
-                  height: '24px', 
+                  width: '32px', 
+                  height: '32px', 
                   background: '#ef4444', 
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}>
-                  <AlertTriangle size={12} color="white" />
+                  <AlertTriangle size={16} color="white" />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                    <span style={{ fontWeight: '500', fontSize: '0.9rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>
                       <a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
                         CISA KEV
                       </a>
                     </span>
                     <ExternalLink size={12} style={{ opacity: 0.6 }} />
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                    <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Severity</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                     <span style={{
                       ...styles.badge,
                       ...styles.badgeCritical,
                       fontSize: '0.7rem',
-                      padding: '2px 6px'
+                      padding: '2px 8px'
                     }}>CRITICAL</span>
-                    <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Known Exploit</span>
-                    <span style={{ color: '#ef4444', fontSize: '0.75rem' }}>⚠️</span>
+                    <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Active Exploit</span>
                   </div>
-                  <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>Added at: {formatDate(kev.dateAdded)}</div>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>Added: {formatDate(kev.dateAdded)}</div>
                 </div>
               </div>
             )}
-
-            {/* MITRE */}
-            <div style={styles.sourceItem}>
-              <div style={{ 
-                width: '24px', 
-                height: '24px', 
-                background: '#dc2626', 
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <span style={{ color: 'white', fontSize: '10px', fontWeight: '600' }}>M</span>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                  <span style={{ fontWeight: '500', fontSize: '0.9rem' }}>
-                    <a href={`https://cve.mitre.org/cgi-bin/cvename.cgi?name=${cve.id}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
-                      MITRE Corporation
-                    </a>
-                  </span>
-                  <ExternalLink size={12} style={{ opacity: 0.6 }} />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                  <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>CVE Authority</span>
-                  <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Original Source</span>
-                  <span style={{ color: '#dc2626', fontSize: '0.75rem' }}>📋</span>
-                </div>
-                <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>Added at: {formatDate(cve.publishedDate)}</div>
-              </div>
-            </div>
 
             {/* FIRST EPSS */}
             {epss && (
               <div style={styles.sourceItem}>
                 <div style={{ 
-                  width: '24px', 
-                  height: '24px', 
+                  width: '32px', 
+                  height: '32px', 
                   background: '#22c55e', 
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}>
-                  <Target size={12} color="white" />
+                  <Target size={16} color="white" />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                    <span style={{ fontWeight: '500', fontSize: '0.9rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>
                       <a href={`https://api.first.org/data/v1/epss?cve=${cve.id}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
                         FIRST EPSS
                       </a>
                     </span>
                     <ExternalLink size={12} style={{ opacity: 0.6 }} />
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                    <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>EPSS Score</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                     <span style={{
                       ...styles.badge,
-                      background: 'rgba(34, 197, 94, 0.1)',
-                      color: '#22c55e',
+                      background: epss.epss > 0.5 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                      color: epss.epss > 0.5 ? '#f59e0b' : '#22c55e',
+                      border: `1px solid ${epss.epss > 0.5 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
                       fontSize: '0.7rem',
-                      padding: '2px 6px'
-                    }}>{(epss.epss * 100).toFixed(2)}%</span>
-                    <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Global Threat Intel</span>
+                      padding: '2px 8px'
+                    }}>{(epss.epss * 100).toFixed(1)}%</span>
+                    <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Exploit Probability</span>
                   </div>
-                  <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>Added at: {formatDate(epss.date)}</div>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>Updated: {formatDate(epss.date)}</div>
                 </div>
               </div>
             )}
-
-            {/* Debian Security Tracker */}
-            <div style={styles.sourceItem}>
-              <div style={{ 
-                width: '24px', 
-                height: '24px', 
-                background: '#d70a53', 
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '12px',
-                color: 'white',
-                fontWeight: '600'
-              }}>D</div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                  <span style={{ fontWeight: '500', fontSize: '0.9rem' }}>
-                    <a href={`https://security-tracker.debian.org/tracker/${cve.id}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
-                      Debian Security Tracker
-                    </a>
-                  </span>
-                  <ExternalLink size={12} style={{ opacity: 0.6 }} />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                  <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Severity</span>
-                  <span style={{
-                    ...styles.badge,
-                    ...styles.badgeMedium,
-                    fontSize: '0.7rem',
-                    padding: '2px 6px'
-                  }}>MEDIUM</span>
-                  <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Has Fix</span>
-                  <span style={{ color: '#22c55e', fontSize: '0.75rem' }}>🔗</span>
-                </div>
-                <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>Added at: Mar 09, 2023</div>
-              </div>
-            </div>
-
-            {/* Ubuntu Security */}
-            <div style={styles.sourceItem}>
-              <div style={{ 
-                width: '24px', 
-                height: '24px', 
-                background: '#e95420', 
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <span style={{ color: 'white', fontSize: '8px', fontWeight: '600' }}>U</span>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                  <span style={{ fontWeight: '500', fontSize: '0.9rem' }}>
-                    <a href={`https://ubuntu.com/security/notices`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
-                      Ubuntu Security
-                    </a>
-                  </span>
-                  <ExternalLink size={12} style={{ opacity: 0.6 }} />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                  <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Severity</span>
-                  <span style={{
-                    ...styles.badge,
-                    ...styles.badgeMedium,
-                    fontSize: '0.7rem',
-                    padding: '2px 6px'
-                  }}>MEDIUM</span>
-                  <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Has Fix</span>
-                  <span style={{ color: '#22c55e', fontSize: '0.75rem' }}>🔗</span>
-                </div>
-                <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>Added at: Mar 09, 2023</div>
-              </div>
-            </div>
 
             {/* GitHub Security Advisory */}
             {github && github.length > 0 && (
               <div style={styles.sourceItem}>
                 <div style={{ 
-                  width: '24px', 
-                  height: '24px', 
+                  width: '32px', 
+                  height: '32px', 
                   background: '#24292f', 
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}>
-                  <GitBranch size={12} color="white" />
+                  <GitBranch size={16} color="white" />
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                    <span style={{ fontWeight: '500', fontSize: '0.9rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>
                       <a href={`https://github.com/advisories?query=${cve.id}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
-                        GitHub Security Advisory
+                        GitHub Advisory
                       </a>
                     </span>
                     <ExternalLink size={12} style={{ opacity: 0.6 }} />
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                    <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Severity</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                     <span style={{
                       ...styles.badge,
                       ...getSeverityStyle(github[0].severity),
                       fontSize: '0.7rem',
-                      padding: '2px 6px'
+                      padding: '2px 8px'
                     }}>{github[0].severity}</span>
                     <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Supply Chain</span>
-                    <span style={{ color: '#6b7280', fontSize: '0.75rem' }}>📦</span>
                   </div>
-                  <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>Added at: {formatDate(github[0].publishedAt)}</div>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>
+                    {github.reduce((total, advisory) => total + (advisory.vulnerabilities?.nodes?.length || 0), 0)} packages affected
+                  </div>
                 </div>
               </div>
             )}
 
-            {/* Red Hat Security */}
-            <div style={styles.sourceItem}>
-              <div style={{ 
-                width: '24px', 
-                height: '24px', 
-                background: '#ee0000', 
-                borderRadius: '4px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <span style={{ color: 'white', fontSize: '7px', fontWeight: '600' }}>RH</span>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                  <span style={{ fontWeight: '500', fontSize: '0.9rem' }}>
-                    <a href={`https://access.redhat.com/security/`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
-                      Red Hat Security
-                    </a>
-                  </span>
-                  <ExternalLink size={12} style={{ opacity: 0.6 }} />
+            {/* OSV Database */}
+            {osv && osv.length > 0 && (
+              <div style={styles.sourceItem}>
+                <div style={{ 
+                  width: '32px', 
+                  height: '32px', 
+                  background: '#8b5cf6', 
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
+                  <Database size={16} color="white" />
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                  <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Severity</span>
-                  <span style={{
-                    ...styles.badge,
-                    ...styles.badgeHigh,
-                    fontSize: '0.7rem',
-                    padding: '2px 6px'
-                  }}>HIGH</span>
-                  <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Has Fix</span>
-                  <span style={{ color: '#22c55e', fontSize: '0.75rem' }}>🔗</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>
+                      <a href={`https://osv.dev/vulnerability/${cve.id}`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+                        OSV Database
+                      </a>
+                    </span>
+                    <ExternalLink size={12} style={{ opacity: 0.6 }} />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <span style={{
+                      ...styles.badge,
+                      background: 'rgba(139, 92, 246, 0.15)',
+                      color: '#8b5cf6',
+                      border: '1px solid rgba(139, 92, 246, 0.3)',
+                      fontSize: '0.7rem',
+                      padding: '2px 8px'
+                    }}>OPEN SOURCE</span>
+                    <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Ecosystem Data</span>
+                  </div>
+                  <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>
+                    {osv.length} database entries
+                  </div>
                 </div>
-                <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>Added at: Mar 10, 2023</div>
               </div>
-            </div>
-
-            {/* Microsoft Security */}
-            <div style={styles.sourceItem}>
-              <div style={{ 
-                width: '24px', 
-                height: '24px', 
-                background: '#00a4ef', 
-                borderRadius: '4px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="white">
-                  <path d="M0 3.449L9.75 2.1v9.451H0m10.949-9.602L24 0v11.4H10.949M0 12.6h9.75v9.451L0 20.699M10.949 12.6H24V24l-13.051-1.351"/>
-                </svg>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                  <span style={{ fontWeight: '500', fontSize: '0.9rem' }}>
-                    <a href={`https://msrc.microsoft.com/`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
-                      Microsoft Security
-                    </a>
-                  </span>
-                  <ExternalLink size={12} style={{ opacity: 0.6 }} />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                  <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Severity</span>
-                  <span style={{
-                    ...styles.badge,
-                    ...styles.badgeHigh,
-                    fontSize: '0.7rem',
-                    padding: '2px 6px'
-                  }}>HIGH</span>
-                  <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Has Fix</span>
-                  <span style={{ color: '#22c55e', fontSize: '0.75rem' }}>🔗</span>
-                </div>
-                <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>Added at: Mar 10, 2023</div>
-              </div>
-            </div>
-
-            {/* Linux Kernel */}
-            <div style={styles.sourceItem}>
-              <div style={{ 
-                width: '24px', 
-                height: '24px', 
-                background: '#ffd700', 
-                borderRadius: '4px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center'
-              }}>
-                <span style={{ fontSize: '14px' }}>🐧</span>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                  <span style={{ fontWeight: '500', fontSize: '0.9rem' }}>
-                    <a href={`https://www.kernel.org/`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
-                      Linux Kernel
-                    </a>
-                  </span>
-                  <ExternalLink size={12} style={{ opacity: 0.6 }} />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '2px' }}>
-                  <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Severity</span>
-                  <span style={{
-                    ...styles.badge,
-                    ...styles.badgeMedium,
-                    fontSize: '0.7rem',
-                    padding: '2px 6px'
-                  }}>MEDIUM</span>
-                  <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>Has Fix</span>
-                  <span style={{ color: '#22c55e', fontSize: '0.75rem' }}>🔗</span>
-                </div>
-                <div style={{ fontSize: '0.75rem', opacity: 0.7 }}>Added at: Mar 10, 2023</div>
-              </div>
-            </div>
+            )}
           </div>
         </div>
         
-        <div style={{ marginTop: '16px', fontSize: '0.75rem', color: settings.darkMode ? '#9ca3af' : '#6b7280' }}>
-          Source: This report was generated using AI
+        <div style={{ marginTop: '24px', fontSize: '0.75rem', color: settings.darkMode ? '#64748b' : '#94a3b8', textAlign: 'center' }}>
+          Last updated: {formatDate(vulnerability.lastUpdated)}
         </div>
       </div>
     </div>
@@ -2009,7 +2365,7 @@ const SearchComponent = () => {
     setLoadingSteps([]);
     
     try {
-      setLoadingSteps(prev => [...prev, `🎯 Starting analysis for ${cveId}...`]);
+      setLoadingSteps(prev => [...prev, `🎯 Starting comprehensive analysis for ${cveId}...`]);
       
       const vulnerability = await fetchVulnerabilityData(cveId, setLoadingSteps, {
         nvd: settings.nvdApiKey,
@@ -2022,7 +2378,7 @@ const SearchComponent = () => {
       addNotification({
         type: 'success',
         title: 'Analysis Complete',
-        message: `Successfully analyzed ${cveId}`
+        message: `Successfully analyzed ${cveId} with ${vulnerability.enhancedSources.length} data sources`
       });
       
     } catch (error) {
@@ -2041,17 +2397,17 @@ const SearchComponent = () => {
   return (
     <div style={styles.searchSection}>
       <div style={styles.searchContainer}>
-        <h1 style={styles.searchTitle}>Vulnerability Database</h1>
-        <p style={styles.searchSubtitle}>Search by CVE ID or technology to find detailed vulnerability information</p>
+        <h1 style={styles.searchTitle}>Global Vulnerability Intelligence</h1>
+        <p style={styles.searchSubtitle}>Real-time threat analysis powered by AI and comprehensive data sources</p>
         
         <div style={styles.searchWrapper}>
-          <Search style={styles.searchIcon} size={20} />
+          <Search style={styles.searchIcon} size={24} />
           <input
             type="text"
-            placeholder="Search by CVE ID or technology"
+            placeholder="Enter CVE ID (e.g., CVE-2024-12345)"
             style={{
               ...styles.searchInput,
-              borderColor: searchTerm ? '#3b82f6' : (settings.darkMode ? '#374151' : '#d1d5db')
+              borderColor: searchTerm ? '#3b82f6' : (settings.darkMode ? '#334155' : '#e2e8f0')
             }}
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -2063,27 +2419,28 @@ const SearchComponent = () => {
             onClick={handleSearch}
             disabled={loading || !searchTerm.trim()}
           >
-            {loading ? <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> : <Search size={16} />}
-            {loading ? 'Searching...' : 'Search'}
+            {loading ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Search size={18} />}
+            {loading ? 'Analyzing...' : 'Analyze'}
           </button>
         </div>
 
         {searchHistory.length > 0 && (
-          <div style={{ marginTop: '16px' }}>
-            <div style={{ fontSize: '0.875rem', marginBottom: '8px', color: settings.darkMode ? '#9ca3af' : '#6b7280' }}>
+          <div style={{ marginTop: '24px' }}>
+            <div style={{ fontSize: '0.9rem', marginBottom: '12px', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>
               Recent searches:
             </div>
-            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', justifyContent: 'center' }}>
               {searchHistory.map((cve, index) => (
                 <button
                   key={index}
                   style={{
                     ...styles.badge,
-                    background: settings.darkMode ? '#374151' : '#f3f4f6',
-                    color: settings.darkMode ? '#f9fafb' : '#374151',
+                    background: settings.darkMode ? '#334155' : '#f1f5f9',
+                    color: settings.darkMode ? '#f1f5f9' : '#334155',
                     cursor: 'pointer',
                     border: 'none',
-                    transition: 'all 0.2s ease'
+                    transition: 'all 0.3s ease',
+                    padding: '8px 16px'
                   }}
                   onClick={() => setSearchTerm(cve)}
                   disabled={loading}
@@ -2095,39 +2452,57 @@ const SearchComponent = () => {
           </div>
         )}
 
-        {/* Popular Filters */}
-        <div style={{ marginTop: '48px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '32px', textAlign: 'left' }}>
+        {/* Feature Highlights */}
+        <div style={{ marginTop: '64px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '48px', textAlign: 'left' }}>
           <div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '16px', color: settings.darkMode ? '#f3f4f6' : '#374151' }}>
-              Explore by technology
+            <h3 style={{ fontSize: '1.3rem', fontWeight: '700', marginBottom: '20px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+              🌍 Global Data Sources
             </h3>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {['Linux Debian', 'Linux Ubuntu', 'Linux Red Hat', 'WordPress', 'Linux openSUSE'].map((tech) => (
-                <span key={tech} style={{
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+              {['NVD (NIST)', 'CISA KEV', 'FIRST EPSS', 'GitHub Security', 'OSV Database', 'VulnDB'].map((source) => (
+                <span key={source} style={{
                   ...styles.badge,
-                  background: settings.darkMode ? '#374151' : '#f3f4f6',
-                  color: settings.darkMode ? '#f9fafb' : '#374151',
-                  cursor: 'pointer'
+                  background: settings.darkMode ? '#334155' : '#f1f5f9',
+                  color: settings.darkMode ? '#f1f5f9' : '#334155',
+                  padding: '8px 16px'
                 }}>
-                  {tech}
+                  {source}
                 </span>
               ))}
             </div>
           </div>
           
           <div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '16px', color: settings.darkMode ? '#f3f4f6' : '#374151' }}>
-              Popular filters
+            <h3 style={{ fontSize: '1.3rem', fontWeight: '700', marginBottom: '20px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+              🤖 AI-Powered Analysis
             </h3>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-              {['Has CISA KEV exploit', 'High profile vulnerabilities', 'CVEs with an exploit from the last 60 days'].map((filter) => (
-                <span key={filter} style={{
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+              {['Real-time Web Search', 'Threat Intelligence', 'Business Impact', 'Remediation Strategy', 'Risk Prioritization'].map((feature) => (
+                <span key={feature} style={{
                   ...styles.badge,
-                  background: settings.darkMode ? '#374151' : '#f3f4f6',
-                  color: settings.darkMode ? '#f9fafb' : '#374151',
-                  cursor: 'pointer'
+                  background: settings.darkMode ? '#334155' : '#f1f5f9',
+                  color: settings.darkMode ? '#f1f5f9' : '#334155',
+                  padding: '8px 16px'
                 }}>
-                  {filter}
+                  {feature}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <h3 style={{ fontSize: '1.3rem', fontWeight: '700', marginBottom: '20px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+              📦 Supply Chain Intelligence
+            </h3>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+              {['Package Detection', 'Version Analysis', 'Ecosystem Mapping', 'Patch Tracking', 'Dependency Graph'].map((capability) => (
+                <span key={capability} style={{
+                  ...styles.badge,
+                  background: settings.darkMode ? '#334155' : '#f1f5f9',
+                  color: settings.darkMode ? '#f1f5f9' : '#334155',
+                  padding: '8px 16px'
+                }}>
+                  {capability}
                 </span>
               ))}
             </div>
@@ -2158,7 +2533,7 @@ const VulnerabilityApp = () => {
     
     setTimeout(() => {
       setNotifications(prev => prev.filter(n => n.id !== id));
-    }, 5000);
+    }, 6000);
   };
 
   const handleVulnerabilitiesUpdate = (newVulns) => {
@@ -2192,27 +2567,27 @@ const VulnerabilityApp = () => {
         <header style={styles.header}>
           <div style={styles.headerContent}>
             <div style={styles.headerTitle}>
-              <Shield size={28} color={settings.darkMode ? '#ffffff' : '#1f2937'} />
+              <Shield size={32} color="#3b82f6" />
               <div>
-                <h1 style={styles.title}>Vulnerability Database</h1>
-                <p style={styles.subtitle}>Real-time vulnerability intelligence platform</p>
+                <h1 style={styles.title}>VulnIntel Pro</h1>
+                <p style={styles.subtitle}>Advanced Vulnerability Intelligence Platform</p>
               </div>
             </div>
             <div style={styles.headerActions}>
               <div style={styles.statusIndicator}>
-                <Activity size={12} />
-                <span>LIVE</span>
+                <Activity size={14} />
+                <span>REAL-TIME</span>
               </div>
               <button 
                 style={{ 
                   ...styles.button, 
                   ...styles.buttonSecondary,
-                  padding: '6px 8px'
+                  padding: '8px 12px'
                 }}
                 onClick={() => setSettings(prev => ({ ...prev, darkMode: !prev.darkMode }))}
                 title={settings.darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
               >
-                {settings.darkMode ? <Sun size={16} /> : <Moon size={16} />}
+                {settings.darkMode ? <Sun size={18} /> : <Moon size={18} />}
               </button>
               <button 
                 style={{ 
@@ -2221,7 +2596,7 @@ const VulnerabilityApp = () => {
                 }}
                 onClick={() => setShowSettings(true)}
               >
-                <Settings size={16} />
+                <Settings size={18} />
                 Settings
               </button>
             </div>
@@ -2234,48 +2609,48 @@ const VulnerabilityApp = () => {
           {loading && (
             <div style={styles.loadingContainer}>
               <div style={{
-                background: settings.darkMode ? '#1f2937' : '#ffffff',
-                color: settings.darkMode ? '#ffffff' : '#1f2937',
-                padding: '32px',
-                borderRadius: '12px',
+                background: settings.darkMode ? '#1e293b' : '#ffffff',
+                color: settings.darkMode ? '#f1f5f9' : '#0f172a',
+                padding: '48px',
+                borderRadius: '20px',
                 textAlign: 'center',
-                maxWidth: '600px',
-                boxShadow: settings.darkMode ? '0 4px 6px rgba(0, 0, 0, 0.3)' : '0 1px 3px rgba(0, 0, 0, 0.1)',
-                border: settings.darkMode ? '1px solid #374151' : '1px solid #e5e7eb'
+                maxWidth: '700px',
+                boxShadow: settings.darkMode ? '0 8px 32px rgba(0, 0, 0, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.08)',
+                border: settings.darkMode ? '1px solid #334155' : '1px solid #e2e8f0'
               }}>
-                <Loader2 size={48} style={{ marginBottom: '16px', animation: 'spin 1s linear infinite' }} />
-                <h3 style={{ margin: '0 0 8px 0' }}>Processing Vulnerability Data</h3>
-                <p style={{ margin: '0 0 24px 0', fontSize: '1rem' }}>
-                  Fetching real-time data from multiple sources...
+                <Loader2 size={56} style={{ marginBottom: '24px', animation: 'spin 1s linear infinite', color: '#3b82f6' }} />
+                <h3 style={{ margin: '0 0 12px 0', fontSize: '1.5rem', fontWeight: '700' }}>Processing Vulnerability Intelligence</h3>
+                <p style={{ margin: '0 0 32px 0', fontSize: '1.1rem', opacity: 0.8 }}>
+                  Fetching real-time data from global threat intelligence sources...
                 </p>
                 
                 {loadingSteps.length > 0 && (
                   <div style={{ 
-                    background: settings.darkMode ? '#374151' : '#f9fafb', 
-                    borderRadius: '8px', 
-                    padding: '16px',
+                    background: settings.darkMode ? '#334155' : '#f8fafc', 
+                    borderRadius: '12px', 
+                    padding: '24px',
                     textAlign: 'left',
-                    maxHeight: '200px',
+                    maxHeight: '300px',
                     overflowY: 'auto'
                   }}>
-                    {loadingSteps.slice(-8).map((step, index) => (
+                    {loadingSteps.slice(-10).map((step, index) => (
                       <div key={index} style={{ 
                         display: 'flex', 
                         alignItems: 'center', 
-                        gap: '8px', 
-                        marginBottom: '6px',
-                        fontSize: '0.875rem'
+                        gap: '12px', 
+                        marginBottom: '8px',
+                        fontSize: '0.9rem'
                       }}>
                         {step.startsWith('✅') ? (
-                          <CheckCircle size={14} color="#22c55e" />
+                          <CheckCircle size={16} color="#22c55e" />
                         ) : step.startsWith('❌') ? (
-                          <XCircle size={14} color="#ef4444" />
+                          <XCircle size={16} color="#ef4444" />
                         ) : step.startsWith('⚠️') ? (
-                          <AlertTriangle size={14} color="#f59e0b" />
+                          <AlertTriangle size={16} color="#f59e0b" />
                         ) : (
                           <div style={{ 
-                            width: '10px', 
-                            height: '10px', 
+                            width: '12px', 
+                            height: '12px', 
                             borderRadius: '50%', 
                             background: '#3b82f6'
                           }} />
@@ -2298,36 +2673,41 @@ const VulnerabilityApp = () => {
           {!loading && vulnerabilities.length === 0 && (
             <div style={styles.emptyState}>
               <div style={{
-                background: settings.darkMode ? '#1f2937' : '#ffffff',
-                borderRadius: '12px',
-                padding: '48px',
-                boxShadow: settings.darkMode ? '0 4px 6px rgba(0, 0, 0, 0.3)' : '0 1px 3px rgba(0, 0, 0, 0.1)',
-                border: settings.darkMode ? '1px solid #374151' : '1px solid #e5e7eb',
-                maxWidth: '600px',
+                background: settings.darkMode ? '#1e293b' : '#ffffff',
+                borderRadius: '20px',
+                padding: '64px',
+                boxShadow: settings.darkMode ? '0 8px 32px rgba(0, 0, 0, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.08)',
+                border: settings.darkMode ? '1px solid #334155' : '1px solid #e2e8f0',
+                maxWidth: '700px',
                 margin: '0 auto'
               }}>
-                <Shield size={64} style={{ marginBottom: '24px', color: '#3b82f6' }} />
-                <h2 style={{ margin: '0 0 12px 0', fontSize: '1.5rem', color: settings.darkMode ? '#ffffff' : '#111827' }}>
-                  Vulnerability Intelligence Platform
+                <Shield size={80} style={{ marginBottom: '32px', color: '#3b82f6' }} />
+                <h2 style={{ margin: '0 0 16px 0', fontSize: '2rem', fontWeight: '800', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+                  Next-Generation Vulnerability Intelligence
                 </h2>
-                <p style={{ margin: '0 0 24px 0', fontSize: '1rem', color: settings.darkMode ? '#9ca3af' : '#6b7280' }}>
-                  Search for CVE IDs to get comprehensive vulnerability analysis with real-time data from authoritative sources
+                <p style={{ margin: '0 0 32px 0', fontSize: '1.1rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>
+                  Comprehensive vulnerability analysis powered by AI and real-time threat intelligence from authoritative global sources
                 </p>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginTop: '32px' }}>
-                  <div style={{ textAlign: 'center', padding: '16px' }}>
-                    <Database size={32} style={{ color: '#3b82f6', marginBottom: '8px' }} />
-                    <div style={{ fontWeight: '600', marginBottom: '4px', color: settings.darkMode ? '#ffffff' : '#111827' }}>Real-time Data</div>
-                    <div style={{ fontSize: '0.875rem', color: settings.darkMode ? '#9ca3af' : '#6b7280' }}>NVD, EPSS, KEV</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '24px', marginTop: '48px' }}>
+                  <div style={{ textAlign: 'center', padding: '24px' }}>
+                    <Database size={40} style={{ color: '#3b82f6', marginBottom: '12px' }} />
+                    <div style={{ fontWeight: '700', marginBottom: '6px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>Real-time Data</div>
+                    <div style={{ fontSize: '0.9rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>NVD, EPSS, KEV, OSV</div>
                   </div>
-                  <div style={{ textAlign: 'center', padding: '16px' }}>
-                    <GitBranch size={32} style={{ color: '#6b7280', marginBottom: '8px' }} />
-                    <div style={{ fontWeight: '600', marginBottom: '4px', color: settings.darkMode ? '#ffffff' : '#111827' }}>GitHub Integration</div>
-                    <div style={{ fontSize: '0.875rem', color: settings.darkMode ? '#9ca3af' : '#6b7280' }}>Supply Chain</div>
+                  <div style={{ textAlign: 'center', padding: '24px' }}>
+                    <GitBranch size={40} style={{ color: '#6b7280', marginBottom: '12px' }} />
+                    <div style={{ fontWeight: '700', marginBottom: '6px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>Supply Chain</div>
+                    <div style={{ fontSize: '0.9rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Package Analysis</div>
                   </div>
-                  <div style={{ textAlign: 'center', padding: '16px' }}>
-                    <Brain size={32} style={{ color: '#8b5cf6', marginBottom: '8px' }} />
-                    <div style={{ fontWeight: '600', marginBottom: '4px', color: settings.darkMode ? '#ffffff' : '#111827' }}>AI Analysis</div>
-                    <div style={{ fontSize: '0.875rem', color: settings.darkMode ? '#9ca3af' : '#6b7280' }}>Enhanced Intelligence</div>
+                  <div style={{ textAlign: 'center', padding: '24px' }}>
+                    <Brain size={40} style={{ color: '#8b5cf6', marginBottom: '12px' }} />
+                    <div style={{ fontWeight: '700', marginBottom: '6px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>AI Intelligence</div>
+                    <div style={{ fontSize: '0.9rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Enhanced Analysis</div>
+                  </div>
+                  <div style={{ textAlign: 'center', padding: '24px' }}>
+                    <Globe size={40} style={{ color: '#22c55e', marginBottom: '12px' }} />
+                    <div style={{ fontWeight: '700', marginBottom: '6px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>Global Sources</div>
+                    <div style={{ fontSize: '0.9rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Worldwide Coverage</div>
                   </div>
                 </div>
               </div>
