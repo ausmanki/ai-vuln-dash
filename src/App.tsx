@@ -2623,7 +2623,7 @@ const VulnerabilityIntelligence = () => {
   const [settings, setSettings] = useState({
     darkMode: false,
     geminiApiKey: '',
-    geminiModel: 'gemini-2.0-flash-exp',
+    geminiModel: 'gemini-2.5-flash',
     nvdApiKey: '',
     githubToken: '',
     enableRAG: true,
