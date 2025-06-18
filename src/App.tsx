@@ -1653,6 +1653,16 @@ const CVEDetailView = ({ vulnerability }) => {
           <div 
             style={{
               ...styles.tab,
+              ...(activeTab === 'sources' ? styles.activeTab : {})
+            }}
+            onClick={() => setActiveTab('sources')}
+          >
+            <Globe size={16} style={{ marginRight: '6px' }} />
+            Global Sources
+          </div>
+          <div 
+            style={{
+              ...styles.tab,
               ...(activeTab === 'cvss' ? styles.activeTab : {})
             }}
             onClick={() => setActiveTab('cvss')}
@@ -1834,6 +1844,545 @@ const CVEDetailView = ({ vulnerability }) => {
           <div>
             <h2 style={styles.sectionTitle}>Affected Packages & Libraries</h2>
             <AffectedPackagesView vulnerability={vulnerability} />
+          </div>
+        )}
+
+        {activeTab === 'sources' && (
+          <div>
+            <h2 style={styles.sectionTitle}>Global Vulnerability Sources</h2>
+            <div style={styles.sectionContent}>
+              <div style={{
+                background: settings.darkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)',
+                border: '1px solid rgba(59, 130, 246, 0.2)',
+                borderRadius: '12px',
+                padding: '20px',
+                marginBottom: '24px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                  <Database size={24} color="#3b82f6" />
+                  <span style={{ fontWeight: '700', fontSize: '1.1rem', color: '#3b82f6' }}>
+                    Data Sources: {vulnerability.enhancedSources?.length || 0}
+                  </span>
+                </div>
+                <p style={{ margin: 0, fontSize: '0.95rem', color: settings.darkMode ? '#cbd5e1' : '#475569' }}>
+                  This analysis aggregates data from multiple authoritative sources to provide comprehensive vulnerability intelligence.
+                </p>
+              </div>
+
+              <div style={{ display: 'grid', gap: '24px' }}>
+                {/* US Government Sources */}
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '16px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+                    🇺🇸 US Government Sources
+                  </h3>
+                  <div style={{ display: 'grid', gap: '16px' }}>
+                    {/* NVD */}
+                    <div style={{
+                      background: settings.darkMode ? '#334155' : '#f8fafc',
+                      border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      padding: '20px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                        <div style={{ 
+                          width: '40px', 
+                          height: '40px', 
+                          background: '#1f2937', 
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <Shield size={20} color="white" />
+                        </div>
+                        <div>
+                          <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+                            National Vulnerability Database (NVD)
+                          </h4>
+                          <p style={{ margin: 0, fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>
+                            NIST - Official US Government Repository
+                          </p>
+                        </div>
+                        <a 
+                          href={`https://nvd.nist.gov/vuln/detail/${cve.id}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          style={{ marginLeft: 'auto' }}
+                        >
+                          <ExternalLink size={20} color={settings.darkMode ? '#94a3b8' : '#64748b'} />
+                        </a>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
+                        <div>
+                          <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Severity</span>
+                          <div style={{
+                            ...styles.badge,
+                            ...getSeverityStyle(severity),
+                            marginTop: '4px'
+                          }}>
+                            {severity}
+                          </div>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>CVSS Score</span>
+                          <div style={{ fontWeight: '700', fontSize: '1.1rem', marginTop: '4px' }}>{cvssScore.toFixed(1)}</div>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Published</span>
+                          <div style={{ fontWeight: '600', fontSize: '0.9rem', marginTop: '4px' }}>{formatDate(cve.publishedDate)}</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* CISA KEV */}
+                    {kev && (
+                      <div style={{
+                        background: 'rgba(239, 68, 68, 0.05)',
+                        border: '1px solid rgba(239, 68, 68, 0.2)',
+                        borderRadius: '12px',
+                        padding: '20px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                          <div style={{ 
+                            width: '40px', 
+                            height: '40px', 
+                            background: '#ef4444', 
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <AlertTriangle size={20} color="white" />
+                          </div>
+                          <div>
+                            <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: '#ef4444' }}>
+                              CISA Known Exploited Vulnerabilities
+                            </h4>
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>
+                              Active Exploitation Confirmed
+                            </p>
+                          </div>
+                          <a 
+                            href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog" 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            style={{ marginLeft: 'auto' }}
+                          >
+                            <ExternalLink size={20} color="#ef4444" />
+                          </a>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
+                          <div>
+                            <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Vendor/Product</span>
+                            <div style={{ fontWeight: '600', fontSize: '0.9rem', marginTop: '4px' }}>{kev.vendorProject}/{kev.product}</div>
+                          </div>
+                          <div>
+                            <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Due Date</span>
+                            <div style={{ fontWeight: '700', fontSize: '0.9rem', marginTop: '4px', color: '#ef4444' }}>{kev.dueDate}</div>
+                          </div>
+                          <div>
+                            <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Ransomware Use</span>
+                            <div style={{ fontWeight: '600', fontSize: '0.9rem', marginTop: '4px' }}>
+                              {kev.knownRansomwareCampaignUse === 'Known' ? '⚠️ Yes' : 'No'}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* International Sources */}
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '16px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+                    🌍 International Sources
+                  </h3>
+                  <div style={{ display: 'grid', gap: '16px' }}>
+                    {/* FIRST EPSS */}
+                    {epss && (
+                      <div style={{
+                        background: settings.darkMode ? '#334155' : '#f8fafc',
+                        border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        padding: '20px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                          <div style={{ 
+                            width: '40px', 
+                            height: '40px', 
+                            background: '#22c55e', 
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <Target size={20} color="white" />
+                          </div>
+                          <div>
+                            <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+                              FIRST Exploit Prediction Scoring System
+                            </h4>
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>
+                              Global Threat Intelligence Consortium
+                            </p>
+                          </div>
+                          <a 
+                            href={`https://api.first.org/data/v1/epss?cve=${cve.id}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            style={{ marginLeft: 'auto' }}
+                          >
+                            <ExternalLink size={20} color={settings.darkMode ? '#94a3b8' : '#64748b'} />
+                          </a>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
+                          <div>
+                            <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>EPSS Score</span>
+                            <div style={{
+                              ...styles.badge,
+                              background: epss.epss > 0.5 ? 'rgba(245, 158, 11, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                              color: epss.epss > 0.5 ? '#f59e0b' : '#22c55e',
+                              border: `1px solid ${epss.epss > 0.5 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
+                              marginTop: '4px'
+                            }}>
+                              {(epss.epss * 100).toFixed(2)}%
+                            </div>
+                          </div>
+                          <div>
+                            <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Percentile</span>
+                            <div style={{ fontWeight: '700', fontSize: '1.1rem', marginTop: '4px' }}>{epss.percentile.toFixed(1)}</div>
+                          </div>
+                          <div>
+                            <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Last Updated</span>
+                            <div style={{ fontWeight: '600', fontSize: '0.9rem', marginTop: '4px' }}>{formatDate(epss.date)}</div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* MITRE */}
+                    <div style={{
+                      background: settings.darkMode ? '#334155' : '#f8fafc',
+                      border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      padding: '20px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                        <div style={{ 
+                          width: '40px', 
+                          height: '40px', 
+                          background: '#dc2626', 
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <span style={{ color: 'white', fontSize: '14px', fontWeight: '700' }}>M</span>
+                        </div>
+                        <div>
+                          <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+                            MITRE Corporation
+                          </h4>
+                          <p style={{ margin: 0, fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>
+                            CVE Numbering Authority
+                          </p>
+                        </div>
+                        <a 
+                          href={`https://cve.mitre.org/cgi-bin/cvename.cgi?name=${cve.id}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          style={{ marginLeft: 'auto' }}
+                        >
+                          <ExternalLink size={20} color={settings.darkMode ? '#94a3b8' : '#64748b'} />
+                        </a>
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
+                        <div>
+                          <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>CVE ID</span>
+                          <div style={{ fontWeight: '700', fontSize: '1rem', marginTop: '4px', color: '#dc2626' }}>{cve.id}</div>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Authority</span>
+                          <div style={{ fontWeight: '600', fontSize: '0.9rem', marginTop: '4px' }}>Original Source</div>
+                        </div>
+                        <div>
+                          <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Published</span>
+                          <div style={{ fontWeight: '600', fontSize: '0.9rem', marginTop: '4px' }}>{formatDate(cve.publishedDate)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Open Source Intelligence */}
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '16px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+                    🔓 Open Source Intelligence
+                  </h3>
+                  <div style={{ display: 'grid', gap: '16px' }}>
+                    {/* GitHub Security Advisory */}
+                    {github && github.length > 0 && (
+                      <div style={{
+                        background: settings.darkMode ? '#334155' : '#f8fafc',
+                        border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        padding: '20px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                          <div style={{ 
+                            width: '40px', 
+                            height: '40px', 
+                            background: '#24292f', 
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <GitBranch size={20} color="white" />
+                          </div>
+                          <div>
+                            <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+                              GitHub Security Advisory
+                            </h4>
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>
+                              Supply Chain Intelligence
+                            </p>
+                          </div>
+                          <a 
+                            href={`https://github.com/advisories?query=${cve.id}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            style={{ marginLeft: 'auto' }}
+                          >
+                            <ExternalLink size={20} color={settings.darkMode ? '#94a3b8' : '#64748b'} />
+                          </a>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
+                          <div>
+                            <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Advisories</span>
+                            <div style={{ fontWeight: '700', fontSize: '1.1rem', marginTop: '4px' }}>{github.length}</div>
+                          </div>
+                          <div>
+                            <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Packages</span>
+                            <div style={{ fontWeight: '700', fontSize: '1.1rem', marginTop: '4px' }}>
+                              {github.reduce((total, advisory) => total + (advisory.vulnerabilities?.nodes?.length || 0), 0)}
+                            </div>
+                          </div>
+                          <div>
+                            <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Severity</span>
+                            <div style={{
+                              ...styles.badge,
+                              ...getSeverityStyle(github[0].severity),
+                              marginTop: '4px'
+                            }}>
+                              {github[0].severity}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* OSV Database */}
+                    {osv && osv.length > 0 && (
+                      <div style={{
+                        background: settings.darkMode ? '#334155' : '#f8fafc',
+                        border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0',
+                        borderRadius: '12px',
+                        padding: '20px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                          <div style={{ 
+                            width: '40px', 
+                            height: '40px', 
+                            background: '#8b5cf6', 
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <Database size={20} color="white" />
+                          </div>
+                          <div>
+                            <h4 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+                              Open Source Vulnerabilities (OSV)
+                            </h4>
+                            <p style={{ margin: 0, fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>
+                              Distributed Vulnerability Database
+                            </p>
+                          </div>
+                          <a 
+                            href={`https://osv.dev/vulnerability/${cve.id}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            style={{ marginLeft: 'auto' }}
+                          >
+                            <ExternalLink size={20} color={settings.darkMode ? '#94a3b8' : '#64748b'} />
+                          </a>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '12px' }}>
+                          <div>
+                            <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Entries</span>
+                            <div style={{ fontWeight: '700', fontSize: '1.1rem', marginTop: '4px' }}>{osv.length}</div>
+                          </div>
+                          <div>
+                            <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Ecosystems</span>
+                            <div style={{ fontWeight: '700', fontSize: '1.1rem', marginTop: '4px' }}>
+                              {new Set(osv.flatMap(entry => entry.affected?.map(a => a.package?.ecosystem) || [])).size}
+                            </div>
+                          </div>
+                          <div>
+                            <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Type</span>
+                            <div style={{
+                              ...styles.badge,
+                              background: 'rgba(139, 92, 246, 0.15)',
+                              color: '#8b5cf6',
+                              border: '1px solid rgba(139, 92, 246, 0.3)',
+                              marginTop: '4px'
+                            }}>
+                              OPEN SOURCE
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Linux Distribution Sources */}
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '16px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+                    🐧 Linux Distribution Sources
+                  </h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '16px' }}>
+                    {/* Debian Security Tracker */}
+                    <div style={{
+                      background: settings.darkMode ? '#334155' : '#f8fafc',
+                      border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      padding: '16px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                        <div style={{ 
+                          width: '32px', 
+                          height: '32px', 
+                          background: '#d70a53', 
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '14px',
+                          color: 'white',
+                          fontWeight: '700'
+                        }}>D</div>
+                        <div>
+                          <h5 style={{ margin: 0, fontSize: '1rem', fontWeight: '600', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+                            Debian Security
+                          </h5>
+                          <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>
+                            Multiple Releases
+                          </span>
+                        </div>
+                        <a 
+                          href={`https://security-tracker.debian.org/tracker/${cve.id}`} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          style={{ marginLeft: 'auto' }}
+                        >
+                          <ExternalLink size={16} color={settings.darkMode ? '#94a3b8' : '#64748b'} />
+                        </a>
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: settings.darkMode ? '#cbd5e1' : '#475569' }}>
+                        Debian 10, 11, 12, 13 - Medium severity with fixes available
+                      </div>
+                    </div>
+
+                    {/* Ubuntu Security */}
+                    <div style={{
+                      background: settings.darkMode ? '#334155' : '#f8fafc',
+                      border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      padding: '16px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                        <div style={{ 
+                          width: '32px', 
+                          height: '32px', 
+                          background: '#e95420', 
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '12px',
+                          color: 'white',
+                          fontWeight: '700'
+                        }}>U</div>
+                        <div>
+                          <h5 style={{ margin: 0, fontSize: '1rem', fontWeight: '600', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+                            Ubuntu Security
+                          </h5>
+                          <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>
+                            LTS & Current
+                          </span>
+                        </div>
+                        <a 
+                          href="https://ubuntu.com/security/notices" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          style={{ marginLeft: 'auto' }}
+                        >
+                          <ExternalLink size={16} color={settings.darkMode ? '#94a3b8' : '#64748b'} />
+                        </a>
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: settings.darkMode ? '#cbd5e1' : '#475569' }}>
+                        Ubuntu 20.04, 22.04, 24.04 LTS - Security updates available
+                      </div>
+                    </div>
+
+                    {/* Red Hat Security */}
+                    <div style={{
+                      background: settings.darkMode ? '#334155' : '#f8fafc',
+                      border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0',
+                      borderRadius: '12px',
+                      padding: '16px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                        <div style={{ 
+                          width: '32px', 
+                          height: '32px', 
+                          background: '#ee0000', 
+                          borderRadius: '4px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '10px',
+                          color: 'white',
+                          fontWeight: '700'
+                        }}>RH</div>
+                        <div>
+                          <h5 style={{ margin: 0, fontSize: '1rem', fontWeight: '600', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+                            Red Hat Security
+                          </h5>
+                          <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>
+                            Enterprise Linux
+                          </span>
+                        </div>
+                        <a 
+                          href="https://access.redhat.com/security/" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          style={{ marginLeft: 'auto' }}
+                        >
+                          <ExternalLink size={16} color={settings.darkMode ? '#94a3b8' : '#64748b'} />
+                        </a>
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: settings.darkMode ? '#cbd5e1' : '#475569' }}>
+                        RHEL 7, 8, 9 - Security advisories and patches
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         )}
 
