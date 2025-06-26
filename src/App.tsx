@@ -881,41 +881,79 @@ FORMATTING REQUIREMENTS:
     }
 
     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    
-    const response = await fetch(apiUrl, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody)
-    });
+    let response;
+    let attempts = 0;
+    const maxAttempts = 3; // Maximum number of retries
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      
-      // Handle rate limit errors specifically
-      if (response.status === 429) {
-        const retryDelay = errorData.error?.details?.find(d => d['@type']?.includes('RetryInfo'))?.retryDelay;
-        const waitTime = retryDelay ? parseInt(retryDelay.replace('s', '')) : 60;
-        
-        throw new Error(`Rate limit exceeded. Please wait ${waitTime} seconds before trying again. Consider upgrading your Gemini API plan for higher quotas.`);
+    while (attempts < maxAttempts) {
+      try {
+        response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(requestBody)
+        });
+
+        if (response.ok) {
+          break; // Successful response, exit loop
+        }
+
+        const errorData = await response.json().catch(() => ({}));
+
+        if (response.status === 429) {
+          attempts++;
+          const retryDelayInfo = errorData.error?.details?.find(d => d['@type']?.includes('RetryInfo'))?.retryDelay;
+          let waitTime = retryDelayInfo ? parseInt(retryDelayInfo.replace('s', '')) : 60;
+
+          // Ensure waitTime is a reasonable number, default to 60 if parsing fails or is too short
+          if (isNaN(waitTime) || waitTime <= 0) {
+            waitTime = 60;
+          }
+
+          // Cap wait time to avoid excessively long waits, e.g., 5 minutes
+          waitTime = Math.min(waitTime, 300);
+
+
+          if (attempts >= maxAttempts) {
+            throw new Error(`Rate limit exceeded after ${maxAttempts} attempts. Last error: ${errorData.error?.message || 'Too Many Requests'}. Please wait or upgrade your Gemini API plan.`);
+          }
+
+          console.warn(`Rate limit hit (attempt ${attempts}/${maxAttempts}). Waiting ${waitTime}s before retry...`);
+          // Optionally, notify the user about the delay
+          // addNotification({ type: 'warning', title: 'Rate Limit Hit', message: `Experiencing high load. Retrying in ${waitTime}s... (Attempt ${attempts}/${maxAttempts})` });
+
+          await new Promise(resolve => setTimeout(resolve, waitTime * 1000));
+          continue; // Retry the fetch
+        }
+
+        // Handle other non-retryable errors
+        if (response.status === 503) {
+          throw new Error(`Model is currently overloaded. This is temporary - please try again in 30-60 seconds. Consider switching to a different model in settings.`);
+        }
+        if (response.status === 400) {
+          throw new Error(`Invalid request. Please check your API key and model selection in settings.`);
+        }
+        if (response.status === 401 || response.status === 403) {
+          throw new Error(`Authentication failed. Please verify your Gemini API key in settings.`);
+        }
+        throw new Error(`AI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+
+      } catch (error) {
+        // Network errors or errors from throw new Error()
+        if (attempts >= maxAttempts -1) { // If it's a network error on the last attempt, or any thrown error
+            throw error; // Re-throw the caught error if max attempts reached or it's not a 429
+        }
+        // For network errors before max attempts, could implement a shorter, fixed retry delay
+        console.error(`Fetch error (attempt ${attempts + 1}/${maxAttempts}):`, error);
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5s for general network issues
       }
-      
-      // Handle model overloaded errors
-      if (response.status === 503) {
-        throw new Error(`Model is currently overloaded. This is temporary - please try again in 30-60 seconds. Consider switching to a different model in settings.`);
-      }
-      
-      // Handle other API errors
-      if (response.status === 400) {
-        throw new Error(`Invalid request. Please check your API key and model selection in settings.`);
-      }
-      
-      if (response.status === 401 || response.status === 403) {
-        throw new Error(`Authentication failed. Please verify your Gemini API key in settings.`);
-      }
-      
-      throw new Error(`AI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+    }
+
+    if (!response || !response.ok) {
+      // This should ideally be caught by the loop's error handling, but as a fallback:
+      throw new Error('Failed to fetch AI analysis after multiple retries.');
     }
 
     const data = await response.json();
