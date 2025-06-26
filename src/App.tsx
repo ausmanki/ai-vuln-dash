@@ -133,231 +133,373 @@ class EnhancedVectorDatabase {
 // Global enhanced RAG instance
 const enhancedRAGDatabase = new EnhancedVectorDatabase();
 
-const getStyles = (darkMode) => ({
-  appContainer: { minHeight: '100vh', backgroundColor: darkMode ? '#0f172a' : '#f8fafc' },
-  header: { 
-    background: darkMode 
-      ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' 
-      : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)', 
-    color: darkMode ? 'white' : '#1f2937', 
-    boxShadow: '0 4px 6px rgba(0, 0, 0, 0.07)',
-    borderBottom: darkMode ? '1px solid #334155' : '1px solid #e2e8f0'
-  },
-  headerContent: { 
-    maxWidth: '1400px', 
-    margin: '0 auto', 
-    padding: '20px 32px', 
-    display: 'flex', 
-    alignItems: 'center', 
-    justifyContent: 'space-between'
-  },
-  headerTitle: { display: 'flex', alignItems: 'center', gap: '16px' },
-  title: { fontSize: '1.5rem', fontWeight: '700', margin: 0, background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' },
-  subtitle: { fontSize: '0.875rem', opacity: 0.8, margin: 0, fontWeight: '500' },
-  headerActions: { display: 'flex', alignItems: 'center', gap: '16px' },
-  statusIndicator: { 
-    display: 'flex', 
-    alignItems: 'center', 
-    gap: '8px', 
-    fontSize: '0.75rem', 
-    padding: '6px 12px', 
-    background: darkMode ? 'rgba(34, 197, 94, 0.15)' : 'rgba(34, 197, 94, 0.1)', 
-    borderRadius: '16px', 
-    border: '1px solid rgba(34, 197, 94, 0.3)',
-    color: '#22c55e',
-    fontWeight: '600'
-  },
-  mainContent: { maxWidth: '1400px', margin: '0 auto', padding: '32px' },
-  searchSection: {
-    background: darkMode ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' : 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-    padding: '60px 0 80px 0',
-    borderBottom: darkMode ? '1px solid #334155' : '1px solid #e2e8f0'
-  },
-  searchContainer: {
-    maxWidth: '900px',
-    margin: '0 auto',
-    textAlign: 'center'
-  },
-  searchTitle: {
-    fontSize: '3rem',
-    fontWeight: '800',
-    background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    marginBottom: '16px'
-  },
-  searchSubtitle: {
-    fontSize: '1.25rem',
-    color: darkMode ? '#94a3b8' : '#64748b',
-    marginBottom: '48px',
-    fontWeight: '500'
-  },
-  searchWrapper: { 
-    position: 'relative', 
-    maxWidth: '700px', 
-    margin: '0 auto',
-    marginBottom: '32px' 
-  },
-  searchInput: { 
-    width: '100%', 
-    padding: '20px 24px 20px 56px', 
-    border: darkMode ? '2px solid #334155' : '2px solid #e2e8f0', 
-    borderRadius: '16px', 
-    fontSize: '1.1rem', 
-    outline: 'none', 
-    boxSizing: 'border-box', 
-    background: darkMode ? '#1e293b' : '#ffffff', 
-    color: darkMode ? '#f1f5f9' : '#0f172a',
-    transition: 'all 0.3s ease',
-    boxShadow: darkMode ? '0 4px 6px rgba(0, 0, 0, 0.1)' : '0 1px 3px rgba(0, 0, 0, 0.1)'
-  },
-  searchIcon: { position: 'absolute', left: '20px', top: '50%', transform: 'translateY(-50%)', color: darkMode ? '#64748b' : '#94a3b8' },
-  searchButton: { 
-    position: 'absolute', 
-    right: '6px', 
-    top: '50%', 
-    transform: 'translateY(-50%)',
-    padding: '12px 24px',
-    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-    color: 'white',
-    border: 'none',
-    borderRadius: '12px',
-    cursor: 'pointer',
-    fontWeight: '600',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    fontSize: '1rem',
-    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)'
-  },
-  button: { 
-    display: 'flex', 
-    alignItems: 'center', 
-    gap: '8px', 
-    padding: '10px 20px', 
-    borderRadius: '12px', 
-    fontWeight: '600', 
-    cursor: 'pointer', 
-    border: '2px solid', 
-    fontSize: '0.9rem',
-    transition: 'all 0.3s ease'
-  },
-  buttonPrimary: { 
-    background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)', 
-    color: 'white', 
-    borderColor: 'transparent',
-    boxShadow: '0 4px 12px rgba(59, 130, 246, 0.4)'
-  },
-  buttonSecondary: { 
-    background: darkMode ? '#334155' : '#f1f5f9', 
-    color: darkMode ? '#f1f5f9' : '#334155', 
-    borderColor: darkMode ? '#475569' : '#cbd5e1'
-  },
-  badge: { 
-    padding: '6px 12px', 
-    borderRadius: '16px', 
-    fontSize: '0.75rem', 
-    fontWeight: '700', 
-    display: 'inline-block',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px'
-  },
-  badgeCritical: { background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' },
-  badgeHigh: { background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' },
-  badgeMedium: { background: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6', border: '1px solid rgba(59, 130, 246, 0.3)' },
-  badgeLow: { background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)' },
-  notification: { 
-    position: 'fixed', 
-    top: '24px', 
-    right: '24px', 
-    background: darkMode ? '#1e293b' : '#ffffff', 
-    borderRadius: '12px', 
-    padding: '20px', 
-    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)', 
-    zIndex: 1000, 
-    maxWidth: '420px', 
-    border: darkMode ? '1px solid #334155' : '1px solid #e2e8f0'
-  },
-  notificationSuccess: { borderLeft: '4px solid #22c55e' },
-  notificationError: { borderLeft: '4px solid #ef4444' },
-  notificationWarning: { borderLeft: '4px solid #f59e0b' },
-  loadingContainer: { 
-    display: 'flex', 
-    flexDirection: 'column', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    padding: '80px 0',
-    textAlign: 'center'
-  },
-  emptyState: { 
-    textAlign: 'center', 
-    padding: '80px 0', 
-    color: darkMode ? '#94a3b8' : '#64748b' 
-  },
-  modal: { 
-    position: 'fixed', 
-    inset: 0, 
-    background: 'rgba(0, 0, 0, 0.7)', 
-    display: 'flex', 
-    alignItems: 'center', 
-    justifyContent: 'center', 
-    zIndex: 50,
-    backdropFilter: 'blur(8px)'
-  },
-  modalContent: { 
-    background: darkMode ? '#1e293b' : '#ffffff', 
-    borderRadius: '20px', 
-    padding: '32px', 
-    width: '100%', 
-    maxWidth: '700px', 
-    maxHeight: '90vh', 
-    overflowY: 'auto', 
-    margin: '20px',
-    border: darkMode ? '1px solid #334155' : 'none',
-    boxShadow: '0 20px 40px rgba(0, 0, 0, 0.3)'
-  },
-  modalHeader: { 
-    display: 'flex', 
-    alignItems: 'center', 
-    justifyContent: 'space-between', 
-    marginBottom: '32px', 
-    paddingBottom: '20px', 
-    borderBottom: darkMode ? '2px solid #334155' : '2px solid #e2e8f0' 
-  },
-  modalTitle: { fontSize: '1.5rem', fontWeight: '700', margin: 0, color: darkMode ? '#f1f5f9' : '#0f172a' },
-  formGroup: { marginBottom: '20px' },
-  label: { 
-    display: 'block', 
-    fontSize: '0.9rem', 
-    fontWeight: '600', 
-    color: darkMode ? '#cbd5e1' : '#475569', 
-    marginBottom: '8px' 
-  },
-  input: { 
-    width: '100%', 
-    padding: '12px 16px', 
-    border: darkMode ? '2px solid #475569' : '2px solid #cbd5e1', 
-    borderRadius: '12px', 
-    fontSize: '0.9rem', 
-    outline: 'none', 
-    boxSizing: 'border-box',
-    background: darkMode ? '#334155' : '#ffffff',
-    color: darkMode ? '#f1f5f9' : '#0f172a',
-    transition: 'border-color 0.3s ease'
-  },
-  select: { 
-    width: '100%', 
-    padding: '12px 16px', 
-    border: darkMode ? '2px solid #475569' : '2px solid #cbd5e1', 
-    borderRadius: '12px', 
-    fontSize: '0.9rem', 
-    outline: 'none', 
-    background: darkMode ? '#334155' : '#ffffff', 
-    boxSizing: 'border-box',
-    color: darkMode ? '#f1f5f9' : '#0f172a',
-    transition: 'border-color 0.3s ease'
+// Helper function to convert hex to RGB (used for rgba backgrounds with theme colors)
+const hexToRgb = (hex) => {
+  let r = 0, g = 0, b = 0;
+  if (hex.length === 4) { // #RGB format
+    r = parseInt(hex[1] + hex[1], 16);
+    g = parseInt(hex[2] + hex[2], 16);
+    b = parseInt(hex[3] + hex[3], 16);
+  } else if (hex.length === 7) { // #RRGGBB format
+    r = parseInt(hex[1] + hex[2], 16);
+    g = parseInt(hex[3] + hex[4], 16);
+    b = parseInt(hex[5] + hex[6], 16);
   }
-});
+  return `${r}, ${g}, ${b}`;
+};
+
+// Consistent color palette
+const colors = {
+  blue: '#3b82f6',
+  purple: '#8b5cf6',
+  green: '#22c55e',
+  red: '#ef4444',
+  yellow: '#f59e0b',
+
+  dark: {
+    background: '#0f172a', // Slate 900
+    surface: '#1e293b',   // Slate 800
+    primaryText: '#f1f5f9', // Slate 100
+    secondaryText: '#94a3b8', // Slate 400
+    tertiaryText: '#64748b', // Slate 500
+    border: '#334155',     // Slate 700
+    interactive: '#475569', // Slate 600
+    gradientStart: '#1e293b',
+    gradientEnd: '#334155',
+    shadow: 'rgba(0, 0, 0, 0.2)',
+  },
+  light: {
+    background: '#f8fafc', // Slate 50
+    surface: '#ffffff',   // White
+    primaryText: '#0f172a', // Slate 900
+    secondaryText: '#64748b', // Slate 500
+    tertiaryText: '#94a3b8', // Slate 400
+    border: '#e2e8f0',     // Slate 200
+    interactive: '#cbd5e1', // Slate 300
+    gradientStart: '#ffffff',
+    gradientEnd: '#f8fafc',
+    shadow: 'rgba(0, 0, 0, 0.07)',
+  }
+};
+
+const getStyles = (darkMode) => {
+  const currentTheme = darkMode ? colors.dark : colors.light;
+  const commonShadow = `0 4px 6px -1px ${currentTheme.shadow}, 0 2px 4px -1px ${currentTheme.shadow}`;
+  const strongShadow = `0 10px 15px -3px ${currentTheme.shadow}, 0 4px 6px -2px ${currentTheme.shadow}`;
+
+  return {
+    appContainer: {
+      minHeight: '100vh',
+      backgroundColor: currentTheme.background,
+      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"', // Modern font stack
+      color: currentTheme.primaryText, // Default text color
+    },
+    header: {
+      background: `linear-gradient(135deg, ${currentTheme.gradientStart} 0%, ${currentTheme.gradientEnd} 100%)`,
+      color: currentTheme.primaryText,
+      boxShadow: commonShadow,
+      borderBottom: `1px solid ${currentTheme.border}`
+    },
+    headerContent: {
+      maxWidth: '1536px', // Wider max width for larger screens
+      margin: '0 auto',
+      padding: '16px 32px', // Slightly reduced padding
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between'
+    },
+    headerTitle: { display: 'flex', alignItems: 'center', gap: '16px' },
+    title: {
+      fontSize: '1.375rem', // Slightly adjusted size
+      fontWeight: '700',
+      margin: 0,
+      background: `linear-gradient(135deg, ${colors.blue} 0%, ${colors.purple} 100%)`,
+      WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent'
+    },
+    subtitle: {
+      fontSize: '0.8125rem', // Slightly adjusted size
+      color: currentTheme.secondaryText, // Use theme color
+      margin: 0,
+      fontWeight: '500'
+    },
+    headerActions: { display: 'flex', alignItems: 'center', gap: '16px' },
+    statusIndicator: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      fontSize: '0.8rem', // Standardized font size
+      padding: '6px 12px',
+      borderRadius: '9999px', // Pill shape
+      border: `1px solid`, // Border color set dynamically
+      fontWeight: '600'
+      // Background and color set dynamically based on status in component
+    },
+    mainContent: {
+      maxWidth: '1536px', // Wider max width
+      margin: '0 auto',
+      padding: '24px 32px' // Consistent padding
+    },
+    searchSection: {
+      background: `linear-gradient(135deg, ${currentTheme.gradientStart} 0%, ${currentTheme.gradientEnd} 100%)`,
+      padding: '48px 32px 64px 32px', // Adjusted padding
+      borderBottom: `1px solid ${currentTheme.border}`
+    },
+    searchContainer: {
+      maxWidth: '960px', // Increased max width
+      margin: '0 auto',
+      textAlign: 'center'
+    },
+    searchTitle: {
+      fontSize: '2.5rem', // Adjusted size
+      fontWeight: '800',
+      background: `linear-gradient(135deg, ${colors.blue} 0%, ${colors.purple} 100%)`,
+      WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
+      marginBottom: '12px'
+    },
+    searchSubtitle: {
+      fontSize: '1.125rem', // Adjusted size
+      color: currentTheme.secondaryText,
+      marginBottom: '40px',
+      fontWeight: '500',
+      maxWidth: '700px',
+      margin: '0 auto 32px auto', // Center subtitle
+    },
+    searchWrapper: {
+      position: 'relative',
+      maxWidth: '768px', // Increased max width
+      margin: '0 auto 24px auto', // Centered
+    },
+    searchInput: {
+      width: '100%',
+      padding: '18px 20px 18px 52px', // Adjusted padding
+      border: `2px solid ${currentTheme.border}`,
+      borderRadius: '12px', // Softer radius
+      fontSize: '1rem',
+      outline: 'none',
+      boxSizing: 'border-box',
+      background: currentTheme.surface,
+      color: currentTheme.primaryText,
+      transition: 'all 0.2s ease-in-out', // Faster transition
+      boxShadow: `0 2px 4px ${currentTheme.shadow}`,
+      '&:focus': { // Add focus style
+        borderColor: colors.blue,
+        boxShadow: `0 0 0 3px rgba(59, 130, 246, 0.3)`,
+      }
+    },
+    searchIcon: {
+      position: 'absolute',
+      left: '18px', // Adjusted position
+      top: '50%',
+      transform: 'translateY(-50%)',
+      color: currentTheme.secondaryText
+    },
+    searchButton: {
+      position: 'absolute',
+      right: '8px',
+      top: '50%',
+      transform: 'translateY(-50%)',
+      padding: '10px 20px', // Adjusted padding
+      background: `linear-gradient(135deg, ${colors.blue} 0%, #1d4ed8 100%)`, // Kept gradient for primary action
+      color: 'white',
+      border: 'none',
+      borderRadius: '8px', // Softer radius
+      cursor: 'pointer',
+      fontWeight: '600',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      fontSize: '0.95rem', // Adjusted size
+          boxShadow: `0 2px 8px rgba(${hexToRgb(colors.blue)}, 0.3)`, // Use themed blue
+      transition: 'all 0.2s ease-in-out',
+      '&:hover': { // Add hover style
+            boxShadow: `0 4px 12px rgba(${hexToRgb(colors.blue)}, 0.4)`, // Use themed blue
+        transform: 'translateY(-50%) scale(1.02)',
+          },
+          '&:disabled': { // Added disabled style
+            opacity: 0.6,
+            cursor: 'not-allowed',
+            boxShadow: 'none',
+      }
+    },
+    button: {
+      display: 'inline-flex', // Use inline-flex for better alignment
+      alignItems: 'center',
+      justifyContent: 'center', // Center content
+      gap: '8px',
+      padding: '10px 18px', // Adjusted padding
+      borderRadius: '8px', // Softer radius
+      fontWeight: '600',
+      cursor: 'pointer',
+      border: '1px solid', // Thinner border
+      fontSize: '0.9rem',
+      transition: 'all 0.2s ease-in-out',
+      textDecoration: 'none', // Remove underline from potential <a> tags
+      whiteSpace: 'nowrap', // Prevent wrapping
+          '&:disabled': { // Added disabled style for general buttons
+            opacity: 0.6,
+            cursor: 'not-allowed',
+            boxShadow: 'none',
+            transform: 'none',
+          }
+    },
+    buttonPrimary: {
+      background: `linear-gradient(135deg, ${colors.blue} 0%, #1d4ed8 100%)`,
+      color: 'white',
+      borderColor: 'transparent',
+          boxShadow: `0 2px 8px rgba(${hexToRgb(colors.blue)}, 0.3)`, // Use themed blue
+      '&:hover': {
+            boxShadow: `0 4px 12px rgba(${hexToRgb(colors.blue)}, 0.4)`, // Use themed blue
+        transform: 'scale(1.02)',
+          },
+          // Disabled state will be inherited from .button
+    },
+    buttonSecondary: {
+      background: currentTheme.surface,
+      color: currentTheme.primaryText,
+      borderColor: currentTheme.interactive,
+      '&:hover': {
+            background: darkMode ? colors.dark.interactive : colors.light.background, // Use theme background for light hover
+            borderColor: darkMode ? colors.dark.border : colors.light.interactive, // Use theme interactive for light border hover
+          },
+          // Disabled state will be inherited from .button
+    },
+    badge: {
+      padding: '5px 10px', // Adjusted padding
+      borderRadius: '6px', // Softer radius
+      fontSize: '0.7rem',
+      fontWeight: '700',
+      display: 'inline-flex', // Use inline-flex
+      alignItems: 'center',
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em', // Slightly reduced letter spacing
+      lineHeight: 1.2,
+    },
+    // Specific badge colors can remain as they are, but ensure good contrast with new text colors
+    badgeCritical: { background: 'rgba(239, 68, 68, 0.15)', color: colors.red, border: `1px solid ${colors.red}4D` }, // Added alpha to border
+    badgeHigh: { background: 'rgba(245, 158, 11, 0.15)', color: colors.yellow, border: `1px solid ${colors.yellow}4D` },
+    badgeMedium: { background: 'rgba(59, 130, 246, 0.15)', color: colors.blue, border: `1px solid ${colors.blue}4D` },
+    badgeLow: { background: 'rgba(34, 197, 94, 0.15)', color: colors.green, border: `1px solid ${colors.green}4D` },
+
+    notification: {
+      // position: 'fixed', // Keep position fixed
+      // top: '24px',
+      // right: '24px',
+      background: currentTheme.surface,
+      borderRadius: '8px', // Softer radius
+      padding: '16px', // Adjusted padding
+      boxShadow: strongShadow,
+      // zIndex: 1000,
+      maxWidth: '400px', // Adjusted width
+      border: `1px solid ${currentTheme.border}`,
+      display: 'flex', // Added for icon alignment
+      alignItems: 'flex-start', // Align icon to top
+      gap: '12px',
+    },
+    notificationSuccess: { borderLeft: `4px solid ${colors.green}` },
+    notificationError: { borderLeft: `4px solid ${colors.red}` },
+    notificationWarning: { borderLeft: `4px solid ${colors.yellow}` },
+
+    loadingContainer: {
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '64px 32px', // Adjusted padding
+      textAlign: 'center',
+      color: currentTheme.secondaryText,
+    },
+    emptyState: {
+      textAlign: 'center',
+      padding: '64px 32px',
+      color: currentTheme.secondaryText,
+    },
+    modal: {
+      position: 'fixed',
+      inset: 0,
+      background: darkMode ? 'rgba(0, 0, 0, 0.8)' : 'rgba(0, 0, 0, 0.6)', // Adjusted backdrop opacity
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1050, // Ensure modal is above other content
+      backdropFilter: 'blur(5px)' // Slightly softer blur
+    },
+    modalContent: {
+      background: currentTheme.surface,
+      borderRadius: '16px', // Softer radius
+      padding: '24px 32px', // Adjusted padding
+      width: '100%',
+      maxWidth: '700px',
+      maxHeight: '90vh',
+      overflowY: 'auto',
+      margin: '20px',
+      border: `1px solid ${currentTheme.border}`,
+      boxShadow: `0 25px 50px -12px ${currentTheme.shadow}`, // More pronounced shadow
+    },
+    modalHeader: {
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: '24px',
+      paddingBottom: '16px',
+      borderBottom: `1px solid ${currentTheme.border}`
+    },
+    modalTitle: {
+      fontSize: '1.25rem', // Adjusted size
+      fontWeight: '700',
+      margin: 0,
+      color: currentTheme.primaryText
+    },
+    formGroup: { marginBottom: '24px' }, // Increased spacing
+    label: {
+      display: 'block',
+      fontSize: '0.875rem', // Standardized size
+      fontWeight: '600',
+      color: currentTheme.secondaryText,
+      marginBottom: '8px'
+    },
+    input: {
+      width: '100%',
+      padding: '10px 14px', // Adjusted padding
+      border: `1px solid ${currentTheme.interactive}`,
+      borderRadius: '8px', // Softer radius
+      fontSize: '0.9rem',
+      outline: 'none',
+      boxSizing: 'border-box',
+      background: currentTheme.surface, // Use surface for inputs
+      color: currentTheme.primaryText,
+      transition: 'border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+      '&:focus': {
+        borderColor: colors.blue,
+        boxShadow: `0 0 0 3px rgba(59, 130, 246, 0.3)`,
+      }
+    },
+    select: {
+      width: '100%',
+      padding: '10px 14px',
+      border: `1px solid ${currentTheme.interactive}`,
+      borderRadius: '8px',
+      fontSize: '0.9rem',
+      outline: 'none',
+      background: currentTheme.surface,
+      boxSizing: 'border-box',
+      color: currentTheme.primaryText,
+      transition: 'border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
+      appearance: 'none', // Remove default arrow
+      backgroundImage: darkMode
+        ? `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='${currentTheme.secondaryText.replace('#', '%23')}' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E")`
+        : `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='${currentTheme.secondaryText.replace('#', '%23')}' viewBox='0 0 16 16'%3E%3Cpath fill-rule='evenodd' d='M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z'/%3E%3C/svg%3E")`,
+      backgroundRepeat: 'no-repeat',
+      backgroundPosition: 'right 14px center',
+      paddingRight: '36px', // Make space for custom arrow
+      '&:focus': {
+        borderColor: colors.blue,
+        boxShadow: `0 0 0 3px rgba(59, 130, 246, 0.3)`,
+      }
+    }
+  };
+};
 
 const AppContext = createContext({});
 
@@ -1073,6 +1215,7 @@ const NotificationManager = () => {
 };
 
 const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
+  const { addNotification } = useContext(AppContext); // Get addNotification from context
   const [localSettings, setLocalSettings] = useState(settings);
   const [showGeminiKey, setShowGeminiKey] = useState(false);
   const [showNvdKey, setShowNvdKey] = useState(false);
@@ -1090,28 +1233,37 @@ const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
 
   const testGeminiConnection = async () => {
     if (!localSettings.geminiApiKey) {
-      alert('Please enter a Gemini API key first');
+      addNotification({ type: 'error', title: 'API Key Missing', message: 'Please enter a Gemini API key to test connection.' });
       return;
     }
 
     setTestingConnection(true);
     try {
       const testPrompt = 'Test connection - respond with "Connection successful"';
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${localSettings.geminiApiKey}`, {
+      // Using a generally available model for connection testing to avoid issues with specific model access
+      const testModel = 'gemini-pro';
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${testModel}:generateContent?key=${localSettings.geminiApiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: testPrompt }] }]
+          contents: [{ parts: [{ text: testPrompt }] }],
+          generationConfig: { candidateCount: 1 } // Ensure candidateCount is set
         })
       });
       
       if (response.ok) {
-        alert('✅ Gemini AI connection successful!');
+        const data = await response.json();
+        if (data.candidates && data.candidates[0].content.parts[0].text.includes("Connection successful")) {
+          addNotification({ type: 'success', title: 'Connection Test', message: 'Gemini AI connection successful!' });
+        } else {
+           throw new Error('Unexpected response from API.');
+        }
       } else {
-        throw new Error(`HTTP ${response.status}`);
+         const errorData = await response.json().catch(() => ({}));
+        throw new Error(`HTTP ${response.status}: ${errorData.error?.message || 'Failed to connect'}`);
       }
     } catch (error) {
-      alert(`❌ Connection failed: ${error.message}`);
+      addNotification({ type: 'error', title: 'Connection Test Failed', message: error.message });
     } finally {
       setTestingConnection(false);
     }
@@ -1119,71 +1271,111 @@ const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
 
   if (!isOpen) return null;
 
+  const inputGroupStyle = {
+    background: settings.darkMode ? colors.dark.background : colors.light.background, // Slightly different background for input groups
+    padding: '20px',
+    borderRadius: '12px', // Consistent radius
+    border: `1px solid ${styles.appContainer.border}`,
+    marginBottom: '24px' // Space between groups
+  };
+
+  const sectionTitleStyle = {
+    margin: '0 0 16px 0', // Adjusted margin
+    color: styles.appContainer.primaryText, // Themed color
+    fontSize: '1.1rem', // Adjusted size
+    fontWeight: '600', // Adjusted weight
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    paddingBottom: '10px',
+    borderBottom: `1px solid ${styles.appContainer.border}`
+  };
+
+  const eyeButtonStyle = {
+    position: 'absolute',
+    right: '12px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    background: 'transparent', // Transparent background
+    border: 'none',
+    cursor: 'pointer',
+    color: styles.appContainer.secondaryText, // Themed color for icon
+    padding: '4px' // Add some padding for easier click
+  };
+
+  const checkboxLabelStyle = {
+    ...styles.label,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px', // Consistent gap
+    cursor: 'pointer', // Make label clickable for checkbox
+  };
+
+  const checkboxStyle = {
+    width: '16px', // Custom size
+    height: '16px', // Custom size
+    accentColor: colors.blue, // Themed accent color
+    margin: 0, // Remove default margin
+  };
+
+
   return (
     <div style={styles.modal}>
       <div style={styles.modalContent}>
         <div style={styles.modalHeader}>
           <h3 style={styles.modalTitle}>RAG-Enhanced Platform Settings</h3>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-            <X size={24} color={settings.darkMode ? '#f1f5f9' : '#0f172a'} />
+          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
+            <X size={24} color={styles.appContainer.primaryText} />
           </button>
         </div>
 
-        <div style={{ display: 'grid', gap: '32px' }}>
-          <div>
-            <h4 style={{ margin: '0 0 20px 0', color: settings.darkMode ? '#f1f5f9' : '#0f172a', fontSize: '1.2rem', fontWeight: '700' }}>
-              🤖 AI & RAG Configuration
+        <div style={{ display: 'grid', gap: '24px' }}> {/* Overall container for sections */}
+          {/* AI & RAG Configuration Section */}
+          <div style={inputGroupStyle}>
+            <h4 style={sectionTitleStyle}>
+              <Brain size={20} /> AI & RAG Configuration
             </h4>
             
             <div style={styles.formGroup}>
-              <label style={styles.label}>Gemini API Key (Required for AI Analysis)</label>
+              <label htmlFor="geminiApiKey" style={styles.label}>Gemini API Key (Required for AI Analysis)</label>
               <div style={{ position: 'relative' }}>
                 <input
+                  id="geminiApiKey"
                   type={showGeminiKey ? 'text' : 'password'}
-                  style={styles.input}
-                  placeholder="Enter your Gemini API key for RAG-enhanced analysis"
+                  style={styles.input} // Uses themed input style
+                  placeholder="Enter your Gemini API key"
                   value={localSettings.geminiApiKey || ''}
                   onChange={(e) => setLocalSettings(prev => ({ ...prev, geminiApiKey: e.target.value }))}
                 />
-                <button
-                  style={{ 
-                    position: 'absolute', 
-                    right: '12px', 
-                    top: '50%', 
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => setShowGeminiKey(!showGeminiKey)}
-                >
+                <button style={eyeButtonStyle} onClick={() => setShowGeminiKey(!showGeminiKey)} aria-label={showGeminiKey ? "Hide API key" : "Show API key"}>
                   {showGeminiKey ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              <div style={{ fontSize: '0.8rem', color: settings.darkMode ? '#64748b' : '#94a3b8', marginTop: '8px' }}>
+              <div style={{ fontSize: '0.8rem', color: styles.appContainer.tertiaryText, marginTop: '8px' }}>
                 Get your free API key from{' '}
                 <a 
                   href="https://aistudio.google.com/app/apikey" 
                   target="_blank" 
                   rel="noopener noreferrer" 
-                  style={{ color: '#3b82f6', textDecoration: 'none' }}
+                  style={{ color: colors.blue, textDecoration: 'underline' }} // Themed link
                 >
                   Google AI Studio
-                </a>
+                </a>.
               </div>
             </div>
 
             <div style={styles.formGroup}>
-              <label style={styles.label}>Gemini Model Selection</label>
+              <label htmlFor="geminiModel" style={styles.label}>Gemini Model Selection</label>
               <select
-                style={styles.select}
+                id="geminiModel"
+                style={styles.select} // Uses themed select style
                 value={localSettings.geminiModel || 'gemini-2.5-flash'}
                 onChange={(e) => setLocalSettings(prev => ({ ...prev, geminiModel: e.target.value }))}
               >
-                <option value="gemini-2.5-flash">Gemini 2.5 Flash (Latest with Real-time Web Search + RAG)</option>
-                <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Experimental (Real-time Web Search + RAG)</option>
-                <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast RAG Analysis)</option>
-                <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep RAG Analysis)</option>
+                <option value="gemini-2.5-flash">Gemini 2.5 Flash (Latest, Web Search + RAG)</option>
+                <option value="gemini-2.0-flash-exp">Gemini 2.0 Flash Exp (Web Search + RAG)</option>
+                <option value="gemini-1.5-flash">Gemini 1.5 Flash (Fast RAG)</option>
+                <option value="gemini-1.5-pro">Gemini 1.5 Pro (Deep RAG)</option>
                 <option value="gemini-pro">Gemini Pro (Standard RAG)</option>
               </select>
             </div>
@@ -1193,86 +1385,86 @@ const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
               disabled={testingConnection || !localSettings.geminiApiKey}
               style={{
                 ...styles.button,
-                ...styles.buttonSecondary,
-                opacity: testingConnection || !localSettings.geminiApiKey ? 0.6 : 1,
-                marginBottom: '24px'
+                ...styles.buttonSecondary, // Themed secondary button
+                // opacity inherited from disabled state in styles.button
               }}
             >
-              {testingConnection ? <Loader2 size={18} className="animate-spin" /> : <Brain size={18} />}
-              Test AI + RAG Connection
+              {testingConnection ? <Loader2 size={18} className="animate-spin" /> : <Settings size={18} />} {/* Changed icon */}
+              Test AI Connection
             </button>
           </div>
 
-          <div>
-            <h4 style={{ margin: '0 0 20px 0', color: settings.darkMode ? '#f1f5f9' : '#0f172a', fontSize: '1.2rem', fontWeight: '700' }}>
-              🌐 Data Source Configuration
+          {/* Data Source & Interface Configuration Section */}
+          <div style={inputGroupStyle}>
+            <h4 style={sectionTitleStyle}>
+              <Database size={20} /> Data Source & Interface
             </h4>
             
             <div style={styles.formGroup}>
-              <label style={styles.label}>NVD API Key (Optional - Higher Rate Limits)</label>
+              <label htmlFor="nvdApiKey" style={styles.label}>NVD API Key (Optional - Higher Rate Limits)</label>
               <div style={{ position: 'relative' }}>
                 <input
+                  id="nvdApiKey"
                   type={showNvdKey ? 'text' : 'password'}
-                  style={styles.input}
-                  placeholder="Enter your NVD API key for increased rate limits"
+                  style={styles.input} // Uses themed input style
+                  placeholder="Enter your NVD API key"
                   value={localSettings.nvdApiKey || ''}
                   onChange={(e) => setLocalSettings(prev => ({ ...prev, nvdApiKey: e.target.value }))}
                 />
-                <button
-                  style={{ 
-                    position: 'absolute', 
-                    right: '12px', 
-                    top: '50%', 
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer'
-                  }}
-                  onClick={() => setShowNvdKey(!showNvdKey)}
-                >
+                <button style={eyeButtonStyle} onClick={() => setShowNvdKey(!showNvdKey)} aria-label={showNvdKey ? "Hide API key" : "Show API key"}>
                   {showNvdKey ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
 
             <div style={styles.formGroup}>
-              <label style={{ ...styles.label, display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <label htmlFor="darkModeToggle" style={checkboxLabelStyle}>
                 <input
+                  id="darkModeToggle"
                   type="checkbox"
                   checked={localSettings.darkMode || false}
                   onChange={(e) => setLocalSettings(prev => ({ ...prev, darkMode: e.target.checked }))}
-                  style={{ width: 'auto' }}
+                  style={checkboxStyle}
                 />
                 Dark Mode Interface
               </label>
             </div>
 
             <div style={styles.formGroup}>
-              <label style={{ ...styles.label, display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <label htmlFor="enableRagToggle" style={checkboxLabelStyle}>
                 <input
+                  id="enableRagToggle"
                   type="checkbox"
-                  checked={localSettings.enableRAG !== false}
+                  checked={localSettings.enableRAG !== false} // Handles undefined case
                   onChange={(e) => setLocalSettings(prev => ({ ...prev, enableRAG: e.target.checked }))}
-                  style={{ width: 'auto' }}
+                  style={checkboxStyle}
                 />
                 Enable RAG-Enhanced Analysis
               </label>
-              <div style={{ fontSize: '0.8rem', color: settings.darkMode ? '#64748b' : '#94a3b8', marginTop: '4px', marginLeft: '24px' }}>
-                Use vector database and semantic search for contextual analysis
+              <div style={{ fontSize: '0.8rem', color: styles.appContainer.tertiaryText, marginTop: '6px', marginLeft: '26px' }}> {/* Adjusted margin */}
+                Use vector database and semantic search for contextual analysis.
               </div>
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '16px', justifyContent: 'flex-end', paddingTop: '24px', borderTop: settings.darkMode ? '2px solid #334155' : '2px solid #e2e8f0' }}>
+        {/* Modal Actions Footer */}
+        <div style={{
+            display: 'flex',
+            gap: '12px', // Reduced gap
+            justifyContent: 'flex-end',
+            paddingTop: '24px',
+            marginTop: '16px', // Added margin top
+            borderTop: `1px solid ${styles.appContainer.border}` // Themed border
+        }}>
           <button
-            style={{ ...styles.button, ...styles.buttonSecondary }}
+            style={{ ...styles.button, ...styles.buttonSecondary }} // Themed secondary button
             onClick={onClose}
           >
             Cancel
           </button>
           <button
-            style={{ ...styles.button, ...styles.buttonPrimary }}
+            style={{ ...styles.button, ...styles.buttonPrimary }} // Themed primary button
             onClick={handleSave}
           >
             <Save size={18} />
@@ -1288,16 +1480,23 @@ const SearchComponent = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchHistory, setSearchHistory] = useState([]);
   
-  const { 
-    setVulnerabilities, 
-    setLoading, 
-    loading, 
-    setLoadingSteps, 
+  const {
+    setVulnerabilities,
+    setLoading,
+    loading,
+    setLoadingSteps,
     addNotification,
     settings
   } = useContext(AppContext);
 
   const styles = getStyles(settings.darkMode);
+
+  // useEffect to apply body styles based on dark mode
+  useEffect(() => {
+    document.body.style.backgroundColor = styles.appContainer.backgroundColor;
+    document.body.style.color = styles.appContainer.color;
+    document.body.style.fontFamily = styles.appContainer.fontFamily;
+  }, [settings.darkMode, styles.appContainer]);
 
   const validateCVEFormat = (cveId) => {
     return /^CVE-\d{4}-\d{4,}$/i.test(cveId.trim());
@@ -1394,30 +1593,28 @@ const SearchComponent = () => {
         <div style={{ 
           display: 'flex', 
           gap: '16px', 
-          justifyContent: 'center', 
+          justifyContent: 'center',
           alignItems: 'center',
           flexWrap: 'wrap',
-          marginTop: '24px',
-          fontSize: '0.85rem',
-          color: settings.darkMode ? '#94a3b8' : '#64748b'
+          marginTop: '32px', // Increased margin
+          fontSize: '0.875rem', // Slightly larger
+          color: styles.appContainer.color // Use themed text color
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Brain size={16} color="#3b82f6" />
-            <span>RAG-Enhanced AI</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Database size={16} color="#8b5cf6" />
-            <span>Knowledge Retrieval</span>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Globe size={16} color="#22c55e" />
-            <span>Real-time Intelligence</span>
-          </div>
+          {[
+            { icon: <Brain size={16} color={colors.blue} />, text: 'RAG-Enhanced AI' },
+            { icon: <Database size={16} color={colors.purple} />, text: 'Knowledge Retrieval' },
+            { icon: <Globe size={16} color={colors.green} />, text: 'Real-time Intelligence' }
+          ].map((item, index) => (
+            <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: settings.darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', borderRadius: '8px', margin: '4px' }}>
+              {item.icon}
+              <span style={{ fontWeight: '500' }}>{item.text}</span>
+            </div>
+          ))}
         </div>
 
         {searchHistory.length > 0 && (
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '20px' }}>
-            <span style={{ fontSize: '0.8rem', color: settings.darkMode ? '#64748b' : '#94a3b8', marginRight: '8px' }}>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '28px' }}>
+            <span style={{ fontSize: '0.875rem', color: styles.appContainer.color, fontWeight: '500', alignSelf: 'center' }}>
               Recent:
             </span>
             {searchHistory.map((cve, index) => (
@@ -1425,14 +1622,19 @@ const SearchComponent = () => {
                 key={index}
                 onClick={() => setSearchTerm(cve)}
                 style={{
-                  padding: '4px 8px',
-                  background: settings.darkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)',
-                  border: '1px solid rgba(59, 130, 246, 0.3)',
-                  borderRadius: '12px',
-                  fontSize: '0.7rem',
-                  color: '#3b82f6',
-                  cursor: 'pointer',
-                  fontWeight: '500'
+                  ...styles.button, // Inherit base button styles
+                  padding: '6px 12px', // Slightly larger padding
+                  background: settings.darkMode ? `rgba(${hexToRgb(colors.blue)}, 0.15)` : `rgba(${hexToRgb(colors.blue)}, 0.1)`,
+                  border: `1px solid rgba(${hexToRgb(colors.blue)}, 0.3)`,
+                  borderRadius: '8px', // Consistent radius
+                  fontSize: '0.8rem', // Standardized size
+                  color: colors.blue,
+                  fontWeight: '500',
+                  transition: 'all 0.2s ease',
+                  '&:hover': {
+                    background: settings.darkMode ? `rgba(${hexToRgb(colors.blue)}, 0.25)` : `rgba(${hexToRgb(colors.blue)}, 0.2)`,
+                    borderColor: `rgba(${hexToRgb(colors.blue)}, 0.5)`,
+                  }
                 }}
               >
                 {cve}
@@ -1484,21 +1686,22 @@ const LoadingComponent = () => {
         </div>
         {loadingSteps.map((step, index) => (
           <div key={index} style={{ 
-            marginBottom: '8px', 
-            fontSize: '0.85rem',
-            color: settings.darkMode ? '#cbd5e1' : '#475569',
+            marginBottom: '10px', // Increased margin
+            fontSize: '0.875rem', // Slightly larger font
+            color: styles.appContainer.secondaryText, // Use themed secondary text
             display: 'flex',
             alignItems: 'center',
-            gap: '8px'
+            gap: '10px' // Increased gap
           }}>
-            <div style={{
-              width: '6px',
-              height: '6px',
+            <div style={{ // Custom animated check or pulse icon could go here
+              width: '8px',
+              height: '8px',
               borderRadius: '50%',
-              background: '#3b82f6',
-              flexShrink: 0
+              background: colors.blue, // Use themed blue
+              flexShrink: 0,
+              opacity: 0.7 + (index / loadingSteps.length) * 0.3 // Subtle opacity animation based on step
             }} />
-            {step}
+            <span>{step}</span> {/* Wrapped step in span for potential future styling */}
           </div>
         ))}
       </div>
@@ -1589,24 +1792,25 @@ const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
       <div style={{
         background: settings.darkMode ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' : '#ffffff',
         borderRadius: '20px',
-        padding: '40px',
-        boxShadow: settings.darkMode ? '0 8px 32px rgba(0, 0, 0, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.08)',
-        border: settings.darkMode ? '1px solid #334155' : '1px solid #e2e8f0'
+        padding: '32px', // Adjusted padding
+        boxShadow: settings.darkMode ? `0 8px 32px ${colors.dark.shadow}` : `0 4px 20px ${colors.light.shadow}`,
+        border: `1px solid ${styles.appContainer.border}` // Use themed border
       }}>
-        {/* Header */}
+        {/* Header Section */}
         <div style={{
-          marginBottom: '32px',
-          paddingBottom: '20px',
-          borderBottom: settings.darkMode ? '2px solid #334155' : '2px solid #e2e8f0'
+          marginBottom: '24px', // Reduced margin
+          paddingBottom: '24px', // Reduced padding
+          borderBottom: `1px solid ${styles.appContainer.border}` // Use themed border
         }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
             <h1 style={{
-              fontSize: '2.25rem',
-              fontWeight: '800',
-              background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+              fontSize: '2rem', // Slightly reduced size
+              fontWeight: '700', // Adjusted weight
+              background: `linear-gradient(135deg, ${colors.blue} 0%, ${colors.purple} 100%)`,
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              margin: 0
+              margin: 0,
+              lineHeight: 1.2,
             }}>
               {vulnerability.cve?.id || 'Unknown CVE'}
             </h1>
@@ -1617,7 +1821,7 @@ const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
                 style={{
                   ...styles.button,
                   ...styles.buttonSecondary,
-                  padding: '8px 16px'
+                  // padding: '8px 16px' // Padding from base button is fine
                 }}
               >
                 <RefreshCw size={16} />
@@ -1628,7 +1832,7 @@ const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
                 style={{
                   ...styles.button,
                   ...styles.buttonPrimary,
-                  padding: '8px 16px'
+                  // padding: '8px 16px' // Padding from base button is fine
                 }}
               >
                 <Download size={16} />
@@ -1637,12 +1841,13 @@ const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* Badges Row */}
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
             <span style={{
               ...styles.badge,
               ...getSeverityStyle(severity),
-              fontSize: '0.9rem',
-              padding: '8px 16px'
+              fontSize: '0.85rem', // Adjusted size
+              padding: '6px 12px' // Adjusted padding
             }}>
               {severity} - {cvssScore?.toFixed(1) || 'N/A'}
             </span>
@@ -1650,9 +1855,9 @@ const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
             {vulnerability.kev && (
               <span style={{
                 ...styles.badge,
-                ...styles.badgeCritical,
-                fontSize: '0.8rem',
-                padding: '6px 12px'
+                ...styles.badgeCritical, // Uses themed critical color
+                // fontSize: '0.8rem', // Inherits from styles.badge
+                // padding: '6px 12px' // Inherits from styles.badge
               }}>
                 CISA KEV
               </span>
@@ -1661,11 +1866,11 @@ const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
             {vulnerability.epss?.epss > 0.5 && (
               <span style={{
                 ...styles.badge,
-                background: 'rgba(245, 158, 11, 0.15)',
-                color: '#f59e0b',
-                border: '1px solid rgba(245, 158, 11, 0.3)',
-                fontSize: '0.8rem',
-                padding: '6px 12px'
+                background: `rgba(${hexToRgb(colors.yellow)}, 0.15)`,
+                color: colors.yellow,
+                border: `1px solid rgba(${hexToRgb(colors.yellow)}, 0.3)`,
+                // fontSize: '0.8rem',
+                // padding: '6px 12px'
               }}>
                 HIGH EPSS: {(vulnerability.epss.epss * 100).toFixed(1)}%
               </span>
@@ -1674,13 +1879,13 @@ const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
             {vulnerability.ragEnhanced && (
               <span style={{
                 ...styles.badge,
-                background: 'rgba(139, 92, 246, 0.15)',
-                color: '#8b5cf6',
-                border: '1px solid rgba(139, 92, 246, 0.3)',
-                fontSize: '0.8rem',
-                padding: '6px 12px'
+                background: `rgba(${hexToRgb(colors.purple)}, 0.15)`, // Use purple for RAG
+                color: colors.purple,
+                border: `1px solid rgba(${hexToRgb(colors.purple)}, 0.3)`,
+                // fontSize: '0.8rem',
+                // padding: '6px 12px'
               }}>
-                <Database size={12} style={{ marginRight: '4px' }} />
+                <Database size={12} style={{ marginRight: '6px' }} /> {/* Increased margin */}
                 RAG ENHANCED
               </span>
             )}
@@ -1690,129 +1895,146 @@ const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
         {/* Tabs */}
         <div style={{
           display: 'flex',
-          borderBottom: settings.darkMode ? '2px solid #334155' : '2px solid #e2e8f0',
-          marginBottom: '32px',
-          gap: '8px',
+          borderBottom: `1px solid ${styles.appContainer.border}`, // Thinner border
+          marginBottom: '24px', // Reduced margin
+          gap: '4px', // Reduced gap for tighter tabs
           flexWrap: 'wrap'
         }}>
           {['overview', 'technical', 'ai-analysis'].map((tab) => (
-            <div 
+            <button // Changed div to button for better accessibility
               key={tab}
               style={{
-                padding: '16px 20px',
+                padding: '12px 18px', // Adjusted padding
                 cursor: 'pointer',
-                borderBottom: activeTab === tab ? '3px solid #3b82f6' : '3px solid transparent',
-                fontSize: '0.95rem',
+                border: 'none', // Remove button default border
+                borderBottom: activeTab === tab ? `3px solid ${colors.blue}` : '3px solid transparent',
+                fontSize: '0.9rem', // Adjusted size
                 fontWeight: '600',
-                color: activeTab === tab ? '#3b82f6' : (settings.darkMode ? '#64748b' : '#94a3b8'),
-                transition: 'all 0.3s ease',
-                borderRadius: '12px 12px 0 0',
-                background: activeTab === tab ? (settings.darkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)') : 'transparent'
+                color: activeTab === tab ? colors.blue : styles.appContainer.secondaryText, // Use themed colors
+                transition: 'all 0.2s ease-in-out',
+                borderRadius: '6px 6px 0 0', // Softer radius for top corners
+                background: activeTab === tab
+                  ? (settings.darkMode ? `rgba(${hexToRgb(colors.blue)}, 0.1)` : `rgba(${hexToRgb(colors.blue)}, 0.05)`)
+                  : 'transparent',
+                display: 'inline-flex', // For icon alignment
+                alignItems: 'center',
+                gap: '8px',
+                outline: 'none', // Remove focus outline if not desired, or style it
+                ':hover': { // Add hover effect
+                   color: colors.blue,
+                   background: settings.darkMode ? `rgba(${hexToRgb(colors.blue)}, 0.15)` : `rgba(${hexToRgb(colors.blue)}, 0.1)`,
+                }
               }}
               onClick={() => setActiveTab(tab)}
+              role="tab" // ARIA role
+              aria-selected={activeTab === tab} // ARIA selected state
             >
-              {tab === 'overview' && <Info size={16} style={{ marginRight: '6px', display: 'inline' }} />}
-              {tab === 'technical' && <BarChart3 size={16} style={{ marginRight: '6px', display: 'inline' }} />}
-              {tab === 'ai-analysis' && <Brain size={16} style={{ marginRight: '6px', display: 'inline' }} />}
+              {tab === 'overview' && <Info size={16} />}
+              {tab === 'technical' && <BarChart3 size={16} />}
+              {tab === 'ai-analysis' && <Brain size={16} />}
               {tab === 'ai-analysis' ? 'RAG Analysis' : tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </div>
+            </button>
           ))}
         </div>
 
         {/* Tab Content */}
-        <div>
+        <div style={{ paddingTop: '8px' }}> {/* Added small padding top */}
           {activeTab === 'overview' && (
             <div>
               <h2 style={{
-                fontSize: '1.5rem',
+                fontSize: '1.375rem', // Adjusted size
                 fontWeight: '700',
-                color: settings.darkMode ? '#f1f5f9' : '#0f172a',
-                marginBottom: '20px'
+                color: styles.appContainer.primaryText, // Use themed color
+                marginBottom: '16px' // Reduced margin
               }}>
                 Vulnerability Overview
               </h2>
               
               <div style={{
-                fontSize: '1rem',
-                lineHeight: '1.7',
-                color: settings.darkMode ? '#cbd5e1' : '#475569',
-                marginBottom: '32px'
+                fontSize: '0.95rem', // Adjusted size
+                lineHeight: '1.65', // Adjusted line height
+                color: styles.appContainer.secondaryText, // Use themed color
+                marginBottom: '24px' // Reduced margin
               }}>
-                <p style={{ fontSize: '1.05rem', lineHeight: '1.7' }}>
-                  {vulnerability.cve?.description || 'No description available'}
+                <p style={{ margin: 0 }}> {/* Removed nested p and font size override */}
+                  {vulnerability.cve?.description || 'No description available.'}
                 </p>
               </div>
 
-              {vulnerability.epss && (
-                <div style={{ marginBottom: '32px' }}>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '16px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
-                    Exploitation Probability (EPSS)
-                  </h3>
-                  <div style={{
-                    background: vulnerability.epss.epss > 0.5 ? 'rgba(245, 158, 11, 0.1)' : 'rgba(34, 197, 94, 0.1)',
-                    border: `1px solid ${vulnerability.epss.epss > 0.5 ? 'rgba(245, 158, 11, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`,
-                    borderRadius: '12px',
-                    padding: '20px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                      <Target size={24} color={vulnerability.epss.epss > 0.5 ? '#f59e0b' : '#22c55e'} />
-                      <div>
-                        <div style={{ fontWeight: '700', fontSize: '1.1rem' }}>
-                          EPSS Score: {(vulnerability.epss.epss * 100).toFixed(2)}%
-                        </div>
-                        <div style={{ fontSize: '0.9rem', opacity: 0.8 }}>
-                          Percentile: {vulnerability.epss.percentile?.toFixed(1) || 'N/A'}
-                        </div>
+              {/* EPSS and KEV sections - using a card-like structure */}
+              {[
+                vulnerability.epss && {
+                  title: 'Exploitation Probability (EPSS)',
+                  icon: <Target size={24} color={vulnerability.epss.epss > 0.5 ? colors.yellow : colors.green} />,
+                  bgColor: vulnerability.epss.epss > 0.5 ? `rgba(${hexToRgb(colors.yellow)}, 0.1)` : `rgba(${hexToRgb(colors.green)}, 0.1)`,
+                  borderColor: vulnerability.epss.epss > 0.5 ? `rgba(${hexToRgb(colors.yellow)}, 0.3)` : `rgba(${hexToRgb(colors.green)}, 0.3)`,
+                  content: (
+                    <>
+                      <div style={{ fontWeight: '700', fontSize: '1.05rem', color: styles.appContainer.primaryText }}>
+                        EPSS Score: {(vulnerability.epss.epss * 100).toFixed(2)}%
                       </div>
-                    </div>
-                    <p style={{ margin: 0, fontSize: '0.95rem' }}>
-                      {vulnerability.epss.epss > 0.5 
-                        ? 'This vulnerability has a HIGH probability of exploitation in the wild. Immediate patching recommended.'
-                        : vulnerability.epss.epss > 0.1 
-                          ? 'This vulnerability has a MODERATE probability of exploitation. Monitor for patches and updates.'
-                          : 'This vulnerability has a LOW probability of exploitation, but still requires attention.'}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {vulnerability.kev && (
-                <div style={{ marginBottom: '32px' }}>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '16px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
-                    CISA Known Exploited Vulnerability
-                  </h3>
-                  <div style={{
-                    background: 'rgba(239, 68, 68, 0.1)',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                    borderRadius: '12px',
-                    padding: '20px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                      <AlertTriangle size={24} color="#ef4444" />
-                      <span style={{ fontWeight: '700', fontSize: '1.1rem', color: '#ef4444' }}>
+                      <div style={{ fontSize: '0.85rem', color: styles.appContainer.tertiaryText }}>
+                        Percentile: {vulnerability.epss.percentile?.toFixed(1) || 'N/A'}
+                      </div>
+                      <p style={{ margin: '12px 0 0 0', fontSize: '0.9rem', color: styles.appContainer.secondaryText }}>
+                        {vulnerability.epss.epss > 0.5
+                          ? 'This vulnerability has a HIGH probability of exploitation. Immediate patching recommended.'
+                          : vulnerability.epss.epss > 0.1
+                            ? 'This vulnerability has a MODERATE probability of exploitation. Monitor for patches and updates.'
+                            : 'This vulnerability has a LOW probability of exploitation, but still requires attention.'}
+                      </p>
+                    </>
+                  )
+                },
+                vulnerability.kev && {
+                  title: 'CISA Known Exploited Vulnerability',
+                  icon: <AlertTriangle size={24} color={colors.red} />,
+                  bgColor: `rgba(${hexToRgb(colors.red)}, 0.1)`,
+                  borderColor: `rgba(${hexToRgb(colors.red)}, 0.3)`,
+                  content: (
+                    <>
+                      <span style={{ fontWeight: '700', fontSize: '1.05rem', color: colors.red }}>
                         ACTIVE EXPLOITATION CONFIRMED
                       </span>
+                      <div style={{ display: 'grid', gap: '8px', marginTop: '12px', fontSize: '0.9rem', color: styles.appContainer.secondaryText }}>
+                        <div><strong>Vendor/Product:</strong> {vulnerability.kev.vendorProject} / {vulnerability.kev.product}</div>
+                        <div><strong>Vulnerability Name:</strong> {vulnerability.kev.vulnerabilityName}</div>
+                        <div><strong>Required Action:</strong> {vulnerability.kev.requiredAction}</div>
+                        <div><strong>Due Date:</strong> {vulnerability.kev.dueDate}</div>
+                        {vulnerability.kev.knownRansomwareCampaignUse === 'Known' && (
+                          <div style={{ color: colors.red, fontWeight: '600' }}>
+                            ⚠️ Known to be used in ransomware campaigns
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )
+                }
+              ].filter(Boolean).map((item, index) => (
+                <div key={index} style={{ marginBottom: '24px' }}>
+                  <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '12px', color: styles.appContainer.primaryText }}>
+                    {item.title}
+                  </h3>
+                  <div style={{
+                    background: item.bgColor,
+                    border: `1px solid ${item.borderColor}`,
+                    borderRadius: '12px', // Consistent radius
+                    padding: '20px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: item.title.includes('EPSS') ? '12px' : '16px' }}>
+                      {item.icon}
+                      {item.title.includes('EPSS') ? <div>{item.content}</div> : item.content}
                     </div>
-                    <div style={{ display: 'grid', gap: '12px' }}>
-                      <div><strong>Vendor/Product:</strong> {vulnerability.kev.vendorProject} / {vulnerability.kev.product}</div>
-                      <div><strong>Vulnerability Name:</strong> {vulnerability.kev.vulnerabilityName}</div>
-                      <div><strong>Required Action:</strong> {vulnerability.kev.requiredAction}</div>
-                      <div><strong>Due Date:</strong> {vulnerability.kev.dueDate}</div>
-                      {vulnerability.kev.knownRansomwareCampaignUse === 'Known' && (
-                        <div style={{ color: '#ef4444', fontWeight: '700' }}>
-                          ⚠️ Known to be used in ransomware campaigns
-                        </div>
-                      )}
-                    </div>
+                    {item.title.includes('EPSS') ? null : null /* Content moved inside for KEV */}
                   </div>
                 </div>
-              )}
+              ))}
 
               {/* RAG Analysis Button */}
               <div style={{ 
-                marginTop: '40px', 
-                paddingTop: '32px', 
-                borderTop: settings.darkMode ? '2px solid #334155' : '2px solid #e2e8f0',
+                marginTop: '32px', // Adjusted margin
+                paddingTop: '24px', // Adjusted padding
+                borderTop: `1px solid ${styles.appContainer.border}`, // Use themed border
                 textAlign: 'center'
               }}>
                 <button
@@ -1917,161 +2139,107 @@ const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
 
               {/* Display AI Technical Analysis if available */}
               {aiAnalysis && (
-                <div style={{ marginBottom: '32px' }}>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '16px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+                <div style={{ marginBottom: '24px' }}>
+                  <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '12px', color: styles.appContainer.primaryText }}>
                     AI-Generated Technical Analysis
                   </h3>
                   <div style={{
-                    background: settings.darkMode ? '#1e293b' : '#ffffff',
-                    border: settings.darkMode ? '1px solid #334155' : '1px solid #e2e8f0',
-                    borderRadius: '12px',
-                    padding: '24px',
-                    whiteSpace: 'pre-wrap',
-                    lineHeight: '1.7',
-                    fontSize: '0.95rem',
-                    color: settings.darkMode ? '#cbd5e1' : '#475569'
+                    background: styles.appContainer.surface, // Use themed surface
+                    border: `1px solid ${styles.appContainer.border}`, // Use themed border
+                    borderRadius: '12px', // Consistent radius
+                    padding: '20px', // Adjusted padding
+                    whiteSpace: 'pre-wrap', // Keep for markdown-like text
+                    lineHeight: '1.65', // Adjusted line height
+                    fontSize: '0.9rem', // Adjusted size
+                    color: styles.appContainer.secondaryText, // Use themed text color
+                    maxHeight: '500px', // Add max height for long content
+                    overflowY: 'auto', // Add scroll for overflow
                   }}>
                     {aiAnalysis.analysis}
                   </div>
                 </div>
               )}
 
-              {vulnerability.cve?.cvssV3 && (
-                <div style={{ marginBottom: '32px' }}>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '16px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
-                    CVSS v3.1 Metrics
+              {/* CVSS Metrics Section - Unified Card Structure */}
+              {[
+                vulnerability.cve?.cvssV3 && {
+                  version: 'v3.1',
+                  metrics: vulnerability.cve.cvssV3,
+                  baseKeys: ['baseScore', 'attackVector', 'attackComplexity', 'privilegesRequired', 'userInteraction', 'scope'],
+                  impactKeys: ['confidentialityImpact', 'integrityImpact', 'availabilityImpact', 'exploitabilityScore', 'impactScore']
+                },
+                vulnerability.cve?.cvssV2 && {
+                  version: 'v2.0',
+                  metrics: vulnerability.cve.cvssV2,
+                  baseKeys: ['baseScore', 'accessVector', 'accessComplexity', 'authentication'],
+                  impactKeys: [] // CVSSv2 does not separate impact like v3
+                }
+              ].filter(Boolean).map((cvssInfo, index) => (
+                <div key={index} style={{ marginBottom: '24px' }}>
+                  <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '12px', color: styles.appContainer.primaryText }}>
+                    CVSS {cvssInfo.version} Metrics
                   </h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+                    {/* Base Metrics Card */}
                     <div style={{
-                      background: settings.darkMode ? '#334155' : '#f8fafc',
+                      background: styles.appContainer.surface,
                       borderRadius: '12px',
                       padding: '20px',
-                      border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0'
+                      border: `1px solid ${styles.appContainer.border}`
                     }}>
-                      <h4 style={{ margin: '0 0 16px 0', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>Base Metrics</h4>
-                      <div style={{ display: 'grid', gap: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Base Score:</span>
-                          <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{vulnerability.cve.cvssV3.baseScore}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Attack Vector:</span>
-                          <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{vulnerability.cve.cvssV3.attackVector}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Complexity:</span>
-                          <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{vulnerability.cve.cvssV3.attackComplexity}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Privileges Required:</span>
-                          <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{vulnerability.cve.cvssV3.privilegesRequired}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>User Interaction:</span>
-                          <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{vulnerability.cve.cvssV3.userInteraction}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Scope:</span>
-                          <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{vulnerability.cve.cvssV3.scope}</span>
-                        </div>
+                      <h4 style={{ margin: '0 0 16px 0', fontSize: '1rem', fontWeight: '600', color: styles.appContainer.primaryText }}>Base Metrics</h4>
+                      <div style={{ display: 'grid', gap: '10px' }}>
+                        {cvssInfo.baseKeys.map(key => (
+                          <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontSize: '0.8rem', color: styles.appContainer.tertiaryText, textTransform: 'capitalize' }}>{key.replace(/([A-Z])/g, ' $1')}:</span>
+                            <span style={{ fontSize: '0.8rem', fontWeight: '600', color: styles.appContainer.secondaryText }}>{cvssInfo.metrics[key]}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
-                    <div style={{
-                      background: settings.darkMode ? '#334155' : '#f8fafc',
-                      borderRadius: '12px',
-                      padding: '20px',
-                      border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0'
-                    }}>
-                      <h4 style={{ margin: '0 0 16px 0', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>Impact Metrics</h4>
-                      <div style={{ display: 'grid', gap: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Confidentiality:</span>
-                          <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{vulnerability.cve.cvssV3.confidentialityImpact}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Integrity:</span>
-                          <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{vulnerability.cve.cvssV3.integrityImpact}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Availability:</span>
-                          <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{vulnerability.cve.cvssV3.availabilityImpact}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Exploitability Score:</span>
-                          <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{vulnerability.cve.cvssV3.exploitabilityScore}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Impact Score:</span>
-                          <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{vulnerability.cve.cvssV3.impactScore}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div style={{ marginTop: '20px' }}>
-                    <h4 style={{ margin: '0 0 12px 0', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>Vector String</h4>
-                    <div style={{
-                      background: settings.darkMode ? '#1e293b' : '#ffffff',
-                      border: settings.darkMode ? '1px solid #334155' : '1px solid #e2e8f0',
-                      borderRadius: '8px',
-                      padding: '12px',
-                      fontFamily: 'monospace',
-                      fontSize: '0.9rem',
-                      wordBreak: 'break-all'
-                    }}>
-                      {vulnerability.cve.cvssV3.vectorString}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {vulnerability.cve?.cvssV2 && (
-                <div style={{ marginBottom: '32px' }}>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '16px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
-                    CVSS v2.0 Metrics
-                  </h3>
-                  <div style={{
-                    background: settings.darkMode ? '#334155' : '#f8fafc',
-                    borderRadius: '12px',
-                    padding: '20px',
-                    border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0'
-                  }}>
-                    <div style={{ display: 'grid', gap: '8px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Base Score:</span>
-                        <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{vulnerability.cve.cvssV2.baseScore}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Access Vector:</span>
-                        <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{vulnerability.cve.cvssV2.accessVector}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Access Complexity:</span>
-                        <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{vulnerability.cve.cvssV2.accessComplexity}</span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b' }}>Authentication:</span>
-                        <span style={{ fontSize: '0.85rem', fontWeight: '600' }}>{vulnerability.cve.cvssV2.authentication}</span>
-                      </div>
-                    </div>
-                    <div style={{ marginTop: '16px' }}>
-                      <h5 style={{ margin: '0 0 8px 0', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>Vector String</h5>
-                      <div style={{
-                        background: settings.darkMode ? '#1e293b' : '#ffffff',
-                        border: settings.darkMode ? '1px solid #334155' : '1px solid #e2e8f0',
-                        borderRadius: '8px',
-                        padding: '12px',
-                        fontFamily: 'monospace',
-                        fontSize: '0.9rem',
-                        wordBreak: 'break-all'
+                    {/* Impact Metrics Card (Only for CVSSv3) */}
+                    {cvssInfo.impactKeys.length > 0 && (
+                       <div style={{
+                        background: styles.appContainer.surface,
+                        borderRadius: '12px',
+                        padding: '20px',
+                        border: `1px solid ${styles.appContainer.border}`
                       }}>
-                        {vulnerability.cve.cvssV2.vectorString}
+                        <h4 style={{ margin: '0 0 16px 0', fontSize: '1rem', fontWeight: '600', color: styles.appContainer.primaryText }}>Impact Metrics</h4>
+                        <div style={{ display: 'grid', gap: '10px' }}>
+                          {cvssInfo.impactKeys.map(key => (
+                            <div key={key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ fontSize: '0.8rem', color: styles.appContainer.tertiaryText, textTransform: 'capitalize' }}>{key.replace(/([A-Z])/g, ' $1')}:</span>
+                              <span style={{ fontSize: '0.8rem', fontWeight: '600', color: styles.appContainer.secondaryText }}>{cvssInfo.metrics[key]}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Vector String */}
+                  {cvssInfo.metrics.vectorString && (
+                    <div style={{ marginTop: '20px' }}>
+                      <h4 style={{ margin: '0 0 10px 0', fontSize: '1rem', fontWeight: '600', color: styles.appContainer.primaryText }}>Vector String</h4>
+                      <div style={{
+                        background: settings.darkMode ? colors.dark.background : colors.light.background, // Slightly different background
+                        border: `1px solid ${styles.appContainer.border}`,
+                        borderRadius: '8px',
+                        padding: '12px 16px',
+                        fontFamily: 'monospace',
+                        fontSize: '0.85rem', // Adjusted size
+                        color: styles.appContainer.secondaryText,
+                        wordBreak: 'break-all',
+                        lineHeight: 1.5,
+                      }}>
+                        {cvssInfo.metrics.vectorString}
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
-              )}
+              ))}
             </div>
           )}
 
@@ -2109,96 +2277,155 @@ const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
                       RAG ENHANCED
                     </span>
                   )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'ai-analysis' && (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <h2 style={{
+                  fontSize: '1.5rem',
+                  fontWeight: '700',
+                  color: settings.darkMode ? '#f1f5f9' : '#0f172a',
+                  margin: 0
+                }}>
+                  RAG-Enhanced Security Analysis
+                </h2>
+                <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}> {/* Increased gap */}
+                  {aiAnalysis?.webGrounded && (
+                    <span style={{
+                      ...styles.badge, // Inherit base badge style
+                      background: `rgba(${hexToRgb(colors.green)}, 0.15)`,
+                      color: colors.green,
+                      border: `1px solid rgba(${hexToRgb(colors.green)}, 0.3)`,
+                    }}>
+                      <Globe size={12} style={{ marginRight: '6px' }} /> {/* Increased margin */}
+                      REAL-TIME
+                    </span>
+                  )}
+                  {aiAnalysis?.ragUsed && (
+                    <span style={{
+                      ...styles.badge, // Inherit base badge style
+                      background: `rgba(${hexToRgb(colors.purple)}, 0.15)`,
+                      color: colors.purple,
+                      border: `1px solid rgba(${hexToRgb(colors.purple)}, 0.3)`,
+                    }}>
+                      <Database size={12} style={{ marginRight: '6px' }} /> {/* Increased margin */}
+                      RAG ENHANCED
+                    </span>
+                  )}
                 </div>
               </div>
 
+              {/* Temporary Error/Rate Limit Message Styling */}
               {aiAnalysis?.isTemporary && (
                 <div style={{
-                  background: aiAnalysis.error === 'Model overloaded' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                  border: `1px solid ${aiAnalysis.error === 'Model overloaded' ? 'rgba(59, 130, 246, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
-                  borderRadius: '12px',
-                  padding: '16px',
-                  marginBottom: '16px'
+                  background: aiAnalysis.error === 'Model overloaded'
+                    ? `rgba(${hexToRgb(colors.blue)}, 0.1)`
+                    : `rgba(${hexToRgb(colors.yellow)}, 0.1)`,
+                  border: `1px solid ${aiAnalysis.error === 'Model overloaded'
+                    ? `rgba(${hexToRgb(colors.blue)}, 0.3)`
+                    : `rgba(${hexToRgb(colors.yellow)}, 0.3)`}`,
+                  borderRadius: '12px', // Consistent radius
+                  padding: '16px 20px', // Adjusted padding
+                  marginBottom: '20px' // Adjusted margin
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}> {/* Reduced margin */}
                     {aiAnalysis.error === 'Model overloaded' ? (
-                      <Activity size={20} color="#3b82f6" />
+                      <Activity size={20} color={colors.blue} />
                     ) : (
-                      <AlertTriangle size={20} color="#f59e0b" />
+                      <AlertTriangle size={20} color={colors.yellow} />
                     )}
                     <span style={{ 
                       fontWeight: '600', 
-                      color: aiAnalysis.error === 'Model overloaded' ? '#3b82f6' : '#f59e0b' 
+                      fontSize: '0.95rem', // Adjusted size
+                      color: aiAnalysis.error === 'Model overloaded' ? colors.blue : colors.yellow
                     }}>
                       {aiAnalysis.error === 'Model overloaded' ? 'Model Temporarily Overloaded' : 'API Rate Limit Exceeded'}
                     </span>
                   </div>
-                  <div style={{ fontSize: '0.85rem', color: settings.darkMode ? '#cbd5e1' : '#475569' }}>
+                  <div style={{ fontSize: '0.875rem', color: styles.appContainer.secondaryText, lineHeight: 1.5 }}> {/* Themed color */}
                     {aiAnalysis.error === 'Model overloaded' 
-                      ? 'High demand detected. Wait 30-60 seconds and retry, or switch to a different model.'
-                      : 'You\'ve hit API quota limits. Wait and retry, or upgrade to a paid plan.'
+                      ? 'High demand detected. Wait 30-60 seconds and retry, or switch to a different model in settings.'
+                      : 'You\'ve hit API quota limits for the selected model. Wait and retry, or upgrade to a paid plan.'
                     }
                   </div>
                 </div>
               )}
               
-              {aiAnalysis ? (
+              {/* AI Analysis Content Display */}
+              {aiAnalysis && !aiAnalysis.isTemporary ? ( // Only show if not a temporary error message
                 <div>
                   <div style={{
-                    whiteSpace: 'pre-wrap',
-                    lineHeight: '1.7',
-                    fontSize: '1rem',
-                    color: settings.darkMode ? '#cbd5e1' : '#475569'
+                    background: styles.appContainer.surface, // Themed surface
+                    border: `1px solid ${styles.appContainer.border}`, // Themed border
+                    borderRadius: '12px', // Consistent radius
+                    padding: '20px 24px', // Adjusted padding
+                    whiteSpace: 'pre-wrap', // Keep for markdown-like text
+                    lineHeight: '1.65', // Adjusted line height
+                    fontSize: '0.9rem', // Adjusted size
+                    color: styles.appContainer.secondaryText, // Themed text color
+                    maxHeight: '600px', // Increased max height
+                    overflowY: 'auto', // Scroll for overflow
                   }}>
+                    {/* This is where more sophisticated Markdown rendering could go if the output format changes */}
                     {aiAnalysis.analysis}
                   </div>
+
+                  {/* Metadata Section */}
                   <div style={{
-                    background: settings.darkMode ? '#334155' : '#f8fafc',
-                    border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0',
+                    background: settings.darkMode ? colors.dark.background : colors.light.background, // Slightly different background for contrast
+                    border: `1px solid ${styles.appContainer.border}`,
                     borderRadius: '12px',
-                    padding: '16px',
-                    marginTop: '24px',
-                    fontSize: '0.85rem'
+                    padding: '16px 20px',
+                    marginTop: '20px', // Adjusted margin
+                    fontSize: '0.8rem', // Adjusted size
+                    color: styles.appContainer.tertiaryText, // Themed tertiary text
+                    lineHeight: 1.6,
                   }}>
-                    <div style={{ fontWeight: '600', marginBottom: '8px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+                    <div style={{ fontWeight: '600', marginBottom: '10px', color: styles.appContainer.secondaryText }}>
                       Enhanced Analysis Metadata:
                     </div>
-                    <div style={{ color: settings.darkMode ? '#94a3b8' : '#64748b' }}>
-                      • Data Sources: {aiAnalysis.enhancedSources?.join(', ') || 'Unknown'}
+                    <ul style={{ margin: 0, paddingLeft: '20px', listStyleType: "'• ' வெளியே" }}> {/* Custom bullet */}
+                      <li>Data Sources: {aiAnalysis.enhancedSources?.join(', ') || 'Unknown'}</li>
                       {aiAnalysis.ragUsed && (
                         <>
-                          <br />• Knowledge Base: {aiAnalysis.ragDocuments} relevant security documents
-                          <br />• RAG Sources: {aiAnalysis.ragSources?.join(', ') || 'Multiple knowledge sources'}
+                          <li>Knowledge Base: {aiAnalysis.ragDocuments} relevant security documents retrieved</li>
+                          <li>RAG Sources: {aiAnalysis.ragSources?.slice(0,3).join(', ') || 'Multiple knowledge sources'}{aiAnalysis.ragSources?.length > 3 ? '...' : ''}</li>
                         </>
                       )}
                       {aiAnalysis.webGrounded && (
-                        <>
-                          <br />• Real-time Intelligence: Current threat landscape data via web search
-                        </>
+                        <li>Real-time Intelligence: Current threat landscape data via web search</li>
                       )}
-                      <br />• Model: {aiAnalysis.model || 'Gemini Pro'}
-                      <br />• Generated: {aiAnalysis.analysisTimestamp ? new Date(aiAnalysis.analysisTimestamp).toLocaleString() : 'Unknown'}
-                      {aiAnalysis.rateLimited && (
-                        <>
-                          <br />• Status: <span style={{ color: '#f59e0b' }}>Rate Limited - Consider upgrading API plan</span>
-                        </>
+                      <li>Model Used: {aiAnalysis.model || 'Gemini Pro'}</li>
+                      <li>Generated On: {aiAnalysis.analysisTimestamp ? new Date(aiAnalysis.analysisTimestamp).toLocaleString() : 'Unknown'}</li>
+                      {aiAnalysis.rateLimited && ( // This state might be part of 'isTemporary' now
+                        <li>Status: <span style={{ color: colors.yellow, fontWeight: '600' }}>Rate Limited - Consider upgrading API plan</span></li>
                       )}
-                    </div>
+                    </ul>
                   </div>
                 </div>
-              ) : (
+              ) : !aiAnalysis ? ( // Placeholder if no analysis and no temporary error
                 <div style={{
                   textAlign: 'center',
-                  padding: '60px',
-                  background: settings.darkMode ? '#334155' : '#f8fafc',
-                  borderRadius: '12px',
-                  border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0'
+                  padding: '48px 32px', // Adjusted padding
+                  background: styles.appContainer.surface, // Themed surface
+                  borderRadius: '12px', // Consistent radius
+                  border: `1px solid ${styles.appContainer.border}` // Themed border
                 }}>
-                  <Brain size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
-                  <Database size={32} style={{ marginBottom: '20px', opacity: 0.5, marginLeft: '20px' }} />
-                  <h3 style={{ margin: '0 0 12px 0' }}>RAG-Enhanced Analysis Not Generated</h3>
-                  <p style={{ margin: '0 0 24px 0' }}>
-                    Generate comprehensive security analysis using RAG-enhanced AI with contextual knowledge retrieval.
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                    <Brain size={40} color={styles.appContainer.tertiaryText} />
+                    <Database size={32} color={styles.appContainer.tertiaryText} />
+                  </div>
+                  <h3 style={{ margin: '0 0 10px 0', fontSize: '1.125rem', fontWeight: '600', color: styles.appContainer.primaryText }}>
+                    RAG-Enhanced Analysis Not Generated
+                  </h3>
+                  <p style={{ margin: '0 0 20px 0', fontSize: '0.9rem', color: styles.appContainer.secondaryText, lineHeight: 1.5 }}>
+                    Generate comprehensive security analysis using RAG-enhanced AI with contextual knowledge retrieval and real-time web intelligence.
                   </p>
                   <button
                     style={{
@@ -2231,47 +2458,51 @@ const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
       {/* Enhanced Sidebar */}
       <div style={{
         background: settings.darkMode ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' : '#ffffff',
-        borderRadius: '20px',
-        padding: '32px',
-        boxShadow: settings.darkMode ? '0 8px 32px rgba(0, 0, 0, 0.3)' : '0 4px 20px rgba(0, 0, 0, 0.08)',
-        border: settings.darkMode ? '1px solid #334155' : '1px solid #e2e8f0',
-        height: 'fit-content'
+        borderRadius: '16px', // Softer radius
+        padding: '24px', // Adjusted padding
+        boxShadow: settings.darkMode ? `0 8px 32px ${colors.dark.shadow}` : `0 4px 20px ${colors.light.shadow}`,
+        border: `1px solid ${styles.appContainer.border}`, // Use themed border
+        height: 'fit-content',
+        position: 'sticky', // Make sidebar sticky
+        top: '24px', // Add some top offset
       }}>
         {/* CVSS Score Circle */}
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '28px' }}> {/* Adjusted margin */}
           <div 
             style={{
-              width: '140px',
-              height: '140px',
+              width: '120px', // Slightly smaller
+              height: '120px', // Slightly smaller
               borderRadius: '50%',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              margin: '0 auto 20px',
-              background: `conic-gradient(from 0deg, ${getSeverityColor(cvssScore)} 0%, ${getSeverityColor(cvssScore)} ${(cvssScore / 10) * 100}%, ${settings.darkMode ? '#334155' : '#e5e7eb'} ${(cvssScore / 10) * 100}%, ${settings.darkMode ? '#334155' : '#e5e7eb'} 100%)`
+              margin: '0 auto 16px', // Adjusted margin
+              background: `conic-gradient(from 0deg, ${getSeverityColor(cvssScore)} 0%, ${getSeverityColor(cvssScore)} ${(cvssScore / 10) * 100}%, ${settings.darkMode ? colors.dark.border : colors.light.border} ${(cvssScore / 10) * 100}%, ${settings.darkMode ? colors.dark.border : colors.light.border} 100%)`,
+              boxShadow: `0 0 15px ${getSeverityColor(cvssScore)}33` // Added a subtle glow
             }}
           >
             <div style={{
-              width: '110px',
-              height: '110px',
+              width: '90px', // Slightly smaller inner circle
+              height: '90px', // Slightly smaller inner circle
               borderRadius: '50%',
-              background: settings.darkMode ? '#1e293b' : '#ffffff',
+              background: styles.appContainer.surface, // Use themed surface
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              justifyContent: 'center'
+              justifyContent: 'center',
+              border: `2px solid ${styles.appContainer.border}` // Inner border for definition
             }}>
               <div style={{
-                fontSize: '1.75rem',
-                fontWeight: '800',
-                color: settings.darkMode ? '#f1f5f9' : '#0f172a'
+                fontSize: '1.625rem', // Adjusted size
+                fontWeight: '700', // Bold
+                color: styles.appContainer.primaryText // Themed text
               }}>
                 {cvssScore?.toFixed(1) || 'N/A'}
               </div>
               <div style={{
-                fontSize: '0.8rem',
-                color: settings.darkMode ? '#64748b' : '#94a3b8',
-                fontWeight: '600'
+                fontSize: '0.75rem', // Adjusted size
+                color: styles.appContainer.secondaryText, // Themed text
+                fontWeight: '500' // Medium weight
               }}>
                 CVSS Score
               </div>
@@ -2281,58 +2512,41 @@ const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
 
         {/* Quick Stats */}
         <div style={{
-          borderBottom: settings.darkMode ? '1px solid #334155' : '1px solid #e5e7eb',
-          paddingBottom: '20px',
-          marginBottom: '20px'
+          borderBottom: `1px solid ${styles.appContainer.border}`, // Themed border
+          paddingBottom: '16px', // Adjusted padding
+          marginBottom: '16px' // Adjusted margin
         }}>
-          <div style={{ display: 'grid', gap: '12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b', fontWeight: '500' }}>
-                Published
-              </span>
-              <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#f1f5f9' : '#0f172a', fontWeight: '600' }}>
-                {vulnerability.cve?.publishedDate ? formatDate(vulnerability.cve.publishedDate) : 'Unknown'}
-              </span>
-            </div>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b', fontWeight: '500' }}>
-                Last Updated
-              </span>
-              <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#f1f5f9' : '#0f172a', fontWeight: '600' }}>
-                {vulnerability.lastUpdated ? formatDate(vulnerability.lastUpdated) : 'Unknown'}
-              </span>
-            </div>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b', fontWeight: '500' }}>
-                Data Sources
-              </span>
-              <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#f1f5f9' : '#0f172a', fontWeight: '600' }}>
-                {vulnerability.enhancedSources?.length || 0}
-              </span>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.85rem', color: settings.darkMode ? '#94a3b8' : '#64748b', fontWeight: '500' }}>
-                RAG Enhanced
-              </span>
-              <span style={{ fontSize: '0.85rem', color: vulnerability.ragEnhanced ? '#8b5cf6' : (settings.darkMode ? '#f1f5f9' : '#0f172a'), fontWeight: '600' }}>
-                {vulnerability.ragEnhanced ? 'Yes' : 'No'}
-              </span>
-            </div>
+          <h3 style={{ fontSize: '0.95rem', fontWeight: '600', marginBottom: '12px', color: styles.appContainer.secondaryText }}>
+            Key Information
+          </h3>
+          <div style={{ display: 'grid', gap: '10px' }}> {/* Adjusted gap */}
+            {[
+              { label: 'Published', value: vulnerability.cve?.publishedDate ? formatDate(vulnerability.cve.publishedDate) : 'Unknown' },
+              { label: 'Last Updated', value: vulnerability.lastUpdated ? formatDate(vulnerability.lastUpdated) : 'Unknown' },
+              { label: 'Data Sources', value: vulnerability.enhancedSources?.length || 0 },
+              { label: 'RAG Enhanced', value: vulnerability.ragEnhanced ? 'Yes' : 'No', color: vulnerability.ragEnhanced ? colors.purple : undefined }
+            ].map(item => (
+              <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.8rem', color: styles.appContainer.tertiaryText, fontWeight: '500' }}>
+                  {item.label}
+                </span>
+                <span style={{ fontSize: '0.8rem', color: item.color || styles.appContainer.secondaryText, fontWeight: '600' }}>
+                  {item.value}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
 
         {/* Sources */}
-        <div style={{ marginBottom: '24px' }}>
+        <div style={{ marginBottom: '20px' }}> {/* Adjusted margin */}
           <h3 style={{
-            fontSize: '0.9rem',
+            fontSize: '0.95rem', // Consistent heading size
             fontWeight: '600',
-            marginBottom: '16px',
-            color: settings.darkMode ? '#94a3b8' : '#64748b'
+            marginBottom: '12px', // Adjusted margin
+            color: styles.appContainer.secondaryText // Themed color
           }}>
-            🧠 Sources
+            <Activity size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> Data Sources
           </h3>
           
           <div style={{ display: 'grid', gap: '8px' }}>
@@ -2340,25 +2554,25 @@ const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
               <div key={index} style={{
                 display: 'flex',
                 alignItems: 'center',
-                gap: '8px',
-                padding: '6px 10px',
-                background: settings.darkMode ? '#334155' : '#f8fafc',
-                borderRadius: '6px',
-                border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0'
+                gap: '10px', // Adjusted gap
+                padding: '8px 12px', // Adjusted padding
+                background: styles.appContainer.surface, // Themed surface
+                borderRadius: '8px', // Consistent radius
+                border: `1px solid ${styles.appContainer.border}` // Themed border
               }}>
                 <div style={{
-                  width: '16px',
-                  height: '16px',
-                  background: '#22c55e',
+                  minWidth: '20px', // Ensure consistent icon space
+                  height: '20px', // Ensure consistent icon space
+                  background: `rgba(${hexToRgb(colors.green)}, 0.15)`, // Themed green background
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center'
                 }}>
-                  <CheckCircle size={8} color="white" />
+                  <CheckCircle size={10} color={colors.green} /> {/* Themed green icon */}
                 </div>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: '600' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: '600', color: styles.appContainer.secondaryText }}> {/* Themed text */}
                     {source}
                   </div>
                 </div>
@@ -2369,57 +2583,64 @@ const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
 
         {/* References */}
         {(vulnerability.cve?.references?.length > 0 || aiAnalysis?.discoveredSources?.length > 0) && (
-          <div style={{ marginBottom: '24px' }}>
+          <div style={{ marginBottom: '20px' }}> {/* Adjusted margin */}
             <h3 style={{
-              fontSize: '0.9rem',
+              fontSize: '0.95rem', // Consistent heading size
               fontWeight: '600',
-              marginBottom: '16px',
-              color: settings.darkMode ? '#94a3b8' : '#64748b'
+              marginBottom: '12px', // Adjusted margin
+              color: styles.appContainer.secondaryText // Themed color
             }}>
-              🔗 References
+              <ExternalLink size={14} style={{ marginRight: '6px', verticalAlign: 'middle' }} /> References
             </h3>
             
-            <div style={{ display: 'grid', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
+            <div style={{ display: 'grid', gap: '10px', maxHeight: '280px', overflowY: 'auto', paddingRight: '8px' }}> {/* Adjusted padding for scrollbar */}
               {/* AI Discovered Sources */}
               {aiAnalysis?.discoveredSources?.map((ref, index) => (
                 <div key={`ai-${index}`} style={{
                   display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '8px',
-                  padding: '8px 10px',
-                  background: settings.darkMode ? 'rgba(59, 130, 246, 0.1)' : 'rgba(59, 130, 246, 0.05)',
-                  borderRadius: '6px',
-                  border: '1px solid rgba(59, 130, 246, 0.3)'
+                  alignItems: 'flex-start', // Align icon with first line of text
+                  gap: '10px', // Adjusted gap
+                  padding: '10px 12px', // Adjusted padding
+                  background: `rgba(${hexToRgb(colors.blue)}, ${settings.darkMode ? '0.15' : '0.1'})`, // Themed blue background
+                  borderRadius: '8px', // Consistent radius
+                  border: `1px solid rgba(${hexToRgb(colors.blue)}, 0.3)` // Themed blue border
                 }}>
                   <div style={{
-                    width: '12px',
-                    height: '12px',
-                    background: '#3b82f6',
+                    minWidth: '10px', // Ensure consistent icon space
+                    height: '10px', // Ensure consistent icon space
+                    background: colors.blue, // Solid blue for AI discovered
                     borderRadius: '50%',
-                    marginTop: '2px',
+                    marginTop: '4px', // Align with text
                     flexShrink: 0
                   }} />
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, overflow: 'hidden' }}> {/* Prevent long URLs from breaking layout */}
                     <a 
                       href={ref.url} 
                       target="_blank" 
                       rel="noopener noreferrer"
+                      title={ref.url} // Add title for full URL on hover
                       style={{ 
-                        color: '#3b82f6', 
-                        textDecoration: 'none',
-                        fontSize: '0.7rem',
+                        color: colors.blue,
+                        textDecoration: 'underline', // Explicitly underline links
+                        fontSize: '0.75rem', // Adjusted size
                         fontWeight: '500',
-                        lineHeight: '1.2',
+                        lineHeight: '1.3', // Adjusted line height
                         display: 'block',
-                        wordBreak: 'break-all'
+                        wordBreak: 'break-all', // Break long URLs
+                        '&:hover': {
+                          textDecoration: 'none', // Remove underline on hover if desired
+                        }
                       }}
                     >
-                      {ref.url.length > 40 ? `${ref.url.substring(0, 40)}...` : ref.url}
+                      {ref.url.length > 45 ? `${ref.url.substring(0, 45)}...` : ref.url}
                     </a>
                     <div style={{ 
-                      fontSize: '0.65rem', 
-                      color: settings.darkMode ? '#64748b' : '#94a3b8',
-                      marginTop: '2px'
+                      fontSize: '0.7rem', // Adjusted size
+                      color: styles.appContainer.tertiaryText, // Themed tertiary text
+                      marginTop: '3px', // Adjusted margin
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
                     }}>
                       {ref.category} - {ref.description}
                     </div>
@@ -2431,38 +2652,45 @@ const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
               {vulnerability.cve?.references?.slice(0, 8).map((ref, index) => (
                 <div key={`cve-${index}`} style={{
                   display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '8px',
-                  padding: '8px 10px',
-                  background: settings.darkMode ? '#334155' : '#f8fafc',
-                  borderRadius: '6px',
-                  border: settings.darkMode ? '1px solid #475569' : '1px solid #e2e8f0'
+                  alignItems: 'flex-start', // Align icon with first line of text
+                  gap: '10px', // Adjusted gap
+                  padding: '10px 12px', // Adjusted padding
+                  background: styles.appContainer.surface, // Themed surface
+                  borderRadius: '8px', // Consistent radius
+                  border: `1px solid ${styles.appContainer.border}` // Themed border
                 }}>
-                  <ExternalLink size={12} color={settings.darkMode ? '#94a3b8' : '#64748b'} style={{ marginTop: '2px', flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
+                  <ExternalLink size={14} color={styles.appContainer.tertiaryText} style={{ marginTop: '3px', flexShrink: 0 }} /> {/* Align icon */}
+                  <div style={{ flex: 1, overflow: 'hidden' }}> {/* Prevent long URLs from breaking layout */}
                     <a 
                       href={ref.url} 
                       target="_blank" 
                       rel="noopener noreferrer"
+                      title={ref.url} // Add title for full URL on hover
                       style={{ 
-                        color: '#3b82f6', 
-                        textDecoration: 'none',
-                        fontSize: '0.7rem',
+                        color: colors.blue, // Themed blue for links
+                        textDecoration: 'underline', // Explicitly underline
+                        fontSize: '0.75rem', // Adjusted size
                         fontWeight: '500',
-                        lineHeight: '1.2',
+                        lineHeight: '1.3', // Adjusted line height
                         display: 'block',
-                        wordBreak: 'break-all'
+                        wordBreak: 'break-all', // Break long URLs
+                         '&:hover': {
+                          textDecoration: 'none',
+                        }
                       }}
                     >
-                      {ref.url.length > 40 ? `${ref.url.substring(0, 40)}...` : ref.url}
+                      {ref.url.length > 45 ? `${ref.url.substring(0, 45)}...` : ref.url}
                     </a>
                     {ref.source && (
                       <div style={{ 
-                        fontSize: '0.65rem', 
-                        color: settings.darkMode ? '#64748b' : '#94a3b8',
-                        marginTop: '2px'
+                        fontSize: '0.7rem', // Adjusted size
+                        color: styles.appContainer.tertiaryText, // Themed tertiary text
+                        marginTop: '3px', // Adjusted margin
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
                       }}>
-                        {ref.source}
+                        Source: {ref.source}
                       </div>
                     )}
                   </div>
@@ -2470,20 +2698,20 @@ const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
               ))}
               
               {/* Show count if there are more references */}
-              {(vulnerability.cve?.references?.length > 8 || (aiAnalysis?.discoveredSources?.length || 0) > 0) && (
+              {(vulnerability.cve?.references?.length > 8 || (aiAnalysis?.discoveredSources?.length > 0)) && (
                 <div style={{ 
                   textAlign: 'center', 
-                  padding: '8px',
-                  fontSize: '0.7rem', 
-                  color: settings.darkMode ? '#64748b' : '#94a3b8'
+                  padding: '10px 0', // Adjusted padding
+                  fontSize: '0.75rem', // Adjusted size
+                  color: styles.appContainer.tertiaryText // Themed tertiary text
                 }}>
                   {aiAnalysis?.discoveredSources?.length > 0 && (
-                    <div style={{ color: '#3b82f6', fontWeight: '600' }}>
-                      {aiAnalysis.discoveredSources.length} AI-discovered sources
+                    <div style={{ color: colors.blue, fontWeight: '600', marginBottom: '4px' }}>
+                      {aiAnalysis.discoveredSources.length} AI-discovered source{aiAnalysis.discoveredSources.length === 1 ? '' : 's'}
                     </div>
                   )}
                   {vulnerability.cve?.references?.length > 8 && (
-                    <div>+{vulnerability.cve.references.length - 8} more official references</div>
+                    <div>+{vulnerability.cve.references.length - 8} more official reference{vulnerability.cve.references.length - 8 === 1 ? '' : 's'}</div>
                   )}
                 </div>
               )}
@@ -2491,10 +2719,13 @@ const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
           </div>
         )}
         
+        {/* Footer branding */}
         <div style={{ 
-          marginTop: '24px', 
-          fontSize: '0.75rem', 
-          color: settings.darkMode ? '#64748b' : '#94a3b8', 
+          marginTop: 'auto', // Pushes to bottom if sidebar has space
+          paddingTop: '16px', // Space above
+          borderTop: `1px solid ${styles.appContainer.border}`, // Separator line
+          fontSize: '0.8rem', // Adjusted size
+          color: styles.appContainer.tertiaryText, // Themed tertiary text
           textAlign: 'center',
           display: 'flex',
           alignItems: 'center',
@@ -2651,14 +2882,18 @@ const VulnerabilityIntelligence = () => {
             </div>
             
             <div style={styles.headerActions}>
-              <div style={{
-                ...styles.statusIndicator,
-                background: settings.geminiApiKey 
-                  ? (settings.darkMode ? 'rgba(34, 197, 94, 0.15)' : 'rgba(34, 197, 94, 0.1)')
-                  : (settings.darkMode ? 'rgba(245, 158, 11, 0.15)' : 'rgba(245, 158, 11, 0.1)'),
-                borderColor: settings.geminiApiKey ? 'rgba(34, 197, 94, 0.3)' : 'rgba(245, 158, 11, 0.3)',
-                color: settings.geminiApiKey ? '#22c55e' : '#f59e0b'
-              }}>
+              <div
+                style={{
+                  ...styles.statusIndicator,
+                  background: settings.geminiApiKey
+                    ? (settings.darkMode ? `rgba(${hexToRgb(colors.green)}, 0.15)` : `rgba(${hexToRgb(colors.green)}, 0.1)`)
+                    : (settings.darkMode ? `rgba(${hexToRgb(colors.yellow)}, 0.15)` : `rgba(${hexToRgb(colors.yellow)}, 0.1)`),
+                  borderColor: settings.geminiApiKey
+                    ? `rgba(${hexToRgb(colors.green)}, 0.3)`
+                    : `rgba(${hexToRgb(colors.yellow)}, 0.3)`,
+                  color: settings.geminiApiKey ? colors.green : colors.yellow,
+                }}
+              >
                 <Brain size={16} />
                 {settings.geminiApiKey ? 'RAG Ready' : 'RAG Offline'}
               </div>
@@ -2681,37 +2916,63 @@ const VulnerabilityIntelligence = () => {
             {loading && <LoadingComponent />}
             
             {!loading && vulnerabilities.length === 0 && (
-              <div style={styles.emptyState}>
-                <div style={{ marginBottom: '24px' }}>
-                  <Brain size={64} color={settings.darkMode ? '#64748b' : '#94a3b8'} style={{ marginBottom: '8px' }} />
-                  <Database size={48} color={settings.darkMode ? '#64748b' : '#94a3b8'} style={{ marginLeft: '32px', marginTop: '-16px' }} />
+              <div style={{...styles.emptyState, paddingTop: '48px', paddingBottom: '48px' }}> {/* Adjusted padding */}
+                <div style={{ marginBottom: '28px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px' }}> {/* Centered icons */}
+                  <Brain size={56} color={styles.appContainer.tertiaryText} /> {/* Themed color */}
+                  <Database size={40} color={styles.appContainer.tertiaryText} /> {/* Themed color */}
                 </div>
-                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '12px', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>
+                <h3 style={{
+                  fontSize: '1.375rem', // Adjusted size
+                  fontWeight: '600', // Adjusted weight
+                  marginBottom: '16px', // Adjusted margin
+                  color: styles.appContainer.primaryText // Themed color
+                }}>
                   RAG-Enhanced Intelligence Platform Ready
                 </h3>
-                <p style={{ fontSize: '1rem', marginBottom: '8px' }}>
-                  Enter a CVE ID to begin comprehensive AI-powered vulnerability analysis with contextual knowledge retrieval
+                <p style={{
+                  fontSize: '0.95rem', // Adjusted size
+                  marginBottom: '12px', // Adjusted margin
+                  color: styles.appContainer.secondaryText, // Themed color
+                  lineHeight: 1.6,
+                  maxWidth: '600px', // Limit width for readability
+                  margin: '0 auto 12px auto'
+                }}>
+                  Enter a CVE ID to begin comprehensive AI-powered vulnerability analysis with contextual knowledge retrieval.
                 </p>
-                <p style={{ fontSize: '0.9rem', opacity: 0.7, marginBottom: '24px' }}>
-                  Real-time intelligence enhanced with semantic search and domain expertise
+                <p style={{
+                  fontSize: '0.875rem', // Adjusted size
+                  color: styles.appContainer.tertiaryText, // Themed color
+                  marginBottom: '28px', // Adjusted margin
+                  maxWidth: '600px',
+                  margin: '0 auto 28px auto'
+                }}>
+                  Real-time intelligence enhanced with semantic search and domain expertise.
                 </p>
                 
+                {/* API Key Configuration Notice */}
                 {!settings.geminiApiKey && (
                   <div style={{
                     marginTop: '32px',
-                    padding: '20px',
-                    background: settings.darkMode ? 'rgba(245, 158, 11, 0.1)' : 'rgba(245, 158, 11, 0.05)',
-                    border: '1px solid rgba(245, 158, 11, 0.3)',
-                    borderRadius: '12px',
-                    maxWidth: '500px',
+                    padding: '16px 20px', // Adjusted padding
+                    background: settings.darkMode
+                      ? `rgba(${hexToRgb(colors.yellow)}, 0.1)`
+                      : `rgba(${hexToRgb(colors.yellow)}, 0.07)`, // Lighter yellow for light mode
+                    border: `1px solid rgba(${hexToRgb(colors.yellow)}, 0.3)`,
+                    borderRadius: '12px', // Consistent radius
+                    maxWidth: '550px', // Adjusted width
                     margin: '32px auto 0'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                      <AlertTriangle size={20} color="#f59e0b" />
-                      <span style={{ fontWeight: '600', color: '#f59e0b' }}>RAG Configuration Required</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}> {/* Adjusted margin */}
+                      <AlertTriangle size={20} color={colors.yellow} /> {/* Themed yellow */}
+                      <span style={{ fontWeight: '600', color: colors.yellow, fontSize: '0.95rem' }}>RAG Configuration Required</span>
                     </div>
-                    <p style={{ fontSize: '0.9rem', margin: 0, color: settings.darkMode ? '#cbd5e1' : '#475569' }}>
-                      Configure your Gemini API key to enable RAG-enhanced vulnerability analysis with contextual intelligence.
+                    <p style={{
+                      fontSize: '0.875rem', // Adjusted size
+                      margin: 0,
+                      color: styles.appContainer.secondaryText, // Themed color
+                      lineHeight: 1.5
+                    }}>
+                      Configure your Gemini API key in settings to enable RAG-enhanced vulnerability analysis.
                     </p>
                   </div>
                 )}
