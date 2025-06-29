@@ -1,142 +1,34 @@
-import React, { useState, createContext, useContext, useEffect } from 'react';
-import { Search, Brain, Settings, Target, Database, Activity, CheckCircle, XCircle, X, Eye, EyeOff, Save, Globe, AlertTriangle, Loader2, ExternalLink, RefreshCw, Download, Info, Package, BarChart3, Copy, Zap, Clock, Shield, ChevronRight, Code, Network, Server } from 'lucide-react';
+import React, { useState, createContext, useContext, useEffect, useCallback, useMemo } from 'react';
+import { 
+  Search, Brain, Settings, Target, Database, Activity, CheckCircle, XCircle, X, 
+  Eye, EyeOff, Save, Globe, AlertTriangle, Loader2, RefreshCw, Copy, Clock, 
+  ChevronRight, Info, Package, BarChart3, Zap, Shield, Code, Network, Server 
+} from 'lucide-react';
 
-// Enhanced RAG Vector Database Implementation
-class EnhancedVectorDatabase {
-  constructor() {
-    this.documents = [];
-    this.initialized = false;
+// Constants and Configuration
+const CONSTANTS = {
+  API_ENDPOINTS: {
+    NVD: 'https://services.nvd.nist.gov/rest/json/cves/2.0',
+    EPSS: 'https://api.first.org/data/v1/epss',
+    GEMINI: 'https://generativelanguage.googleapis.com/v1beta/models'
+  },
+  RATE_LIMITS: {
+    GEMINI_COOLDOWN: 60000, // 1 minute
+    MAX_RETRIES: 3
+  },
+  CVSS_THRESHOLDS: {
+    CRITICAL: 9.0,
+    HIGH: 7.0,
+    MEDIUM: 4.0,
+    LOW: 0.1
+  },
+  EPSS_THRESHOLDS: {
+    HIGH: 0.5,
+    MEDIUM: 0.1
   }
-
-  async createEmbedding(text) {
-    const words = text.toLowerCase().split(/\W+/).filter(w => w.length > 2);
-    const wordFreq = {};
-    words.forEach(word => {
-      wordFreq[word] = (wordFreq[word] || 0) + 1;
-    });
-    
-    const vocabulary = Object.keys(wordFreq);
-    const vector = vocabulary.slice(0, 150).map(word => wordFreq[word] || 0);
-    
-    const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
-    return magnitude > 0 ? vector.map(val => val / magnitude) : vector;
-  }
-
-  cosineSimilarity(vec1, vec2) {
-    if (vec1.length !== vec2.length) return 0;
-    
-    let dotProduct = 0;
-    let norm1 = 0;
-    let norm2 = 0;
-    
-    for (let i = 0; i < vec1.length; i++) {
-      dotProduct += vec1[i] * vec2[i];
-      norm1 += vec1[i] * vec1[i];
-      norm2 += vec2[i] * vec2[i];
-    }
-    
-    return dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
-  }
-
-  async addDocument(content, metadata = {}) {
-    const embedding = await this.createEmbedding(content);
-    const doc = {
-      id: Date.now() + Math.random(),
-      content,
-      metadata,
-      embedding,
-      timestamp: new Date().toISOString()
-    };
-    
-    this.documents.push(doc);
-    console.log('📚 Added document to RAG database:', metadata.title || 'Untitled');
-    return doc.id;
-  }
-
-  async search(query, k = 8) {
-    if (this.documents.length === 0) {
-      console.warn('⚠️ RAG database is empty');
-      return [];
-    }
-
-    const queryEmbedding = await this.createEmbedding(query);
-    
-    const similarities = this.documents.map(doc => ({
-      ...doc,
-      similarity: this.cosineSimilarity(queryEmbedding, doc.embedding)
-    }));
-    
-    const results = similarities
-      .sort((a, b) => b.similarity - a.similarity)
-      .slice(0, k)
-      .filter(doc => doc.similarity > 0.1);
-    
-    console.log(`🔍 RAG search for "${query}" found ${results.length} relevant documents`);
-    return results;
-  }
-
-  async initialize() {
-    if (this.initialized) return;
-
-    console.log('🚀 Initializing Enhanced RAG Vector Database...');
-    await this.addSecurityKnowledgeBase();
-    this.initialized = true;
-    console.log(`✅ RAG database initialized with ${this.documents.length} documents`);
-  }
-
-  async addSecurityKnowledgeBase() {
-    const knowledgeBase = [
-      {
-        title: "CVE Severity Classification",
-        content: "CVE severity classification considers CVSS scores, exploitability, asset exposure, and business impact. Critical vulnerabilities (9.0-10.0 CVSS) with known exploits and high exposure get immediate priority.",
-        category: "severity",
-        tags: ["severity", "classification", "priority"]
-      },
-      {
-        title: "Active Exploitation Intelligence",
-        content: "Integration of multiple threat intelligence sources helps identify vulnerabilities under active exploitation. This includes CISA KEV catalog, commercial threat feeds, proof-of-concept availability, and ransomware campaign usage.",
-        category: "exploitation",
-        tags: ["exploitation", "threat-intelligence", "ransomware", "kev"]
-      },
-      {
-        title: "EPSS Exploitation Prediction Analysis",
-        content: "EPSS (Exploit Prediction Scoring System) provides probability scores for vulnerability exploitation within 30 days. Scores above 0.5 (50%) indicate high exploitation likelihood and warrant immediate attention.",
-        category: "epss",
-        tags: ["epss", "exploitation-probability", "prediction", "first"]
-      }
-    ];
-    
-    for (const item of knowledgeBase) {
-      await this.addDocument(item.content, {
-        title: item.title,
-        category: item.category,
-        tags: item.tags,
-        source: 'knowledge-base'
-      });
-    }
-  }
-}
-
-// Global enhanced RAG instance
-const enhancedRAGDatabase = new EnhancedVectorDatabase();
-
-// Helper function to convert hex to RGB
-const hexToRgb = (hex) => {
-  let r = 0, g = 0, b = 0;
-  if (hex.length === 4) {
-    r = parseInt(hex[1] + hex[1], 16);
-    g = parseInt(hex[2] + hex[2], 16);
-    b = parseInt(hex[3] + hex[3], 16);
-  } else if (hex.length === 7) {
-    r = parseInt(hex[1] + hex[2], 16);
-    g = parseInt(hex[3] + hex[4], 16);
-    b = parseInt(hex[5] + hex[6], 16);
-  }
-  return `${r}, ${g}, ${b}`;
 };
 
-// Consistent color palette
-const colors = {
+const COLORS = {
   blue: '#3b82f6',
   purple: '#8b5cf6',
   green: '#22c55e',
@@ -162,350 +54,476 @@ const colors = {
   }
 };
 
-const getStyles = (darkMode) => {
-  const currentTheme = darkMode ? colors.dark : colors.light;
-  const commonShadow = `0 4px 6px -1px ${currentTheme.shadow}, 0 2px 4px -1px ${currentTheme.shadow}`;
-
-  return {
-    appContainer: {
-      minHeight: '100vh',
-      backgroundColor: currentTheme.background,
-      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
-      color: currentTheme.primaryText,
-      fontSize: '16px',
-      lineHeight: '1.6',
-    },
-    header: {
-      background: `linear-gradient(135deg, ${currentTheme.surface} 0%, ${currentTheme.background} 100%)`,
-      color: currentTheme.primaryText,
-      boxShadow: commonShadow,
-      borderBottom: `1px solid ${currentTheme.border}`
-    },
-    headerContent: {
-      maxWidth: '1536px',
-      margin: '0 auto',
-      padding: '20px 32px',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between'
-    },
-    headerTitle: { display: 'flex', alignItems: 'center', gap: '16px' },
-    title: {
-      fontSize: '1.5rem',
-      fontWeight: '700',
-      margin: 0,
-      background: `linear-gradient(135deg, ${colors.blue} 0%, ${colors.purple} 100%)`,
-      WebkitBackgroundClip: 'text',
-      WebkitTextFillColor: 'transparent',
-      backgroundClip: 'text'
-    },
-    subtitle: {
-      fontSize: '0.9375rem',
-      color: currentTheme.secondaryText,
-      margin: 0,
-      fontWeight: '500'
-    },
-    headerActions: { display: 'flex', alignItems: 'center', gap: '16px' },
-    statusIndicator: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      fontSize: '0.875rem',
-      padding: '8px 14px',
-      borderRadius: '9999px',
-      border: '1px solid',
-      fontWeight: '600',
-      minHeight: '44px',
-    },
-    mainContent: {
-      maxWidth: '1536px',
-      margin: '0 auto',
-      padding: '24px 32px'
-    },
-    searchSection: {
-      background: `linear-gradient(135deg, ${currentTheme.surface} 0%, ${currentTheme.background} 100%)`,
-      padding: '48px 32px 64px 32px',
-      borderBottom: `1px solid ${currentTheme.border}`
-    },
-    searchContainer: {
-      maxWidth: '960px',
-      margin: '0 auto',
-      textAlign: 'center'
-    },
-    searchTitle: {
-      fontSize: '2.75rem',
-      fontWeight: '800',
-      background: `linear-gradient(135deg, ${colors.blue} 0%, ${colors.purple} 100%)`,
-      WebkitBackgroundClip: 'text',
-      WebkitTextFillColor: 'transparent',
-      backgroundClip: 'text',
-      marginBottom: '12px'
-    },
-    searchSubtitle: {
-      fontSize: '1.25rem',
-      color: currentTheme.secondaryText,
-      marginBottom: '40px',
-      fontWeight: '500',
-      maxWidth: '700px',
-      margin: '0 auto 32px auto',
-    },
-    searchWrapper: {
-      position: 'relative',
-      maxWidth: '768px',
-      margin: '0 auto 24px auto',
-    },
-    searchInput: {
-      width: '100%',
-      padding: '20px 22px 20px 56px',
-      border: `2px solid ${currentTheme.border}`,
-      borderRadius: '12px',
-      fontSize: '1.125rem',
-      outline: 'none',
-      boxSizing: 'border-box',
-      background: currentTheme.surface,
-      color: currentTheme.primaryText,
-      transition: 'all 0.2s ease-in-out',
-      boxShadow: `0 2px 4px ${currentTheme.shadow}`,
-      minHeight: '64px',
-    },
-    searchIcon: {
-      position: 'absolute',
-      left: '20px',
-      top: '50%',
-      transform: 'translateY(-50%)',
-      color: currentTheme.secondaryText
-    },
-    searchButton: {
-      position: 'absolute',
-      right: '8px',
-      top: '50%',
-      transform: 'translateY(-50%)',
-      padding: '12px 24px',
-      background: `linear-gradient(135deg, ${colors.blue} 0%, #1d4ed8 100%)`,
-      color: 'white',
-      border: 'none',
-      borderRadius: '8px',
-      cursor: 'pointer',
-      fontWeight: '600',
-      display: 'flex',
-      alignItems: 'center',
-      gap: '8px',
-      fontSize: '1rem',
-      boxShadow: `0 2px 8px rgba(${hexToRgb(colors.blue)}, 0.3)`,
-      transition: 'all 0.2s ease-in-out',
-      minHeight: '44px',
-    },
-    button: {
-      display: 'inline-flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '8px',
-      padding: '12px 20px',
-      borderRadius: '8px',
-      fontWeight: '600',
-      cursor: 'pointer',
-      border: '1px solid',
-      fontSize: '1rem',
-      transition: 'all 0.2s ease-in-out',
-      textDecoration: 'none',
-      whiteSpace: 'nowrap',
-      minHeight: '44px',
-    },
-    buttonPrimary: {
-      background: `linear-gradient(135deg, ${colors.blue} 0%, #1d4ed8 100%)`,
-      color: 'white',
-      borderColor: 'transparent',
-      boxShadow: `0 2px 8px rgba(${hexToRgb(colors.blue)}, 0.3)`,
-    },
-    buttonSecondary: {
-      background: currentTheme.surface,
-      color: currentTheme.primaryText,
-      borderColor: currentTheme.border,
-    },
-    badge: {
-      padding: '6px 12px',
-      borderRadius: '6px',
-      fontSize: '0.8125rem',
-      fontWeight: '700',
-      display: 'inline-flex',
-      alignItems: 'center',
-      textTransform: 'uppercase',
-      letterSpacing: '0.05em',
-      lineHeight: 1.2,
-    },
-    badgeCritical: { background: 'rgba(239, 68, 68, 0.15)', color: colors.red, border: '1px solid rgba(239, 68, 68, 0.3)' },
-    badgeHigh: { background: 'rgba(245, 158, 11, 0.15)', color: colors.yellow, border: '1px solid rgba(245, 158, 11, 0.3)' },
-    badgeMedium: { background: 'rgba(59, 130, 246, 0.15)', color: colors.blue, border: '1px solid rgba(59, 130, 246, 0.3)' },
-    badgeLow: { background: 'rgba(34, 197, 94, 0.15)', color: colors.green, border: '1px solid rgba(34, 197, 94, 0.3)' },
-    notification: {
-      background: currentTheme.surface,
-      borderRadius: '8px',
-      padding: '16px',
-      boxShadow: commonShadow,
-      maxWidth: '400px',
-      border: `1px solid ${currentTheme.border}`,
-      display: 'flex',
-      alignItems: 'flex-start',
-      gap: '12px',
-    },
-    notificationSuccess: { borderLeft: `4px solid ${colors.green}` },
-    notificationError: { borderLeft: `4px solid ${colors.red}` },
-    notificationWarning: { borderLeft: `4px solid ${colors.yellow}` },
-    loadingContainer: {
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '64px 32px',
-      textAlign: 'center',
-      color: currentTheme.secondaryText,
-    },
-    emptyState: {
-      textAlign: 'center',
-      padding: '64px 32px',
-      color: currentTheme.secondaryText,
-    },
-    modal: {
-      position: 'fixed',
-      inset: 0,
-      background: 'rgba(0, 0, 0, 0.6)',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      zIndex: 1050,
-      backdropFilter: 'blur(5px)'
-    },
-    modalContent: {
-      background: currentTheme.surface,
-      borderRadius: '16px',
-      padding: '24px 32px',
-      width: '100%',
-      maxWidth: '700px',
-      maxHeight: '90vh',
-      overflowY: 'auto',
-      margin: '20px',
-      border: `1px solid ${currentTheme.border}`,
-      boxShadow: `0 25px 50px -12px ${currentTheme.shadow}`,
-    },
-    modalHeader: {
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginBottom: '24px',
-      paddingBottom: '16px',
-      borderBottom: `1px solid ${currentTheme.border}`
-    },
-    modalTitle: {
-      fontSize: '1.375rem',
-      fontWeight: '700',
-      margin: 0,
-      color: currentTheme.primaryText
-    },
-    formGroup: { marginBottom: '24px' },
-    label: {
-      display: 'block',
-      fontSize: '1rem',
-      fontWeight: '600',
-      color: currentTheme.secondaryText,
-      marginBottom: '8px'
-    },
-    input: {
-      width: '100%',
-      padding: '12px 16px',
-      border: `1px solid ${currentTheme.border}`,
-      borderRadius: '8px',
-      fontSize: '1rem',
-      outline: 'none',
-      boxSizing: 'border-box',
-      background: currentTheme.surface,
-      color: currentTheme.primaryText,
-      transition: 'border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-      minHeight: '44px',
-    },
-    select: {
-      width: '100%',
-      padding: '12px 16px',
-      border: `1px solid ${currentTheme.border}`,
-      borderRadius: '8px',
-      fontSize: '1rem',
-      outline: 'none',
-      background: currentTheme.surface,
-      boxSizing: 'border-box',
-      color: currentTheme.primaryText,
-      transition: 'border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
-      appearance: 'none',
-      backgroundImage: 'url("data:image/svg+xml;charset=UTF-8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' fill=\'%2394a3b8\' viewBox=\'0 0 16 16\'><path fill-rule=\'evenodd\' d=\'M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z\'/></svg>")',
-      backgroundRepeat: 'no-repeat',
-      backgroundPosition: 'right 16px center',
-      paddingRight: '40px',
-      minHeight: '44px',
+// Utility Functions
+const utils = {
+  hexToRgb: (hex) => {
+    let r = 0, g = 0, b = 0;
+    if (hex.length === 4) {
+      r = parseInt(hex[1] + hex[1], 16);
+      g = parseInt(hex[2] + hex[2], 16);
+      b = parseInt(hex[3] + hex[3], 16);
+    } else if (hex.length === 7) {
+      r = parseInt(hex[1] + hex[2], 16);
+      g = parseInt(hex[3] + hex[4], 16);
+      b = parseInt(hex[5] + hex[6], 16);
     }
-  };
+    return `${r}, ${g}, ${b}`;
+  },
+
+  validateCVE: (cveId) => /^CVE-\d{4}-\d{4,}$/i.test(cveId.trim()),
+
+  getSeverityLevel: (score) => {
+    if (score >= CONSTANTS.CVSS_THRESHOLDS.CRITICAL) return 'CRITICAL';
+    if (score >= CONSTANTS.CVSS_THRESHOLDS.HIGH) return 'HIGH';
+    if (score >= CONSTANTS.CVSS_THRESHOLDS.MEDIUM) return 'MEDIUM';
+    return 'LOW';
+  },
+
+  getSeverityColor: (severity) => {
+    switch (severity?.toUpperCase()) {
+      case 'CRITICAL': return COLORS.red;
+      case 'HIGH': return COLORS.yellow;
+      case 'MEDIUM': return COLORS.blue;
+      case 'LOW': return COLORS.green;
+      default: return COLORS.blue;
+    }
+  },
+
+  formatDate: (dateString) => new Date(dateString).toLocaleString(),
+
+  debounce: (func, wait) => {
+    let timeout;
+    return function executedFunction(...args) {
+      const later = () => {
+        clearTimeout(timeout);
+        func(...args);
+      };
+      clearTimeout(timeout);
+      timeout = setTimeout(later, wait);
+    };
+  }
 };
 
-const AppContext = createContext({});
+// Enhanced RAG Vector Database with Gemini Embeddings
+class EnhancedVectorDatabase {
+  constructor() {
+    this.documents = [];
+    this.initialized = false;
+    this.geminiApiKey = null;
+  }
 
-// CORS-safe API functions with proxy alternatives
-const fetchCVEDataFromNVD = async (cveId, setLoadingSteps, apiKey) => {
-  setLoadingSteps(prev => [...prev, `🔍 Fetching ${cveId} from NVD...`]);
-  
-  try {
-    // Try direct API first, then fallback to CORS proxy
-    let url = `https://services.nvd.nist.gov/rest/json/cves/2.0?cveId=${cveId}`;
+  setApiKey(apiKey) {
+    this.geminiApiKey = apiKey;
+  }
+
+  async createEmbedding(text) {
+    // Use Gemini embeddings if API key is available
+    if (this.geminiApiKey) {
+      try {
+        return await this.createGeminiEmbedding(text);
+      } catch (error) {
+        console.warn('Gemini embedding failed, falling back to local embeddings:', error.message);
+        return this.createLocalEmbedding(text);
+      }
+    }
+    
+    // Fallback to local embeddings
+    return this.createLocalEmbedding(text);
+  }
+
+  async createGeminiEmbedding(text) {
+    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-exp-03-07:embedContent';
+    
+    const requestBody = {
+      model: "models/gemini-embedding-exp-03-07",
+      content: {
+        parts: [{ text: text.substring(0, 2048) }] // Limit text length for API
+      }
+    };
+
+    try {
+      let response;
+      try {
+        response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'x-goog-api-key': this.geminiApiKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestBody)
+        });
+      } catch (corsError) {
+        // CORS fallback using proxy
+        console.log('Direct Gemini embedding blocked by CORS, trying proxy...');
+        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+        response = await fetch(proxyUrl, {
+          method: 'POST',
+          headers: {
+            'x-goog-api-key': this.geminiApiKey,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(requestBody)
+        });
+      }
+
+      if (!response.ok) {
+        throw new Error(`Gemini Embedding API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.embedding?.values) {
+        throw new Error('Invalid embedding response from Gemini API');
+      }
+
+      console.log(`🔗 Generated Gemini embedding (${data.embedding.values.length} dimensions) for text: "${text.substring(0, 50)}..."`);
+      return data.embedding.values;
+      
+    } catch (error) {
+      console.error('Gemini embedding error:', error);
+      throw error;
+    }
+  }
+
+  createLocalEmbedding(text) {
+    // Fallback to improved local embeddings
+    const words = text.toLowerCase().split(/\W+/).filter(w => w.length > 2);
+    const wordFreq = {};
+    
+    words.forEach(word => {
+      wordFreq[word] = (wordFreq[word] || 0) + 1;
+    });
+    
+    // Create a more comprehensive vocabulary from security terms
+    const securityTerms = [
+      'vulnerability', 'exploit', 'cvss', 'epss', 'cisa', 'kev', 'critical', 'high', 'medium', 'low',
+      'remote', 'local', 'authentication', 'authorization', 'injection', 'overflow', 'disclosure',
+      'elevation', 'bypass', 'denial', 'service', 'code', 'execution', 'memory', 'corruption',
+      'cross', 'site', 'scripting', 'sql', 'command', 'path', 'traversal', 'buffer', 'heap',
+      'stack', 'format', 'string', 'integer', 'underflow', 'race', 'condition', 'symlink',
+      'privilege', 'escalation', 'information', 'sensitive', 'exposure', 'leak', 'weak',
+      'cryptography', 'certificate', 'validation', 'trust', 'boundary', 'sandbox', 'escape'
+    ];
+    
+    const allTerms = [...new Set([...Object.keys(wordFreq), ...securityTerms])];
+    const vector = allTerms.slice(0, 200).map(term => wordFreq[term] || 0);
+    
+    // Normalize the vector
+    const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
+    return magnitude > 0 ? vector.map(val => val / magnitude) : vector;
+  }
+
+  cosineSimilarity(vec1, vec2) {
+    if (vec1.length !== vec2.length) {
+      // Handle different vector sizes by padding with zeros
+      const maxLength = Math.max(vec1.length, vec2.length);
+      const paddedVec1 = [...vec1, ...new Array(maxLength - vec1.length).fill(0)];
+      const paddedVec2 = [...vec2, ...new Array(maxLength - vec2.length).fill(0)];
+      vec1 = paddedVec1;
+      vec2 = paddedVec2;
+    }
+    
+    let dotProduct = 0;
+    let norm1 = 0;
+    let norm2 = 0;
+    
+    for (let i = 0; i < vec1.length; i++) {
+      dotProduct += vec1[i] * vec2[i];
+      norm1 += vec1[i] * vec1[i];
+      norm2 += vec2[i] * vec2[i];
+    }
+    
+    const magnitude1 = Math.sqrt(norm1);
+    const magnitude2 = Math.sqrt(norm2);
+    
+    if (magnitude1 === 0 || magnitude2 === 0) return 0;
+    
+    return dotProduct / (magnitude1 * magnitude2);
+  }
+
+  async addDocument(content, metadata = {}) {
+    const embedding = await this.createEmbedding(content);
+    const doc = {
+      id: Date.now() + Math.random(),
+      content,
+      metadata,
+      embedding,
+      timestamp: new Date().toISOString(),
+      embeddingType: this.geminiApiKey ? 'gemini' : 'local'
+    };
+    
+    this.documents.push(doc);
+    console.log(`📚 Added document to RAG database (${doc.embeddingType} embedding):`, metadata.title || 'Untitled');
+    return doc.id;
+  }
+
+  async search(query, k = 8) {
+    if (this.documents.length === 0) {
+      console.warn('⚠️ RAG database is empty - initializing with default knowledge base');
+      await this.initialize();
+    }
+
+    const queryEmbedding = await this.createEmbedding(query);
+    
+    const similarities = this.documents.map(doc => ({
+      ...doc,
+      similarity: this.cosineSimilarity(queryEmbedding, doc.embedding)
+    }));
+    
+    const results = similarities
+      .sort((a, b) => b.similarity - a.similarity)
+      .slice(0, k)
+      .filter(doc => doc.similarity > 0.05); // Lower threshold for better matches
+    
+    const embeddingTypes = results.map(r => r.embeddingType).filter(Boolean);
+    const hasGemini = embeddingTypes.includes('gemini');
+    
+    console.log(`🔍 RAG search for "${query}" found ${results.length} relevant documents from ${this.documents.length} total (${hasGemini ? 'Using Gemini embeddings' : 'Using local embeddings'})`);
+    
+    return results;
+  }
+
+  async initialize(geminiApiKey = null) {
+    if (this.initialized) return;
+
+    if (geminiApiKey) {
+      this.setApiKey(geminiApiKey);
+    }
+
+    console.log(`🚀 Initializing Enhanced RAG Vector Database with ${this.geminiApiKey ? 'Gemini' : 'local'} embeddings...`);
+    await this.addComprehensiveSecurityKnowledgeBase();
+    this.initialized = true;
+    console.log(`✅ RAG database initialized with ${this.documents.length} security documents using ${this.geminiApiKey ? 'Gemini' : 'local'} embeddings`);
+  }
+
+  async addComprehensiveSecurityKnowledgeBase() {
+    const comprehensiveKnowledgeBase = [
+      {
+        title: "CVE Severity Classification Framework",
+        content: "CVE severity classification uses CVSS (Common Vulnerability Scoring System) scores ranging from 0.0 to 10.0. Critical vulnerabilities (9.0-10.0) require immediate attention, especially when combined with high EPSS scores. High severity (7.0-8.9) vulnerabilities need urgent patching. Medium (4.0-6.9) and Low (0.1-3.9) require prioritization based on environmental factors and exploitability.",
+        category: "severity",
+        tags: ["cvss", "severity", "classification", "priority", "scoring"]
+      },
+      {
+        title: "CISA Known Exploited Vulnerabilities (KEV) Catalog",
+        content: "CISA KEV catalog contains vulnerabilities that are actively exploited in the wild. Any CVE listed in KEV requires emergency patching within specified timeframes. KEV listing indicates confirmed exploitation by threat actors and poses immediate risk to organizations. CISA mandates federal agencies patch KEV vulnerabilities within 14-21 days depending on severity.",
+        category: "kev",
+        tags: ["cisa", "kev", "active-exploitation", "emergency", "threat-actors"]
+      },
+      {
+        title: "EPSS Exploitation Prediction Analysis",
+        content: "EPSS (Exploit Prediction Scoring System) provides probability scores (0-100%) for vulnerability exploitation within 30 days. Scores above 50% indicate high exploitation likelihood requiring immediate attention. EPSS considers multiple factors including exploit availability, threat intelligence, and vulnerability characteristics. Developed by FIRST organization for prioritization.",
+        category: "epss",
+        tags: ["epss", "exploitation-probability", "prediction", "first", "prioritization"]
+      },
+      {
+        title: "Active Exploitation Detection Methods",
+        content: "Active exploitation can be detected through threat intelligence feeds, security vendor reports, honeypot data, and incident response findings. Indicators include public exploit code availability, proof-of-concept demonstrations, ransomware campaign usage, and APT group targeting. Real-world exploitation often follows public disclosure by days or weeks.",
+        category: "exploitation",
+        tags: ["active-exploitation", "threat-intelligence", "indicators", "ransomware", "apt"]
+      },
+      {
+        title: "Vulnerability Exploitation Timeline Patterns",
+        content: "Vulnerability exploitation typically follows predictable patterns: 0-day exploitation by advanced actors, public disclosure, proof-of-concept release, weaponization by criminal groups, and mass exploitation. Critical infrastructure and high-value targets are exploited first. Patch deployment races against exploit weaponization.",
+        category: "timeline",
+        tags: ["exploitation-timeline", "0-day", "weaponization", "critical-infrastructure"]
+      },
+      {
+        title: "Threat Actor Vulnerability Targeting Preferences",
+        content: "Advanced Persistent Threat (APT) groups prefer network infrastructure vulnerabilities, while ransomware operators target user-facing applications and remote access solutions. Nation-state actors focus on supply chain and zero-day vulnerabilities. Criminal groups exploit known vulnerabilities with available exploit tools.",
+        category: "threat-actors",
+        tags: ["apt", "ransomware", "nation-state", "criminal-groups", "targeting"]
+      },
+      {
+        title: "Vulnerability Patch Management Strategies",
+        content: "Effective patch management prioritizes based on CVSS score, EPSS probability, asset criticality, and threat intelligence. Emergency patching for KEV vulnerabilities overrides normal cycles. Virtual patching and compensating controls provide temporary protection. Testing prevents business disruption from patches.",
+        category: "patching",
+        tags: ["patch-management", "emergency-patching", "virtual-patching", "compensating-controls"]
+      },
+      {
+        title: "Network Security Vulnerability Classes",
+        content: "Network vulnerabilities include remote code execution, authentication bypass, privilege escalation, and information disclosure. Network infrastructure devices (routers, firewalls, VPN concentrators) are high-value targets. Lateral movement vulnerabilities enable attack progression through networks.",
+        category: "network-security",
+        tags: ["network-vulnerabilities", "rce", "authentication-bypass", "privilege-escalation"]
+      },
+      {
+        title: "Web Application Security Vulnerability Types",
+        content: "Common web application vulnerabilities include SQL injection, cross-site scripting (XSS), remote file inclusion, authentication flaws, and session management issues. OWASP Top 10 provides authoritative ranking of web application security risks requiring immediate attention.",
+        category: "web-security",
+        tags: ["web-applications", "sql-injection", "xss", "owasp", "authentication"]
+      },
+      {
+        title: "Critical Infrastructure Vulnerability Impact",
+        content: "Critical infrastructure vulnerabilities affect power grids, water systems, healthcare, financial services, and transportation. These sectors face nation-state targeting and require accelerated patching schedules. Operational technology (OT) and SCADA system vulnerabilities have physical world consequences.",
+        category: "critical-infrastructure",
+        tags: ["critical-infrastructure", "scada", "operational-technology", "nation-state", "physical-impact"]
+      },
+      {
+        title: "Supply Chain Vulnerability Risks",
+        content: "Supply chain vulnerabilities affect multiple organizations through shared software components, libraries, and dependencies. Examples include SolarWinds, Log4j, and Codecov incidents. Software bill of materials (SBOM) helps identify vulnerable components. Third-party risk assessment is crucial.",
+        category: "supply-chain",
+        tags: ["supply-chain", "dependencies", "sbom", "third-party-risk", "solarwinds", "log4j"]
+      },
+      {
+        title: "Zero-Day Vulnerability Economics",
+        content: "Zero-day vulnerabilities command high prices in underground markets and nation-state programs. Bug bounty programs compete with malicious actors for vulnerability disclosure. Coordinated disclosure balances security research with public safety. Vulnerability equity process governs government disclosure decisions.",
+        category: "zero-day",
+        tags: ["zero-day", "bug-bounty", "coordinated-disclosure", "vulnerability-equity"]
+      },
+      {
+        title: "Vulnerability Scanning and Assessment",
+        content: "Automated vulnerability scanners identify known vulnerabilities using CVE databases and signature-based detection. Manual penetration testing discovers complex vulnerabilities requiring human analysis. Continuous monitoring detects new vulnerabilities in dynamic environments. False positive management is critical.",
+        category: "scanning",
+        tags: ["vulnerability-scanning", "penetration-testing", "continuous-monitoring", "false-positives"]
+      },
+      {
+        title: "Incident Response for Vulnerability Exploitation",
+        content: "Incident response for exploited vulnerabilities requires rapid containment, forensic analysis, and recovery planning. Evidence preservation enables attribution and lessons learned. Communication with stakeholders and regulatory bodies may be required. Post-incident improvements prevent similar future incidents.",
+        category: "incident-response",
+        tags: ["incident-response", "containment", "forensics", "attribution", "regulatory"]
+      },
+      {
+        title: "Regulatory Compliance and Vulnerability Management",
+        content: "Regulatory frameworks like PCI DSS, HIPAA, SOX, and GDPR mandate vulnerability management programs. Compliance requires documented processes, regular assessments, and timely remediation. Industry-specific requirements vary by sector and geographic region. Audit evidence demonstrates due diligence.",
+        category: "compliance",
+        tags: ["regulatory-compliance", "pci-dss", "hipaa", "gdpr", "audit", "due-diligence"]
+      }
+    ];
+    
+    for (const item of comprehensiveKnowledgeBase) {
+      await this.addDocument(item.content, {
+        title: item.title,
+        category: item.category,
+        tags: item.tags,
+        source: 'comprehensive-knowledge-base'
+      });
+    }
+    
+    // Add some CVE-specific knowledge
+    const cveExamples = [
+      {
+        title: "High-Impact CVE Characteristics",
+        content: "High-impact CVEs typically affect widely-deployed software, require no authentication, allow remote code execution, and have public exploit code available. Examples include Heartbleed (CVE-2014-0160), WannaCry SMB vulnerability (CVE-2017-0144), and Log4Shell (CVE-2021-44228). These vulnerabilities cause widespread internet disruption.",
+        category: "high-impact-cves",
+        tags: ["heartbleed", "wannacry", "log4shell", "widespread-impact", "rce"]
+      },
+      {
+        title: "Microsoft Windows Vulnerability Patterns",
+        content: "Microsoft Windows vulnerabilities often affect SMB protocol, Remote Desktop Protocol (RDP), and Windows kernel components. Patch Tuesday provides monthly security updates. Windows vulnerabilities frequently enable lateral movement in enterprise networks. Print Spooler and Exchange Server are common attack vectors.",
+        category: "windows-vulnerabilities",
+        tags: ["windows", "smb", "rdp", "patch-tuesday", "print-spooler", "exchange"]
+      },
+      {
+        title: "Apache and Open Source Vulnerabilities",
+        content: "Apache HTTP Server, Tomcat, and Struts vulnerabilities affect millions of web applications. Open source vulnerabilities in libraries like OpenSSL, Log4j, and Jackson create widespread exposure. Dependency management and software composition analysis help identify vulnerable components.",
+        category: "apache-opensource",
+        tags: ["apache", "open-source", "openssl", "log4j", "jackson", "dependencies"]
+      }
+    ];
+    
+    for (const item of cveExamples) {
+      await this.addDocument(item.content, {
+        title: item.title,
+        category: item.category,
+        tags: item.tags,
+        source: 'cve-knowledge-base'
+      });
+    }
+  }
+
+  // Method to reinitialize if database seems empty
+  async ensureInitialized(geminiApiKey = null) {
+    if (this.documents.length === 0) {
+      console.log('🔄 RAG database empty, reinitializing...');
+      await this.initialize(geminiApiKey);
+    } else if (geminiApiKey && !this.geminiApiKey) {
+      // Upgrade to Gemini embeddings if API key is now available
+      console.log('🔄 Upgrading to Gemini embeddings...');
+      this.setApiKey(geminiApiKey);
+      
+      // Optionally re-embed existing documents with better embeddings
+      const localEmbeddedDocs = this.documents.filter(doc => doc.embeddingType !== 'gemini');
+      if (localEmbeddedDocs.length > 0) {
+        console.log(`🔄 Re-embedding ${localEmbeddedDocs.length} documents with Gemini embeddings...`);
+        
+        // Re-embed in batches to avoid rate limits
+        for (let i = 0; i < Math.min(localEmbeddedDocs.length, 5); i++) {
+          try {
+            const doc = localEmbeddedDocs[i];
+            const newEmbedding = await this.createGeminiEmbedding(doc.content);
+            doc.embedding = newEmbedding;
+            doc.embeddingType = 'gemini';
+            
+            // Add a small delay to respect rate limits
+            if (i < 4) await new Promise(resolve => setTimeout(resolve, 1000));
+          } catch (error) {
+            console.warn(`Failed to re-embed document ${i}:`, error.message);
+          }
+        }
+      }
+    }
+  }
+}
+
+// Global RAG instance
+const ragDatabase = new EnhancedVectorDatabase();
+
+// Enhanced API Service Layer with Multi-Source Intelligence
+class APIService {
+  static async fetchWithFallback(url, options = {}) {
+    try {
+      return await fetch(url, options);
+    } catch (corsError) {
+      console.log('CORS blocked, trying proxy...');
+      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+      const response = await fetch(proxyUrl);
+      
+      if (response.ok) {
+        const proxyData = await response.json();
+        return {
+          ok: true,
+          json: () => Promise.resolve(JSON.parse(proxyData.contents))
+        };
+      }
+      throw corsError;
+    }
+  }
+
+  static async fetchCVEData(cveId, apiKey, setLoadingSteps) {
+    const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
+    updateSteps(prev => [...prev, `🔍 Fetching ${cveId} from NVD...`]);
+    
+    const url = `${CONSTANTS.API_ENDPOINTS.NVD}?cveId=${cveId}`;
     const headers = { 
       'Accept': 'application/json',
       'User-Agent': 'VulnerabilityIntelligence/1.0'
     };
     
-    if (apiKey) {
-      headers['apiKey'] = apiKey;
-    }
+    if (apiKey) headers['apiKey'] = apiKey;
     
-    let response;
-    try {
-      response = await fetch(url, { headers, method: 'GET' });
-    } catch (corsError) {
-      // CORS fallback - try with a public CORS proxy
-      console.log('CORS blocked, trying proxy...');
-      url = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-      response = await fetch(url);
-      
-      if (response.ok) {
-        const proxyData = await response.json();
-        response = {
-          ok: true,
-          json: () => Promise.resolve(JSON.parse(proxyData.contents))
-        };
-      }
-    }
+    const response = await this.fetchWithFallback(url, { headers });
     
     if (!response.ok) {
       if (response.status === 403) {
         throw new Error('NVD API rate limit exceeded. Consider adding an API key.');
       }
-      throw new Error(`NVD API error: ${response.status} ${response.statusText}`);
+      throw new Error(`NVD API error: ${response.status}`);
     }
     
     const data = await response.json();
     
-    if (!data.vulnerabilities || data.vulnerabilities.length === 0) {
+    if (!data.vulnerabilities?.length) {
       throw new Error(`CVE ${cveId} not found in NVD database`);
     }
     
-    const cve = data.vulnerabilities[0].cve;
-    const description = cve.descriptions?.find(d => d.lang === 'en')?.value || 'No description available';
+    updateSteps(prev => [...prev, `✅ Retrieved ${cveId} from NVD`]);
     
-    const cvssV31 = cve.metrics?.cvssMetricV31?.[0]?.cvssData;
-    const cvssV30 = cve.metrics?.cvssMetricV30?.[0]?.cvssData;
-    const cvssV2 = cve.metrics?.cvssMetricV2?.[0]?.cvssData;
+    const processedData = this.processCVEData(data.vulnerabilities[0].cve);
     
-    const cvssV3 = cvssV31 || cvssV30;
-    
-    setLoadingSteps(prev => [...prev, `✅ Retrieved ${cveId} from NVD`]);
-    
-    if (enhancedRAGDatabase.initialized) {
-      await enhancedRAGDatabase.addDocument(
-        `CVE ${cveId} NVD Data: ${description} CVSS Score: ${cvssV3?.baseScore || 'N/A'} Severity: ${cvssV3?.baseSeverity || 'Unknown'}`,
+    // Store in RAG database
+    if (ragDatabase.initialized) {
+      await ragDatabase.addDocument(
+        `CVE ${cveId} NVD Data: ${processedData.description} CVSS Score: ${processedData.cvssV3?.baseScore || 'N/A'} Severity: ${processedData.cvssV3?.baseSeverity || 'Unknown'}`,
         {
           title: `NVD Data - ${cveId}`,
           category: 'nvd-data',
@@ -515,6 +533,16 @@ const fetchCVEDataFromNVD = async (cveId, setLoadingSteps, apiKey) => {
         }
       );
     }
+    
+    return processedData;
+  }
+
+  static processCVEData(cve) {
+    const description = cve.descriptions?.find(d => d.lang === 'en')?.value || 'No description available';
+    const cvssV31 = cve.metrics?.cvssMetricV31?.[0]?.cvssData;
+    const cvssV30 = cve.metrics?.cvssMetricV30?.[0]?.cvssData;
+    const cvssV2 = cve.metrics?.cvssMetricV2?.[0]?.cvssData;
+    const cvssV3 = cvssV31 || cvssV30;
     
     return {
       id: cve.id,
@@ -549,68 +577,46 @@ const fetchCVEDataFromNVD = async (cveId, setLoadingSteps, apiKey) => {
         tags: ref.tags || []
       })) || []
     };
-    
-  } catch (error) {
-    console.error(`NVD API Error for ${cveId}:`, error);
-    setLoadingSteps(prev => [...prev, `❌ Failed to fetch ${cveId} from NVD: ${error.message}`]);
-    throw error;
   }
-};
 
-const fetchEPSSData = async (cveId, setLoadingSteps) => {
-  setLoadingSteps(prev => [...prev, `📊 Fetching EPSS data for ${cveId}...`]);
-  
-  try {
-    let response;
-    try {
-      response = await fetch(`https://api.first.org/data/v1/epss?cve=${cveId}`, {
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'VulnerabilityIntelligence/1.0'
-        }
-      });
-    } catch (corsError) {
-      // CORS fallback
-      console.log('EPSS CORS blocked, trying proxy...');
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(`https://api.first.org/data/v1/epss?cve=${cveId}`)}`;
-      response = await fetch(proxyUrl);
-      
-      if (response.ok) {
-        const proxyData = await response.json();
-        response = {
-          ok: true,
-          status: 200,
-          json: () => Promise.resolve(JSON.parse(proxyData.contents))
-        };
+  static async fetchEPSSData(cveId, setLoadingSteps) {
+    const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
+    updateSteps(prev => [...prev, `📊 Fetching EPSS data for ${cveId}...`]);
+    
+    const url = `${CONSTANTS.API_ENDPOINTS.EPSS}?cve=${cveId}`;
+    const response = await this.fetchWithFallback(url, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'VulnerabilityIntelligence/1.0'
       }
-    }
+    });
     
     if (!response.ok) {
       if (response.status === 404) {
-        setLoadingSteps(prev => [...prev, `⚠️ No EPSS data available for ${cveId}`]);
+        updateSteps(prev => [...prev, `⚠️ No EPSS data available for ${cveId}`]);
         return null;
       }
-      throw new Error(`EPSS API error: ${response.status} ${response.statusText}`);
+      throw new Error(`EPSS API error: ${response.status}`);
     }
     
     const data = await response.json();
     
-    if (!data.data || data.data.length === 0) {
-      setLoadingSteps(prev => [...prev, `⚠️ No EPSS data found for ${cveId}`]);
+    if (!data.data?.length) {
+      updateSteps(prev => [...prev, `⚠️ No EPSS data found for ${cveId}`]);
       return null;
     }
     
     const epssData = data.data[0];
+    const epssScore = parseFloat(epssData.epss);
+    const percentileScore = parseFloat(epssData.percentile);
+    const epssPercentage = (epssScore * 100).toFixed(3);
     
-    const epssScore = parseFloat(epssData.epss).toFixed(9).substring(0, 10);
-    const percentileScore = parseFloat(epssData.percentile).toFixed(9).substring(0, 10);
-    const epssPercentage = (parseFloat(epssData.epss) * 100).toFixed(3);
+    updateSteps(prev => [...prev, `✅ Retrieved EPSS data for ${cveId}: ${epssPercentage}% (Percentile: ${percentileScore.toFixed(3)})`]);
     
-    setLoadingSteps(prev => [...prev, `✅ Retrieved EPSS data for ${cveId}: ${epssPercentage}% (Percentile: ${parseFloat(percentileScore).toFixed(3)})`]);
-    
-    if (enhancedRAGDatabase.initialized) {
-      await enhancedRAGDatabase.addDocument(
-        `CVE ${cveId} EPSS Analysis: Exploitation probability ${epssPercentage}% (percentile ${parseFloat(percentileScore).toFixed(3)}). ${parseFloat(epssScore) > 0.5 ? 'High exploitation likelihood - immediate attention required.' : parseFloat(epssScore) > 0.1 ? 'Moderate exploitation likelihood - monitor closely.' : 'Lower exploitation likelihood but monitoring recommended.'}`,
+    // Store in RAG database
+    if (ragDatabase.initialized) {
+      await ragDatabase.addDocument(
+        `CVE ${cveId} EPSS Analysis: Exploitation probability ${epssPercentage}% (percentile ${percentileScore.toFixed(3)}). ${epssScore > 0.5 ? 'High exploitation likelihood - immediate attention required.' : epssScore > 0.1 ? 'Moderate exploitation likelihood - monitor closely.' : 'Lower exploitation likelihood but monitoring recommended.'}`,
         {
           title: `EPSS Analysis - ${cveId}`,
           category: 'epss-data',
@@ -623,498 +629,429 @@ const fetchEPSSData = async (cveId, setLoadingSteps) => {
     
     return {
       cve: cveId,
-      epss: epssScore,
-      percentile: percentileScore,
-      epssFloat: parseFloat(epssScore),
-      percentileFloat: parseFloat(percentileScore),
+      epss: epssScore.toFixed(9).substring(0, 10),
+      percentile: percentileScore.toFixed(9).substring(0, 10),
+      epssFloat: epssScore,
+      percentileFloat: percentileScore,
       epssPercentage: epssPercentage,
       date: epssData.date,
       model_version: data.model_version
     };
+  }
+
+  // AI-Powered Multi-Source Intelligence with Web Search
+  static async fetchAIThreatIntelligence(cveId, cveData, epssData, settings, setLoadingSteps) {
+    const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
     
-  } catch (error) {
-    console.error(`EPSS API Error for ${cveId}:`, error);
-    setLoadingSteps(prev => [...prev, `⚠️ EPSS data unavailable for ${cveId}: ${error.message}`]);
-    return null;
-  }
-};
+    if (!settings.geminiApiKey) {
+      throw new Error('Gemini API key required for AI-powered threat intelligence');
+    }
+    
+    const model = settings.geminiModel || 'gemini-2.5-flash';
+    const isWebSearchCapable = model.includes('2.0') || model.includes('2.5');
+    
+    if (!isWebSearchCapable) {
+      updateSteps(prev => [...prev, `⚠️ Model ${model} doesn't support web search - using heuristic analysis`]);
+      return await this.performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
+    }
 
-// AI-powered multi-source intelligence gathering using Gemini's web search
-const fetchAIThreatIntelligence = async (cveId, cveData, epssData, apiKeys, settings, setLoadingSteps) => {
-  if (!settings.geminiApiKey) {
-    throw new Error('Gemini API key required for AI-powered threat intelligence');
-  }
-  
-  const model = settings.geminiModel || 'gemini-2.5-flash';
-  const isWebSearchCapable = model.includes('2.0') || model.includes('2.5');
-  
-  if (!isWebSearchCapable) {
-    setLoadingSteps(prev => [...prev, `⚠️ Model ${model} doesn't support web search - using heuristic analysis`]);
-    return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
-  }
+    updateSteps(prev => [...prev, `🤖 AI searching web for real-time ${cveId} threat intelligence...`]);
 
-  setLoadingSteps(prev => [...prev, `🤖 AI searching web for real-time ${cveId} threat intelligence...`]);
+    const searchPrompt = `You are a cybersecurity analyst researching ${cveId}. Use web search to find current information.
 
-  const searchPrompt = `You are a cybersecurity analyst researching ${cveId}. Use web search to find the most current and accurate information about this vulnerability.
+SEARCH FOR:
+1. CISA KEV Status: Search "CISA Known Exploited Vulnerabilities ${cveId}" - Is this in the CISA KEV catalog?
+2. Active Exploitation: Search "${cveId} active exploitation in the wild" - Any confirmed exploitation?
+3. Public Exploits: Search "${cveId} exploit proof of concept github" - Are there public exploits available?
+4. Security Advisories: Search "${cveId} security advisory vendor response" - What are vendors saying?
+5. Threat Intelligence: Search "${cveId} threat intelligence IOCs" - Any IOCs or threat actor usage?
 
-SEARCH FOR AND ANALYZE:
-1. CISA KEV Status: Search "CISA Known Exploited Vulnerabilities ${cveId}" - Is this CVE listed in the CISA KEV catalog? If yes, get exact details including due date and required actions.
-
-2. Active Exploitation: Search "${cveId} active exploitation in the wild" - Are there confirmed reports of this vulnerability being actively exploited?
-
-3. Public Exploits: Search "${cveId} exploit proof of concept github" - Are there public exploits, POCs, or detailed technical analyses available?
-
-4. Security Advisories: Search "${cveId} security advisory vendor response" - What are vendors saying? Any emergency patches or workarounds?
-
-5. Threat Intelligence: Search "${cveId} threat intelligence IOCs indicators" - Any IOCs, attack patterns, or threat actor usage?
-
-CURRENT CVE DATA:
+CVE DATA:
 - CVE: ${cveId}
 - CVSS: ${cveData?.cvssV3?.baseScore || 'Unknown'}
 - EPSS: ${epssData?.epssPercentage || 'Unknown'}%
 - Description: ${cveData?.description?.substring(0, 300) || 'No description'}
 
-For each search result, provide:
-- Source credibility (CISA, vendor, security researcher, etc.)
-- Specific findings with dates
-- Exploitation status (confirmed/suspected/none)
-- Available exploits or IOCs
-- Recommended actions
-
-Return your findings in this JSON structure:
+Return findings in JSON:
 {
-  "cisaKev": {
-    "listed": boolean,
-    "details": "string with specifics",
-    "dueDate": "if applicable",
-    "source": "URL or source"
-  },
-  "activeExploitation": {
-    "confirmed": boolean,
-    "details": "description of exploitation",
-    "sources": ["array of source URLs"]
-  },
-  "publicExploits": {
-    "found": boolean,
-    "count": number,
-    "sources": ["array of exploit URLs"],
-    "types": ["POC", "working exploit", etc.]
-  },
-  "securityAdvisories": {
-    "count": number,
-    "vendors": ["vendor names"],
-    "patchStatus": "available/pending/none"
-  },
-  "threatIntelligence": {
-    "iocs": ["any IOCs found"],
-    "threatActors": ["any associated groups"],
-    "campaignDetails": "if part of broader campaign"
-  },
+  "cisaKev": {"listed": boolean, "details": "string", "source": "URL"},
+  "activeExploitation": {"confirmed": boolean, "details": "string", "sources": ["URLs"]},
+  "publicExploits": {"found": boolean, "count": number, "sources": ["URLs"], "types": ["POC", "working exploit"]},
+  "securityAdvisories": {"count": number, "vendors": ["names"], "patchStatus": "available/pending/none"},
+  "threatIntelligence": {"iocs": ["IOCs"], "threatActors": ["groups"], "campaignDetails": "string"},
   "overallThreatLevel": "CRITICAL/HIGH/MEDIUM/LOW",
-  "lastUpdated": "current date",
-  "summary": "brief executive summary"
-}
+  "summary": "executive summary"
+}`;
 
-Search thoroughly and provide accurate, current information. This is for real cybersecurity defense.`;
-
-  try {
-    const requestBody = {
-      contents: [{
-        parts: [{ text: searchPrompt }]
-      }],
-      generationConfig: {
-        temperature: 0.1,
-        topK: 1,
-        topP: 0.95,
-        maxOutputTokens: 8192,
-        candidateCount: 1
-      },
-      tools: [{
-        google_search: {}
-      }]
-    };
-    
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${settings.geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      }
-    );
-    
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(`AI Threat Intelligence API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
-    }
-    
-    const data = await response.json();
-    const aiResponse = data.candidates[0].content.parts[0].text;
-    
-    setLoadingSteps(prev => [...prev, `✅ AI completed web-based threat intelligence analysis for ${cveId}`]);
-    
-    // Parse AI findings
-    const findings = parseAIThreatIntelligence(aiResponse, cveId, setLoadingSteps);
-    
-    // Store findings in RAG database
-    if (enhancedRAGDatabase.initialized) {
-      await enhancedRAGDatabase.addDocument(
-        `AI Web-Based Threat Intelligence for ${cveId}: CISA KEV: ${findings.cisaKev.listed ? 'LISTED' : 'Not Listed'}, Active Exploitation: ${findings.activeExploitation.confirmed ? 'CONFIRMED' : 'None'}, Public Exploits: ${findings.publicExploits.count || 0}, Threat Level: ${findings.overallThreatLevel}. ${findings.summary}`,
+    try {
+      const requestBody = {
+        contents: [{
+          parts: [{ text: searchPrompt }]
+        }],
+        generationConfig: {
+          temperature: 0.1,
+          topK: 1,
+          topP: 0.95,
+          maxOutputTokens: 8192,
+          candidateCount: 1
+        },
+        tools: [{
+          google_search: {}
+        }]
+      };
+      
+      const response = await this.fetchWithFallback(
+        `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`,
         {
-          title: `AI Web Threat Intelligence - ${cveId}`,
-          category: 'ai-web-intelligence',
-          tags: ['ai-web-search', 'threat-intelligence', cveId.toLowerCase()],
-          source: 'gemini-web-search'
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
         }
       );
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`AI Threat Intelligence API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      }
+      
+      const data = await response.json();
+      const aiResponse = data.candidates[0].content.parts[0].text;
+      
+      const updateStepsAI = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
+      updateStepsAI(prev => [...prev, `✅ AI completed web-based threat intelligence analysis for ${cveId}`]);
+      
+      const findings = this.parseAIThreatIntelligence(aiResponse, cveId, setLoadingSteps);
+      
+      // Store in RAG database
+      if (ragDatabase.initialized) {
+        await ragDatabase.addDocument(
+          `AI Web-Based Threat Intelligence for ${cveId}: CISA KEV: ${findings.cisaKev.listed ? 'LISTED' : 'Not Listed'}, Active Exploitation: ${findings.activeExploitation.confirmed ? 'CONFIRMED' : 'None'}, Public Exploits: ${findings.publicExploits.count || 0}, Threat Level: ${findings.overallThreatLevel}. ${findings.summary}`,
+          {
+            title: `AI Web Threat Intelligence - ${cveId}`,
+            category: 'ai-web-intelligence',
+            tags: ['ai-web-search', 'threat-intelligence', cveId.toLowerCase()],
+            source: 'gemini-web-search'
+          }
+        );
+      }
+      
+      return findings;
+      
+    } catch (error) {
+      console.error('AI Threat Intelligence error:', error);
+      const updateStepsError = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
+      updateStepsError(prev => [...prev, `⚠️ AI web search failed: ${error.message} - using fallback analysis`]);
+      
+      return await this.performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
     }
-    
-    return findings;
-    
-  } catch (error) {
-    console.error('AI Threat Intelligence error:', error);
-    setLoadingSteps(prev => [...prev, `⚠️ AI web search failed: ${error.message} - using fallback analysis`]);
-    
-    // Fallback to heuristic analysis
-    return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
   }
-};
 
-// Parse AI threat intelligence response
-const parseAIThreatIntelligence = (aiResponse, cveId, setLoadingSteps) => {
-  try {
-    // Try to extract JSON from the AI response
-    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      setLoadingSteps(prev => [...prev, `📊 Parsed structured threat intelligence for ${cveId}`]);
-      return parsed;
-    }
-  } catch (e) {
-    console.log('Failed to parse JSON, analyzing text response...');
-  }
-  
-  // Fallback: parse text response
-  const findings = {
-    cisaKev: { listed: false, details: '', source: '' },
-    activeExploitation: { confirmed: false, details: '', sources: [] },
-    publicExploits: { found: false, count: 0, sources: [], types: [] },
-    securityAdvisories: { count: 0, vendors: [], patchStatus: 'unknown' },
-    threatIntelligence: { iocs: [], threatActors: [], campaignDetails: '' },
-    overallThreatLevel: 'MEDIUM',
-    lastUpdated: new Date().toISOString(),
-    summary: 'AI analysis completed'
-  };
-  
-  const response = aiResponse.toLowerCase();
-  
-  // Parse CISA KEV status
-  if (response.includes('cisa kev') || response.includes('known exploited')) {
-    if (response.includes('listed') || response.includes('catalog') || response.includes('exploited vulnerabilities')) {
-      findings.cisaKev.listed = true;
-      findings.cisaKev.details = 'Found in CISA Known Exploited Vulnerabilities catalog';
-      findings.overallThreatLevel = 'CRITICAL';
-    }
-  }
-  
-  // Parse exploitation status
-  if (response.includes('active exploit') || response.includes('in the wild') || response.includes('being exploited')) {
-    findings.activeExploitation.confirmed = true;
-    findings.activeExploitation.details = 'Active exploitation detected in threat intelligence';
-    findings.overallThreatLevel = 'HIGH';
-  }
-  
-  // Parse public exploits
-  if (response.includes('exploit') && (response.includes('github') || response.includes('poc') || response.includes('proof'))) {
-    findings.publicExploits.found = true;
-    findings.publicExploits.count = (response.match(/exploit/g) || []).length;
-    findings.publicExploits.types = ['POC'];
-  }
-  
-  // Extract URLs
-  const urls = aiResponse.match(/https?:\/\/[^\s<>"{}|\\^`[\]]+/g);
-  if (urls) {
-    findings.activeExploitation.sources = urls.slice(0, 3);
-    findings.publicExploits.sources = urls.slice(0, 5);
-  }
-  
-  findings.summary = `AI web search analysis: ${findings.cisaKev.listed ? 'CISA KEV listed' : 'Not in KEV'}, ${findings.activeExploitation.confirmed ? 'Active exploitation' : 'No active exploitation'}, ${findings.publicExploits.count} potential exploits found`;
-  
-  setLoadingSteps(prev => [...prev, `📈 AI analysis: ${findings.overallThreatLevel} threat level determined`]);
-  
-  return findings;
-};
-
-// Enhanced heuristic analysis fallback
-const performHeuristicAnalysis = async (cveId, cveData, epssData, setLoadingSteps) => {
-  setLoadingSteps(prev => [...prev, `🔍 Performing advanced heuristic analysis for ${cveId}...`]);
-  
-  const year = parseInt(cveId.split('-')[1]);
-  const id = parseInt(cveId.split('-')[2]);
-  const cvssScore = cveData?.cvssV3?.baseScore || cveData?.cvssV2?.baseScore || 0;
-  const epssFloat = epssData?.epssFloat || 0;
-  
-  // Advanced scoring algorithm
-  let riskScore = 0;
-  const indicators = [];
-  
-  // CVSS-based scoring
-  if (cvssScore >= 9) { riskScore += 4; indicators.push('Critical CVSS score'); }
-  else if (cvssScore >= 7) { riskScore += 3; indicators.push('High CVSS score'); }
-  
-  // EPSS-based scoring
-  if (epssFloat > 0.7) { riskScore += 4; indicators.push('Very high EPSS score'); }
-  else if (epssFloat > 0.3) { riskScore += 2; indicators.push('Elevated EPSS score'); }
-  
-  // Temporal factors
-  if (year >= 2024) { riskScore += 2; indicators.push('Recent vulnerability'); }
-  if (id < 1000) { riskScore += 2; indicators.push('Early discovery in year'); }
-  
-  // Known high-risk patterns
-  const highRiskPatterns = ['21413', '44487', '38030', '26923', '1675'];
-  if (highRiskPatterns.some(pattern => cveId.includes(pattern))) {
-    riskScore += 5;
-    indicators.push('Matches known high-risk pattern');
-  }
-  
-  // Vendor/product patterns
-  const description = cveData?.description?.toLowerCase() || '';
-  const highValueTargets = ['microsoft', 'apache', 'oracle', 'vmware', 'cisco', 'windows', 'exchange', 'linux'];
-  if (highValueTargets.some(target => description.includes(target))) {
-    riskScore += 2;
-    indicators.push('Affects high-value target software');
-  }
-  
-  // Determine threat level and findings
-  const threatLevel = riskScore >= 8 ? 'CRITICAL' : riskScore >= 6 ? 'HIGH' : riskScore >= 4 ? 'MEDIUM' : 'LOW';
-  const likelyInKEV = riskScore >= 7;
-  const likelyExploited = riskScore >= 5;
-  const exploitCount = Math.min(Math.floor(riskScore / 2), 5);
-  
-  setLoadingSteps(prev => [...prev, `📊 Heuristic analysis complete: ${threatLevel} threat level (score: ${riskScore})`]);
-  
-  return {
-    cisaKev: {
-      listed: likelyInKEV,
-      details: likelyInKEV ? 'High probability of KEV listing based on risk factors' : 'Low probability of KEV listing',
-      confidence: 'HEURISTIC',
-      source: 'Advanced pattern analysis'
-    },
-    activeExploitation: {
-      confirmed: likelyExploited,
-      details: likelyExploited ? 'High exploitation likelihood based on multiple risk factors' : 'Lower exploitation probability',
-      sources: [`Risk indicators: ${indicators.join(', ')}`]
-    },
-    publicExploits: {
-      found: exploitCount > 0,
-      count: exploitCount,
-      confidence: riskScore >= 6 ? 'HIGH' : 'MEDIUM',
-      sources: [`https://www.exploit-db.com/search?cve=${cveId}`],
-      types: exploitCount > 2 ? ['POC', 'Working Exploit'] : ['POC']
-    },
-    securityAdvisories: {
-      count: Math.floor(riskScore / 3),
-      vendors: ['Vendor Advisory Expected'],
-      patchStatus: cvssScore >= 7 ? 'likely available' : 'pending'
-    },
-    threatIntelligence: {
-      iocs: [],
-      threatActors: [],
-      campaignDetails: riskScore >= 8 ? 'Possible APT interest due to high impact' : ''
-    },
-    overallThreatLevel: threatLevel,
-    lastUpdated: new Date().toISOString(),
-    summary: `Heuristic analysis: ${indicators.length} risk indicators detected, ${threatLevel} threat level assigned`,
-    analysisMethod: 'ADVANCED_HEURISTICS',
-    riskScore: riskScore,
-    indicators: indicators
-  };
-};
-
-
-
-// Enhanced multi-source vulnerability data fetching with AI web intelligence
-const fetchVulnerabilityDataWithAI = async (cveId, setLoadingSteps, apiKeys, settings) => {
-  try {
-    setLoadingSteps(prev => [...prev, `🚀 Starting AI-powered real-time analysis for ${cveId}...`]);
+  // Parse AI threat intelligence response
+  static parseAIThreatIntelligence(aiResponse, cveId, setLoadingSteps) {
+    const updateStepsParse = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
     
-    if (!enhancedRAGDatabase.initialized) {
-      setLoadingSteps(prev => [...prev, `📚 Initializing RAG knowledge base...`]);
-      await enhancedRAGDatabase.initialize();
+    try {
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        updateStepsParse(prev => [...prev, `📊 Parsed structured threat intelligence for ${cveId}`]);
+        return parsed;
+      }
+    } catch (e) {
+      console.log('Failed to parse JSON, analyzing text response...');
     }
     
-    setLoadingSteps(prev => [...prev, `🔍 Fetching from primary sources (NVD, EPSS)...`]);
-    
-    // Fetch primary data sources
-    const [cveResult, epssResult] = await Promise.allSettled([
-      fetchCVEDataFromNVD(cveId, setLoadingSteps, apiKeys.nvd),
-      fetchEPSSData(cveId, setLoadingSteps)
-    ]);
-    
-    const cve = cveResult.status === 'fulfilled' ? cveResult.value : null;
-    const epss = epssResult.status === 'fulfilled' ? epssResult.value : null;
-    
-    if (!cve) {
-      throw new Error(`Failed to fetch CVE data for ${cveId}`);
-    }
-    
-    setLoadingSteps(prev => [...prev, `🌐 AI analyzing real-time threat intelligence via web search...`]);
-    
-    // Use AI with web search for comprehensive threat intelligence
-    const aiThreatIntel = await fetchAIThreatIntelligence(cveId, cve, epss, apiKeys, settings, setLoadingSteps);
-    
-    // Compile discovered sources
-    const discoveredSources = ['NVD'];
-    const sources = [{ name: 'NVD', url: `https://nvd.nist.gov/vuln/detail/${cveId}` }];
-    
-    if (epss) {
-      discoveredSources.push('EPSS/FIRST');
-      sources.push({ name: 'EPSS', url: `https://api.first.org/data/v1/epss?cve=${cveId}` });
-    }
-    
-    if (aiThreatIntel.cisaKev.listed) {
-      discoveredSources.push('CISA KEV');
-      sources.push({ name: 'CISA KEV', url: aiThreatIntel.cisaKev.source || 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog' });
-    }
-    
-    if (aiThreatIntel.publicExploits.found) {
-      discoveredSources.push('Exploit Intelligence');
-      sources.push(...aiThreatIntel.publicExploits.sources.map(url => ({ 
-        name: `Exploit Source`, 
-        url: url 
-      })));
-    }
-    
-    if (aiThreatIntel.securityAdvisories.count > 0) {
-      discoveredSources.push('Security Advisories');
-    }
-    
-    if (aiThreatIntel.activeExploitation.confirmed) {
-      discoveredSources.push('Threat Intelligence');
-    }
-    
-    // Generate comprehensive summary
-    const threatLevel = aiThreatIntel.overallThreatLevel;
-    const summary = aiThreatIntel.summary;
-    
-    const enhancedVulnerability = {
-      cve,
-      epss,
-      kev: aiThreatIntel.cisaKev,
-      exploits: aiThreatIntel.publicExploits,
-      github: { 
-        found: aiThreatIntel.securityAdvisories.count > 0,
-        count: aiThreatIntel.securityAdvisories.count 
-      },
-      activeExploitation: aiThreatIntel.activeExploitation,
-      threatIntelligence: aiThreatIntel.threatIntelligence,
-      sources,
-      discoveredSources,
-      summary,
-      threatLevel,
-      dataFreshness: 'AI_WEB_SEARCH',
+    // Fallback: parse text response
+    const findings = {
+      cisaKev: { listed: false, details: '', source: '' },
+      activeExploitation: { confirmed: false, details: '', sources: [] },
+      publicExploits: { found: false, count: 0, sources: [], types: [] },
+      securityAdvisories: { count: 0, vendors: [], patchStatus: 'unknown' },
+      threatIntelligence: { iocs: [], threatActors: [], campaignDetails: '' },
+      overallThreatLevel: 'MEDIUM',
       lastUpdated: new Date().toISOString(),
-      searchTimestamp: new Date().toISOString(),
-      ragEnhanced: true,
-      aiSearchPerformed: true,
-      aiWebGrounded: true,
-      enhancedSources: discoveredSources,
-      analysisMethod: aiThreatIntel.analysisMethod || 'AI_WEB_SEARCH'
+      summary: 'AI analysis completed'
     };
     
-    setLoadingSteps(prev => [...prev, `✅ AI web-based analysis complete: ${discoveredSources.length} sources analyzed, ${threatLevel} threat level`]);
+    const response = aiResponse.toLowerCase();
     
-    return enhancedVulnerability;
-    
-  } catch (error) {
-    console.error(`Error processing ${cveId}:`, error);
-    throw error;
-  }
-};
-
-// Enhanced AI Analysis with CORS handling and no localStorage
-const generateEnhancedRAGAnalysis = async (vulnerability, apiKey, model, settings = {}) => {
-  const cveId = vulnerability.cve.id;
-  const description = vulnerability.cve.description;
-  const cvssScore = vulnerability.cve.cvssV3?.baseScore || vulnerability.cve.cvssV2?.baseScore || 'N/A';
-  const epssScore = vulnerability.epss ? vulnerability.epss.epssPercentage + '%' : 'N/A';
-  const kevStatus = vulnerability.kev?.listed ? 'Yes - ACTIVE EXPLOITATION CONFIRMED' : 'No';
-  const isGemini2Plus = model.includes('2.0') || model.includes('2.5');
-
-  // In-memory rate limiting (session-based)
-  const now = Date.now();
-  const lastRequest = window.lastGeminiRequest || 0;
-  
-  if ((now - lastRequest) < 60000) {
-    const waitTime = Math.ceil((60000 - (now - lastRequest)) / 1000);
-    throw new Error(`Rate limit protection: Please wait ${waitTime} more seconds. Free Gemini API has strict limits.`);
-  }
-  
-  window.lastGeminiRequest = now;
-
-  try {
-    console.log('🚀 Starting Enhanced RAG Analysis for', cveId);
-    
-    if (!enhancedRAGDatabase.initialized) {
-      console.log('🚀 Initializing RAG database...');
-      await enhancedRAGDatabase.initialize();
+    // Parse CISA KEV status
+    if (response.includes('cisa kev') || response.includes('known exploited')) {
+      if (response.includes('listed') || response.includes('catalog')) {
+        findings.cisaKev.listed = true;
+        findings.cisaKev.details = 'Found in CISA Known Exploited Vulnerabilities catalog';
+        findings.overallThreatLevel = 'CRITICAL';
+      }
     }
+    
+    // Parse exploitation status
+    if (response.includes('active exploit') || response.includes('in the wild')) {
+      findings.activeExploitation.confirmed = true;
+      findings.activeExploitation.details = 'Active exploitation detected in threat intelligence';
+      findings.overallThreatLevel = 'HIGH';
+    }
+    
+    // Parse public exploits
+    if (response.includes('exploit') && (response.includes('github') || response.includes('poc'))) {
+      findings.publicExploits.found = true;
+      findings.publicExploits.count = (response.match(/exploit/g) || []).length;
+      findings.publicExploits.types = ['POC'];
+    }
+    
+    // Extract URLs
+    const urls = aiResponse.match(/https?:\/\/[^\s<>"{}|\\^`[\]]+/g);
+    if (urls) {
+      findings.activeExploitation.sources = urls.slice(0, 3);
+      findings.publicExploits.sources = urls.slice(0, 5);
+    }
+    
+    findings.summary = `AI web search analysis: ${findings.cisaKev.listed ? 'CISA KEV listed' : 'Not in KEV'}, ${findings.activeExploitation.confirmed ? 'Active exploitation' : 'No active exploitation'}, ${findings.publicExploits.count} potential exploits found`;
+    
+    const updateStepsSummary = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
+    updateStepsSummary(prev => [...prev, `📈 AI analysis: ${findings.overallThreatLevel} threat level determined`]);
+    
+    return findings;
+  }
 
-    console.log('📚 Performing RAG retrieval for', cveId);
-    const ragQuery = `${cveId} ${description.substring(0, 200)} vulnerability analysis security impact mitigation threat intelligence EPSS ${epssScore} CVSS ${cvssScore} ${kevStatus.includes('Yes') ? 'CISA KEV active exploitation' : ''}`;
-    const relevantDocs = await enhancedRAGDatabase.search(ragQuery, 10);
+  // Advanced Heuristic Analysis Fallback
+  static async performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps) {
+    const updateStepsHeuristic = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
+    updateStepsHeuristic(prev => [...prev, `🔍 Performing advanced heuristic analysis for ${cveId}...`]);
+    
+    const year = parseInt(cveId.split('-')[1]);
+    const id = parseInt(cveId.split('-')[2]);
+    const cvssScore = cveData?.cvssV3?.baseScore || cveData?.cvssV2?.baseScore || 0;
+    const epssFloat = epssData?.epssFloat || 0;
+    
+    // Advanced scoring algorithm
+    let riskScore = 0;
+    const indicators = [];
+    
+    // CVSS-based scoring
+    if (cvssScore >= 9) { riskScore += 4; indicators.push('Critical CVSS score'); }
+    else if (cvssScore >= 7) { riskScore += 3; indicators.push('High CVSS score'); }
+    
+    // EPSS-based scoring
+    if (epssFloat > 0.7) { riskScore += 4; indicators.push('Very high EPSS score'); }
+    else if (epssFloat > 0.3) { riskScore += 2; indicators.push('Elevated EPSS score'); }
+    
+    // Temporal factors
+    if (year >= 2024) { riskScore += 2; indicators.push('Recent vulnerability'); }
+    if (id < 1000) { riskScore += 2; indicators.push('Early discovery in year'); }
+    
+    // Known high-risk patterns
+    const highRiskPatterns = ['21413', '44487', '38030', '26923', '1675'];
+    if (highRiskPatterns.some(pattern => cveId.includes(pattern))) {
+      riskScore += 5;
+      indicators.push('Matches known high-risk pattern');
+    }
+    
+    // Vendor/product patterns
+    const description = cveData?.description?.toLowerCase() || '';
+    const highValueTargets = ['microsoft', 'apache', 'oracle', 'vmware', 'cisco', 'windows', 'exchange', 'linux'];
+    if (highValueTargets.some(target => description.includes(target))) {
+      riskScore += 2;
+      indicators.push('Affects high-value target software');
+    }
+    
+    // Determine threat level and findings
+    const threatLevel = riskScore >= 8 ? 'CRITICAL' : riskScore >= 6 ? 'HIGH' : riskScore >= 4 ? 'MEDIUM' : 'LOW';
+    const likelyInKEV = riskScore >= 7;
+    const likelyExploited = riskScore >= 5;
+    const exploitCount = Math.min(Math.floor(riskScore / 2), 5);
+    
+    const updateStepsComplete = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
+    updateStepsComplete(prev => [...prev, `📊 Heuristic analysis complete: ${threatLevel} threat level (score: ${riskScore})`]);
+    
+    return {
+      cisaKev: {
+        listed: likelyInKEV,
+        details: likelyInKEV ? 'High probability of KEV listing based on risk factors' : 'Low probability of KEV listing',
+        confidence: 'HEURISTIC',
+        source: 'Advanced pattern analysis'
+      },
+      activeExploitation: {
+        confirmed: likelyExploited,
+        details: likelyExploited ? 'High exploitation likelihood based on multiple risk factors' : 'Lower exploitation probability',
+        sources: [`Risk indicators: ${indicators.join(', ')}`]
+      },
+      publicExploits: {
+        found: exploitCount > 0,
+        count: exploitCount,
+        confidence: riskScore >= 6 ? 'HIGH' : 'MEDIUM',
+        sources: [`https://www.exploit-db.com/search?cve=${cveId}`],
+        types: exploitCount > 2 ? ['POC', 'Working Exploit'] : ['POC']
+      },
+      securityAdvisories: {
+        count: Math.floor(riskScore / 3),
+        vendors: ['Vendor Advisory Expected'],
+        patchStatus: cvssScore >= 7 ? 'likely available' : 'pending'
+      },
+      threatIntelligence: {
+        iocs: [],
+        threatActors: [],
+        campaignDetails: riskScore >= 8 ? 'Possible APT interest due to high impact' : ''
+      },
+      overallThreatLevel: threatLevel,
+      lastUpdated: new Date().toISOString(),
+      summary: `Heuristic analysis: ${indicators.length} risk indicators detected, ${threatLevel} threat level assigned`,
+      analysisMethod: 'ADVANCED_HEURISTICS',
+      riskScore: riskScore,
+      indicators: indicators
+    };
+  }
+
+  // Enhanced Multi-Source Vulnerability Data Fetching
+  static async fetchVulnerabilityDataWithAI(cveId, setLoadingSteps, apiKeys, settings) {
+    try {
+      setLoadingSteps(prev => [...prev, `🚀 Starting AI-powered real-time analysis for ${cveId}...`]);
+      
+      if (!ragDatabase.initialized) {
+        setLoadingSteps(prev => [...prev, `📚 Initializing RAG knowledge base...`]);
+        await ragDatabase.initialize();
+      }
+      
+      setLoadingSteps(prev => [...prev, `🔍 Fetching from primary sources (NVD, EPSS)...`]);
+      
+      // Fetch primary data sources
+      const [cveResult, epssResult] = await Promise.allSettled([
+        this.fetchCVEData(cveId, apiKeys.nvd, setLoadingSteps),
+        this.fetchEPSSData(cveId, setLoadingSteps)
+      ]);
+      
+      const cve = cveResult.status === 'fulfilled' ? cveResult.value : null;
+      const epss = epssResult.status === 'fulfilled' ? epssResult.value : null;
+      
+      if (!cve) {
+        throw new Error(`Failed to fetch CVE data for ${cveId}`);
+      }
+      
+      setLoadingSteps(prev => [...prev, `🌐 AI analyzing real-time threat intelligence via web search...`]);
+      
+      // Use AI with web search for comprehensive threat intelligence
+      const aiThreatIntel = await this.fetchAIThreatIntelligence(cveId, cve, epss, settings, setLoadingSteps);
+      
+      // Compile discovered sources
+      const discoveredSources = ['NVD'];
+      const sources = [{ name: 'NVD', url: `https://nvd.nist.gov/vuln/detail/${cveId}` }];
+      
+      if (epss) {
+        discoveredSources.push('EPSS/FIRST');
+        sources.push({ name: 'EPSS', url: `https://api.first.org/data/v1/epss?cve=${cveId}` });
+      }
+      
+      if (aiThreatIntel.cisaKev.listed) {
+        discoveredSources.push('CISA KEV');
+        sources.push({ name: 'CISA KEV', url: aiThreatIntel.cisaKev.source || 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog' });
+      }
+      
+      if (aiThreatIntel.publicExploits.found) {
+        discoveredSources.push('Exploit Intelligence');
+        sources.push(...aiThreatIntel.publicExploits.sources.map(url => ({ 
+          name: `Exploit Source`, 
+          url: url 
+        })));
+      }
+      
+      if (aiThreatIntel.securityAdvisories.count > 0) {
+        discoveredSources.push('Security Advisories');
+      }
+      
+      if (aiThreatIntel.activeExploitation.confirmed) {
+        discoveredSources.push('Threat Intelligence');
+      }
+      
+      // Generate comprehensive summary
+      const threatLevel = aiThreatIntel.overallThreatLevel;
+      const summary = aiThreatIntel.summary;
+      
+      const enhancedVulnerability = {
+        cve,
+        epss,
+        kev: aiThreatIntel.cisaKev,
+        exploits: aiThreatIntel.publicExploits,
+        github: { 
+          found: aiThreatIntel.securityAdvisories.count > 0,
+          count: aiThreatIntel.securityAdvisories.count 
+        },
+        activeExploitation: aiThreatIntel.activeExploitation,
+        threatIntelligence: aiThreatIntel.threatIntelligence,
+        sources,
+        discoveredSources,
+        summary,
+        threatLevel,
+        dataFreshness: 'AI_WEB_SEARCH',
+        lastUpdated: new Date().toISOString(),
+        searchTimestamp: new Date().toISOString(),
+        ragEnhanced: true,
+        aiSearchPerformed: true,
+        aiWebGrounded: true,
+        enhancedSources: discoveredSources,
+        analysisMethod: aiThreatIntel.analysisMethod || 'AI_WEB_SEARCH'
+      };
+      
+      setLoadingSteps(prev => [...prev, `✅ AI web-based analysis complete: ${discoveredSources.length} sources analyzed, ${threatLevel} threat level`]);
+      
+      return enhancedVulnerability;
+      
+    } catch (error) {
+      console.error(`Error processing ${cveId}:`, error);
+      throw error;
+    }
+  }
+
+  static async generateAIAnalysis(vulnerability, apiKey, model, settings = {}) {
+    if (!apiKey) throw new Error('Gemini API key required');
+
+    // Rate limiting with enhanced protection
+    const now = Date.now();
+    const lastRequest = window.lastGeminiRequest || 0;
+    
+    if ((now - lastRequest) < CONSTANTS.RATE_LIMITS.GEMINI_COOLDOWN) {
+      const waitTime = Math.ceil((CONSTANTS.RATE_LIMITS.GEMINI_COOLDOWN - (now - lastRequest)) / 1000);
+      throw new Error(`Rate limit protection: Please wait ${waitTime} more seconds. Free Gemini API has strict limits.`);
+    }
+    
+    window.lastGeminiRequest = now;
+
+    // Ensure RAG database is properly initialized with Gemini API key
+    await ragDatabase.ensureInitialized(apiKey);
+    console.log(`📊 RAG Database Status: ${ragDatabase.documents.length} documents available (${ragDatabase.geminiApiKey ? 'Gemini embeddings' : 'local embeddings'})`);
+
+    // Enhanced RAG retrieval with better context
+    const cveId = vulnerability.cve.id;
+    const ragQuery = `${cveId} ${vulnerability.cve.description.substring(0, 200)} vulnerability analysis security impact mitigation threat intelligence EPSS ${vulnerability.epss?.epssPercentage || 'N/A'} CVSS ${vulnerability.cve.cvssV3?.baseScore || 'N/A'} ${vulnerability.kev?.listed ? 'CISA KEV active exploitation' : ''}`;
+    
+    console.log(`🔍 RAG Query: "${ragQuery.substring(0, 100)}..."`);
+    const relevantDocs = await ragDatabase.search(ragQuery, 15); // Increased from 12
+    console.log(`📚 RAG Retrieved: ${relevantDocs.length} relevant documents (${relevantDocs.filter(d => d.embeddingType === 'gemini').length} with Gemini embeddings)`);
     
     const ragContext = relevantDocs.length > 0 ? 
       relevantDocs.map((doc, index) => 
-        `[Security Knowledge ${index + 1}] ${doc.metadata.title}:\n${doc.content.substring(0, 600)}...`
+        `[Security Knowledge ${index + 1}] ${doc.metadata.title} (Relevance: ${(doc.similarity * 100).toFixed(1)}%, ${doc.embeddingType || 'local'} embedding):\n${doc.content.substring(0, 800)}...`
       ).join('\n\n') : 
-      'No specific security knowledge found in database.';
+      'No specific security knowledge found in database. Initializing knowledge base for future queries.';
 
-    console.log(`📖 Retrieved ${relevantDocs.length} relevant documents from RAG database`);
+    // If no relevant docs found, try a broader search
+    if (relevantDocs.length === 0) {
+      console.log('🔄 No specific matches found, trying broader search...');
+      const broaderQuery = `vulnerability security analysis ${vulnerability.cve.cvssV3?.baseSeverity || 'unknown'} severity`;
+      const broaderDocs = await ragDatabase.search(broaderQuery, 8);
+      console.log(`📚 Broader RAG Search: ${broaderDocs.length} documents found`);
+      
+      if (broaderDocs.length > 0) {
+        const broaderContext = broaderDocs.map((doc, index) => 
+          `[General Security Knowledge ${index + 1}] ${doc.metadata.title} (${doc.embeddingType || 'local'} embedding):\n${doc.content.substring(0, 600)}...`
+        ).join('\n\n');
+        
+        relevantDocs.push(...broaderDocs);
+      }
+    }
 
-    const prompt = `You are a senior cybersecurity analyst providing a comprehensive vulnerability assessment for ${cveId}.
-
-VULNERABILITY DETAILS:
-- CVE ID: ${cveId}
-- CVSS Score: ${cvssScore}
-- EPSS Score: ${epssScore}
-- CISA KEV Status: ${kevStatus}
-- Description: ${description.substring(0, 800)}
-
-REAL-TIME THREAT INTELLIGENCE:
-${vulnerability.kev?.listed ? `⚠️ CRITICAL: This vulnerability is actively exploited according to CISA KEV catalog.` : ''}
-${vulnerability.exploits?.found ? `💣 PUBLIC EXPLOITS: ${vulnerability.exploits.count} exploit(s) found with ${vulnerability.exploits.confidence || 'MEDIUM'} confidence.` : ''}
-${vulnerability.github?.found ? `🔍 GITHUB REFS: ${vulnerability.github.count} security-related repositories found.` : ''}
-${vulnerability.kev?.heuristicHighRisk ? `🔍 HIGH-RISK PATTERN: Vulnerability matches known high-risk exploitation patterns.` : ''}
-
-RELEVANT SECURITY KNOWLEDGE BASE:
-${ragContext}
-
-DATA SOURCES ANALYZED:
-${vulnerability.discoveredSources?.join(', ') || 'NVD, EPSS'}
-
-Provide a comprehensive vulnerability analysis including:
-1. Executive Summary with immediate actions needed
-2. Technical details and attack vectors
-3. Impact assessment and potential consequences  
-4. Mitigation strategies and remediation guidance
-5. Affected systems and software components
-6. Current exploitation status and threat landscape
-7. Priority recommendations based on real-time threat intelligence
-
-Format your response in clear sections with detailed analysis. Use the security knowledge base context and real-time threat intelligence to provide enhanced insights.
-
-${vulnerability.kev?.listed ? 'EMPHASIZE THE CRITICAL NATURE DUE TO CONFIRMED ACTIVE EXPLOITATION.' : ''}
-${vulnerability.exploits?.found && vulnerability.exploits.confidence === 'HIGH' ? 'HIGHLIGHT THE AVAILABILITY OF PUBLIC EXPLOITS.' : ''}`;
-
+    const prompt = this.buildEnhancedAnalysisPrompt(vulnerability, ragContext, relevantDocs.length);
+    
     const requestBody = {
-      contents: [
-        {
-          parts: [
-            { text: prompt }
-          ]
-        }
-      ],
+      contents: [{ parts: [{ text: prompt }] }],
       generationConfig: {
         temperature: 0.1,
         topK: 1,
@@ -1124,122 +1061,152 @@ ${vulnerability.exploits?.found && vulnerability.exploits.confidence === 'HIGH' 
       }
     };
 
-    // Add web search capability for latest models (if not blocked by CORS)
-    if (isGemini2Plus) {
-      requestBody.tools = [
-        {
-          google_search: {}
-        }
-      ];
+    // Add web search for capable models
+    const isWebSearchCapable = model.includes('2.0') || model.includes('2.5');
+    if (isWebSearchCapable) {
+      requestBody.tools = [{ google_search: {} }];
     }
 
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-    
-    console.log('🔄 Making API call to Gemini...');
-    let response;
+    const apiUrl = `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${apiKey}`;
     
     try {
-      response = await fetch(apiUrl, {
+      const response = await this.fetchWithFallback(apiUrl, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       });
-    } catch (corsError) {
-      console.log('Direct Gemini API blocked by CORS, trying proxy...');
-      
-      // Try with CORS proxy as fallback
-      const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(apiUrl)}`;
-      response = await fetch(proxyUrl, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(requestBody)
-      });
-    }
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      
-      if (response.status === 429) {
-        throw new Error('Gemini API rate limit exceeded. Please wait a few minutes before trying again.');
-      }
-      
-      if (response.status === 401 || response.status === 403) {
-        throw new Error('Invalid Gemini API key. Please check your API key in settings.');
-      }
-      
-      if (response.status === 400) {
-        throw new Error('Invalid request. Please check your model selection and try again.');
-      }
-      
-      throw new Error(`Gemini API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
-    }
-    
-    const data = await response.json();
-    
-    if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
-      throw new Error('Invalid response from Gemini API. Please try again.');
-    }
-    
-    const content = data.candidates[0].content;
-    let analysisText = '';
-    
-    if (content.parts && Array.isArray(content.parts)) {
-      analysisText = content.parts.map(part => part.text || '').join('');
-    } else {
-      throw new Error('No valid content found in Gemini response.');
-    }
-    
-    if (!analysisText || analysisText.trim().length === 0) {
-      throw new Error('Empty analysis received from Gemini API.');
-    }
-
-    // Store successful analysis in RAG database
-    if (analysisText.length > 500) {
-      await enhancedRAGDatabase.addDocument(
-        `Enhanced CVE Analysis: ${cveId}\n\n${analysisText}`,
-        {
-          title: `Enhanced RAG Security Analysis - ${cveId}`,
-          category: 'enhanced-analysis',
-          tags: ['rag-enhanced', 'ai-analysis', cveId.toLowerCase()],
-          source: 'ai-analysis-rag',
-          model: model
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        
+        if (response.status === 429) {
+          throw new Error('Gemini API rate limit exceeded. Please wait a few minutes before trying again.');
         }
-      );
+        
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('Invalid Gemini API key. Please check your API key in settings.');
+        }
+        
+        throw new Error(`Gemini API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      }
+      
+      const data = await response.json();
+      const content = data.candidates?.[0]?.content;
+      
+      if (!content?.parts?.[0]?.text) {
+        throw new Error('Invalid response from Gemini API');
+      }
+      
+      const analysisText = content.parts[0].text;
+      
+      if (!analysisText || analysisText.trim().length === 0) {
+        throw new Error('Empty analysis received from Gemini API');
+      }
+      
+      // Store successful analysis in RAG database for future use
+      if (analysisText.length > 500) {
+        await ragDatabase.addDocument(
+          `Enhanced CVE Analysis: ${cveId}\n\nCVSS: ${vulnerability.cve.cvssV3?.baseScore || 'N/A'}\nEPSS: ${vulnerability.epss?.epssPercentage || 'N/A'}%\nCISA KEV: ${vulnerability.kev?.listed ? 'Yes' : 'No'}\n\n${analysisText}`,
+          {
+            title: `Enhanced RAG Security Analysis - ${cveId}`,
+            category: 'enhanced-analysis',
+            tags: ['rag-enhanced', 'ai-analysis', cveId.toLowerCase(), vulnerability.cve.cvssV3?.baseSeverity?.toLowerCase() || 'unknown'],
+            source: 'ai-analysis-rag',
+            model: model,
+            cveId: cveId
+          }
+        );
+        console.log(`💾 Stored analysis for ${cveId} in RAG database for future reference`);
+      }
+      
+      return {
+        analysis: analysisText,
+        ragUsed: true,
+        ragDocuments: relevantDocs.length,
+        ragSources: relevantDocs.map(doc => doc.metadata?.title || 'Unknown').filter(Boolean),
+        webGrounded: isWebSearchCapable,
+        enhancedSources: vulnerability.enhancedSources || [],
+        discoveredSources: vulnerability.discoveredSources || [],
+        model: model,
+        analysisTimestamp: new Date().toISOString(),
+        ragDatabaseSize: ragDatabase.documents.length,
+        embeddingType: ragDatabase.geminiApiKey ? 'gemini' : 'local',
+        geminiEmbeddingsCount: ragDatabase.documents.filter(d => d.embeddingType === 'gemini').length,
+        realTimeData: {
+          cisaKev: vulnerability.kev?.listed || false,
+          exploitsFound: vulnerability.exploits?.count || 0,
+          exploitConfidence: vulnerability.exploits?.confidence || 'NONE',
+          githubRefs: vulnerability.github?.count || 0,
+          threatLevel: vulnerability.threatLevel || 'STANDARD',
+          heuristicRisk: vulnerability.kev?.heuristicHighRisk || false
+        }
+      };
+      
+    } catch (error) {
+      console.error('Enhanced RAG Analysis Error:', error);
+      return this.generateEnhancedFallbackAnalysis(vulnerability, error);
     }
+  }
+
+  static buildEnhancedAnalysisPrompt(vulnerability, ragContext, ragDocCount = 0) {
+    const cveId = vulnerability.cve.id;
+    const cvssScore = vulnerability.cve.cvssV3?.baseScore || vulnerability.cve.cvssV2?.baseScore || 'N/A';
+    const epssScore = vulnerability.epss ? vulnerability.epss.epssPercentage + '%' : 'N/A';
+    const kevStatus = vulnerability.kev?.listed ? 'Yes - ACTIVE EXPLOITATION CONFIRMED' : 'No';
+    
+    return `You are a senior cybersecurity analyst providing comprehensive vulnerability assessment for ${cveId}.
+
+VULNERABILITY DETAILS:
+- CVE ID: ${cveId}
+- CVSS Score: ${cvssScore}
+- EPSS Score: ${epssScore}
+- CISA KEV Status: ${kevStatus}
+- Description: ${vulnerability.cve.description.substring(0, 800)}
+
+REAL-TIME THREAT INTELLIGENCE:
+${vulnerability.kev?.listed ? `⚠️ CRITICAL: This vulnerability is actively exploited according to CISA KEV catalog.` : ''}
+${vulnerability.exploits?.found ? `💣 PUBLIC EXPLOITS: ${vulnerability.exploits.count} exploit(s) found with ${vulnerability.exploits.confidence || 'MEDIUM'} confidence.` : ''}
+${vulnerability.github?.found ? `🔍 GITHUB REFS: ${vulnerability.github.count} security-related repositories found.` : ''}
+${vulnerability.activeExploitation?.confirmed ? `🚨 ACTIVE EXPLOITATION: Confirmed exploitation in the wild.` : ''}
+
+SECURITY KNOWLEDGE BASE (${ragDocCount} relevant documents retrieved):
+${ragContext}
+
+DATA SOURCES ANALYZED:
+${vulnerability.discoveredSources?.join(', ') || 'NVD, EPSS'}
+
+You have access to ${ragDocCount} relevant security documents from the knowledge base. Use this contextual information to provide enhanced insights beyond standard vulnerability analysis.
+
+Provide a comprehensive vulnerability analysis including:
+1. Executive Summary with immediate actions needed
+2. Technical details and attack vectors
+3. Impact assessment and potential consequences  
+4. Mitigation strategies and remediation guidance
+5. Affected systems and software components
+6. Current exploitation status and threat landscape
+7. Priority recommendations based on real-time threat intelligence
+8. Lessons learned from similar vulnerabilities (use knowledge base context)
+
+Format your response in clear sections with detailed analysis. Leverage the security knowledge base context and real-time threat intelligence to provide enhanced insights that go beyond basic CVE information.
+
+${vulnerability.kev?.listed ? 'EMPHASIZE THE CRITICAL NATURE DUE TO CONFIRMED ACTIVE EXPLOITATION.' : ''}
+${vulnerability.exploits?.found && vulnerability.exploits.confidence === 'HIGH' ? 'HIGHLIGHT THE AVAILABILITY OF PUBLIC EXPLOITS.' : ''}
+
+**Important**: Reference insights from the security knowledge base when relevant to demonstrate enhanced RAG-powered analysis.`;
+  }
+
+  static generateEnhancedFallbackAnalysis(vulnerability, error) {
+    const cveId = vulnerability.cve.id;
+    const cvssScore = vulnerability.cve.cvssV3?.baseScore || vulnerability.cve.cvssV2?.baseScore || 'N/A';
+    const epssScore = vulnerability.epss ? vulnerability.epss.epssPercentage + '%' : 'N/A';
+    const kevStatus = vulnerability.kev?.listed ? 'Yes - ACTIVE EXPLOITATION CONFIRMED' : 'No';
     
     return {
-      analysis: analysisText,
-      ragUsed: true,
-      ragDocuments: relevantDocs.length,
-      ragSources: relevantDocs.map(doc => doc.metadata?.title || 'Unknown').filter(Boolean),
-      webGrounded: isGemini2Plus,
-      enhancedSources: vulnerability.enhancedSources || [],
-      discoveredSources: vulnerability.discoveredSources || [],
-      model: model,
-      analysisTimestamp: new Date().toISOString(),
-      realTimeData: {
-        cisaKev: vulnerability.kev?.listed || false,
-        exploitsFound: vulnerability.exploits?.count || 0,
-        exploitConfidence: vulnerability.exploits?.confidence || 'NONE',
-        githubRefs: vulnerability.github?.count || 0,
-        threatLevel: vulnerability.threatLevel || 'STANDARD',
-        heuristicRisk: vulnerability.kev?.heuristicHighRisk || false
-      }
-    };
-    
-  } catch (error) {
-    console.error('Enhanced RAG Analysis Error:', error);
-    
-    // Generate comprehensive fallback analysis with real data
-    const fallbackAnalysis = `# Security Analysis: ${cveId}
+      analysis: `# Security Analysis: ${cveId}
 
 ## Executive Summary
 ${kevStatus.includes('Yes') ? '🚨 **CRITICAL PRIORITY** - This vulnerability is actively exploited according to CISA KEV catalog. Immediate patching required.' : 
-  vulnerability.kev?.heuristicHighRisk ? '🔍 **HIGH RISK** - Vulnerability matches known high-risk exploitation patterns.' :
+  vulnerability.exploits?.found ? `💣 **HIGH RISK** - ${vulnerability.exploits.count} exploit(s) detected with ${vulnerability.exploits.confidence} confidence level.` :
   `This vulnerability has a CVSS score of ${cvssScore} with an EPSS exploitation probability of ${epssScore}.`}
 
 ${vulnerability.exploits?.found ? `💣 **PUBLIC EXPLOITS AVAILABLE** - ${vulnerability.exploits.count} exploit(s) detected with ${vulnerability.exploits.confidence} confidence level.` : ''}
@@ -1250,13 +1217,13 @@ ${vulnerability.exploits?.found ? `💣 **PUBLIC EXPLOITS AVAILABLE** - ${vulner
 **EPSS Score:** ${epssScore}
 **CISA KEV Status:** ${kevStatus}
 
-**Description:** ${description}
+**Description:** ${vulnerability.cve.description}
 
 ## Real-Time Threat Intelligence Summary
 ${vulnerability.kev?.listed ? '- ⚠️ **ACTIVE EXPLOITATION**: Confirmed in CISA Known Exploited Vulnerabilities catalog' : '- No confirmed active exploitation in CISA KEV catalog'}
-${vulnerability.kev?.heuristicHighRisk ? '- 🔍 **HIGH-RISK PATTERN**: Matches characteristics of previously exploited vulnerabilities' : ''}
 ${vulnerability.exploits?.found ? `- 💣 **PUBLIC EXPLOITS**: ${vulnerability.exploits.count} exploit(s) with ${vulnerability.exploits.confidence} confidence` : '- No high-confidence public exploits identified'}
 ${vulnerability.github?.found ? `- 🔍 **SECURITY COVERAGE**: ${vulnerability.github.count} GitHub security references found` : '- Limited GitHub security advisory coverage'}
+${vulnerability.activeExploitation?.confirmed ? '- 🚨 **ACTIVE EXPLOITATION**: Confirmed exploitation detected in threat intelligence' : '- No confirmed active exploitation detected'}
 
 ## Risk Assessment
 **Exploitation Probability:** ${epssScore} (EPSS)
@@ -1266,7 +1233,7 @@ ${vulnerability.github?.found ? `- 🔍 **SECURITY COVERAGE**: ${vulnerability.g
 **Impact Level:** ${vulnerability.cve.cvssV3?.baseSeverity || 'Unknown'}
 
 ## Immediate Actions Required
-1. ${kevStatus.includes('Yes') || vulnerability.kev?.heuristicHighRisk ? 
+1. ${kevStatus.includes('Yes') || vulnerability.exploits?.found ? 
    'URGENT: Apply patches immediately - high exploitation risk confirmed' : 
    'Review and prioritize patching based on CVSS score and environment exposure'}
 2. ${vulnerability.exploits?.found ? 'Implement additional monitoring - public exploits available' : 'Monitor for unusual activity patterns'}
@@ -1287,10 +1254,7 @@ ${vulnerability.discoveredSources?.join(', ') || 'NVD, EPSS'} (${vulnerability.d
 - **Confidence Level**: ${vulnerability.exploits?.confidence || 'MEDIUM'} based on multiple source correlation
 - **Threat Landscape**: ${vulnerability.threatLevel || 'STANDARD'} risk environment
 
-*Analysis generated using real-time threat intelligence. Enhanced AI service temporarily unavailable due to network restrictions.*`;
-    
-    return {
-      analysis: fallbackAnalysis,
+*Analysis generated using real-time threat intelligence. Enhanced AI service temporarily unavailable due to: ${error.message}*`,
       ragUsed: false,
       ragDocuments: 0,
       ragSources: [],
@@ -1305,16 +1269,187 @@ ${vulnerability.discoveredSources?.join(', ') || 'NVD, EPSS'} (${vulnerability.d
         exploitConfidence: vulnerability.exploits?.confidence || 'NONE',
         githubRefs: vulnerability.github?.count || 0,
         threatLevel: vulnerability.threatLevel || 'STANDARD',
-        heuristicRisk: vulnerability.kev?.heuristicHighRisk || false
+        activeExploitation: vulnerability.activeExploitation?.confirmed || false
       }
     };
   }
+}
+
+// Styling System
+const createStyles = (darkMode) => {
+  const theme = darkMode ? COLORS.dark : COLORS.light;
+  const shadow = `0 4px 6px -1px ${theme.shadow}, 0 2px 4px -1px ${theme.shadow}`;
+
+  return {
+    app: {
+      minHeight: '100vh',
+      backgroundColor: theme.background,
+      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+      color: theme.primaryText,
+      fontSize: '16px',
+      lineHeight: '1.6',
+    },
+    header: {
+      background: `linear-gradient(135deg, ${theme.surface} 0%, ${theme.background} 100%)`,
+      color: theme.primaryText,
+      boxShadow: shadow,
+      borderBottom: `1px solid ${theme.border}`
+    },
+    headerContent: {
+      maxWidth: '1536px',
+      margin: '0 auto',
+      padding: '20px 32px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between'
+    },
+    title: {
+      fontSize: '1.5rem',
+      fontWeight: '700',
+      margin: 0,
+      background: `linear-gradient(135deg, ${COLORS.blue} 0%, ${COLORS.purple} 100%)`,
+      WebkitBackgroundClip: 'text',
+      WebkitTextFillColor: 'transparent',
+      backgroundClip: 'text'
+    },
+    subtitle: {
+      fontSize: '0.9375rem',
+      color: theme.secondaryText,
+      margin: 0,
+      fontWeight: '500'
+    },
+    button: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '8px',
+      padding: '12px 20px',
+      borderRadius: '8px',
+      fontWeight: '600',
+      cursor: 'pointer',
+      borderWidth: '1px',
+      borderStyle: 'solid',
+      fontSize: '1rem',
+      transition: 'all 0.2s ease-in-out',
+      textDecoration: 'none',
+      whiteSpace: 'nowrap',
+      minHeight: '44px',
+    },
+    buttonPrimary: {
+      background: `linear-gradient(135deg, ${COLORS.blue} 0%, #1d4ed8 100%)`,
+      color: 'white',
+      borderColor: 'transparent',
+      boxShadow: `0 2px 8px rgba(${utils.hexToRgb(COLORS.blue)}, 0.3)`,
+    },
+    buttonSecondary: {
+      background: theme.surface,
+      color: theme.primaryText,
+      borderColor: theme.border,
+    },
+    card: {
+      background: theme.surface,
+      borderRadius: '12px',
+      padding: '24px',
+      borderWidth: '1px',
+      borderStyle: 'solid',
+      borderColor: theme.border,
+      boxShadow: shadow,
+    },
+    input: {
+      width: '100%',
+      padding: '12px 16px',
+      borderWidth: '1px',
+      borderStyle: 'solid',
+      borderColor: theme.border,
+      borderRadius: '8px',
+      fontSize: '1rem',
+      outline: 'none',
+      boxSizing: 'border-box',
+      background: theme.surface,
+      color: theme.primaryText,
+      transition: 'border-color 0.2s ease-in-out',
+      minHeight: '44px',
+    },
+    badge: {
+      padding: '6px 12px',
+      borderRadius: '6px',
+      fontSize: '0.8125rem',
+      fontWeight: '700',
+      display: 'inline-flex',
+      alignItems: 'center',
+      textTransform: 'uppercase',
+      letterSpacing: '0.05em',
+    },
+    badgeCritical: { 
+      background: 'rgba(239, 68, 68, 0.15)', 
+      color: COLORS.red, 
+      borderWidth: '1px',
+      borderStyle: 'solid',
+      borderColor: 'rgba(239, 68, 68, 0.3)' 
+    },
+    badgeHigh: { 
+      background: 'rgba(245, 158, 11, 0.15)', 
+      color: COLORS.yellow, 
+      borderWidth: '1px',
+      borderStyle: 'solid',
+      borderColor: 'rgba(245, 158, 11, 0.3)' 
+    },
+    badgeMedium: { 
+      background: 'rgba(59, 130, 246, 0.15)', 
+      color: COLORS.blue, 
+      borderWidth: '1px',
+      borderStyle: 'solid',
+      borderColor: 'rgba(59, 130, 246, 0.3)' 
+    },
+    badgeLow: { 
+      background: 'rgba(34, 197, 94, 0.15)', 
+      color: COLORS.green, 
+      borderWidth: '1px',
+      borderStyle: 'solid',
+      borderColor: 'rgba(34, 197, 94, 0.3)' 
+    },
+  };
+};
+
+// Context
+const AppContext = createContext({});
+
+// Custom Hooks
+const useNotifications = () => {
+  const [notifications, setNotifications] = useState([]);
+  
+  const addNotification = useCallback((notification) => {
+    const id = Date.now() + Math.random();
+    setNotifications(prev => [...prev, { ...notification, id }]);
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 5000);
+  }, []);
+  
+  const removeNotification = useCallback((id) => {
+    setNotifications(prev => prev.filter(n => n.id !== id));
+  }, []);
+  
+  return { notifications, addNotification, removeNotification };
+};
+
+const useSettings = () => {
+  const [settings, setSettings] = useState({
+    darkMode: false,
+    geminiApiKey: '',
+    geminiModel: 'gemini-2.5-flash',
+    nvdApiKey: '',
+    enableRAG: true
+  });
+  
+  return { settings, setSettings };
 };
 
 // Components
 const NotificationManager = () => {
-  const { notifications, settings } = useContext(AppContext);
-  const styles = getStyles(settings.darkMode);
+  const { notifications, removeNotification } = useContext(AppContext);
+  const { settings } = useContext(AppContext);
+  const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
   
   return (
     <div style={{ position: 'fixed', top: '24px', right: '24px', zIndex: 1000 }}>
@@ -1322,20 +1457,27 @@ const NotificationManager = () => {
         <div
           key={notification.id}
           style={{
-            ...styles.notification,
-            ...(notification.type === 'success' ? styles.notificationSuccess : 
-               notification.type === 'error' ? styles.notificationError : 
-               styles.notificationWarning),
-            marginBottom: '12px'
+            ...styles.card,
+            marginBottom: '12px',
+            maxWidth: '400px',
+            borderLeft: `4px solid ${
+              notification.type === 'success' ? COLORS.green :
+              notification.type === 'error' ? COLORS.red : COLORS.yellow
+            }`,
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '12px',
+            cursor: 'pointer'
           }}
+          onClick={() => removeNotification(notification.id)}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            {notification.type === 'success' && <CheckCircle size={20} color="#22c55e" />}
-            {notification.type === 'error' && <XCircle size={20} color="#ef4444" />}
-            {notification.type === 'warning' && <AlertTriangle size={20} color="#f59e0b" />}
-            <div>
-              <div style={{ fontWeight: '600', fontSize: '0.95rem', color: settings.darkMode ? '#f1f5f9' : '#0f172a' }}>{notification.title}</div>
-              <div style={{ fontSize: '0.8rem', color: settings.darkMode ? '#64748b' : '#94a3b8' }}>{notification.message}</div>
+          {notification.type === 'success' && <CheckCircle size={20} color={COLORS.green} />}
+          {notification.type === 'error' && <XCircle size={20} color={COLORS.red} />}
+          {notification.type === 'warning' && <AlertTriangle size={20} color={COLORS.yellow} />}
+          <div>
+            <div style={{ fontWeight: '600', fontSize: '0.95rem' }}>{notification.title}</div>
+            <div style={{ fontSize: '0.8rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+              {notification.message}
             </div>
           </div>
         </div>
@@ -1344,227 +1486,155 @@ const NotificationManager = () => {
   );
 };
 
-const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
+const SettingsModal = ({ isOpen, onClose }) => {
+  const { settings, setSettings } = useContext(AppContext);
   const { addNotification } = useContext(AppContext);
   const [localSettings, setLocalSettings] = useState(settings);
-  const [showGeminiKey, setShowGeminiKey] = useState(false);
-  const [showNvdKey, setShowNvdKey] = useState(false);
-  const [testingConnection, setTestingConnection] = useState(false);
-  const styles = getStyles(settings.darkMode);
+  const [showKeys, setShowKeys] = useState({ gemini: false, nvd: false });
+  const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
 
   useEffect(() => {
     setLocalSettings(settings);
   }, [settings]);
 
-  const handleSave = () => {
+  const handleSave = useCallback(() => {
     setSettings(localSettings);
+    addNotification({ 
+      type: 'success', 
+      title: 'Settings Saved', 
+      message: 'Configuration updated successfully' 
+    });
     onClose();
-  };
-
-  const testGeminiConnection = async () => {
-    if (!localSettings.geminiApiKey) {
-      addNotification({ type: 'error', title: 'API Key Missing', message: 'Please enter a Gemini API key to test connection.' });
-      return;
-    }
-
-    setTestingConnection(true);
-    
-    // Simulate connection test
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    addNotification({ type: 'success', title: 'Connection Test', message: 'Gemini AI connection successful!' });
-    setTestingConnection(false);
-  };
+  }, [localSettings, setSettings, addNotification, onClose]);
 
   if (!isOpen) return null;
 
   return (
-    <div style={styles.modal}>
-      <div style={styles.modalContent}>
-        <div style={styles.modalHeader}>
-          <h3 style={styles.modalTitle}>AI-Enhanced Platform Settings</h3>
-          <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 0 }}>
-            <X size={24} color={settings.darkMode ? colors.dark.primaryText : colors.light.primaryText} />
+    <div style={{
+      position: 'fixed',
+      inset: 0,
+      background: 'rgba(0, 0, 0, 0.6)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 1050,
+      backdropFilter: 'blur(5px)'
+    }}>
+      <div style={{
+        ...styles.card,
+        width: '100%',
+        maxWidth: '600px',
+        maxHeight: '90vh',
+        overflowY: 'auto',
+        margin: '20px'
+      }}>
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: '24px',
+          paddingBottom: '16px',
+          borderBottom: `1px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}`
+        }}>
+          <h3 style={{ fontSize: '1.375rem', fontWeight: '700', margin: 0 }}>
+            AI Platform Settings
+          </h3>
+          <button 
+            onClick={onClose} 
+            style={{ 
+              background: 'transparent', 
+              border: 'none', 
+              cursor: 'pointer', 
+              padding: 0 
+            }}
+          >
+            <X size={24} />
           </button>
         </div>
 
         <div style={{ display: 'grid', gap: '24px' }}>
-          <div style={{
-            background: settings.darkMode ? colors.dark.background : colors.light.background,
-            padding: '20px',
-            borderRadius: '12px',
-            border: `1px solid ${settings.darkMode ? colors.dark.border : colors.light.border}`,
-            marginBottom: '24px'
-          }}>
-            <h4 style={{
-              margin: '0 0 16px 0',
-              color: settings.darkMode ? colors.dark.primaryText : colors.light.primaryText,
-              fontSize: '1.1rem',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              paddingBottom: '10px',
-              borderBottom: `1px solid ${settings.darkMode ? colors.dark.border : colors.light.border}`
-            }}>
-              <Brain size={20} /> AI & RAG Configuration
-            </h4>
-            
-            <div style={styles.formGroup}>
-              <label htmlFor="geminiApiKey" style={styles.label}>Gemini API Key (Required for AI Analysis)</label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  id="geminiApiKey"
-                  type={showGeminiKey ? 'text' : 'password'}
-                  style={styles.input}
-                  placeholder="Enter your Gemini API key"
-                  value={localSettings.geminiApiKey || ''}
-                  onChange={(e) => setLocalSettings(prev => ({ ...prev, geminiApiKey: e.target.value }))}
-                />
-                <button 
-                  style={{
-                    position: 'absolute',
-                    right: '12px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: settings.darkMode ? colors.dark.secondaryText : colors.light.secondaryText,
-                    padding: '4px'
-                  }}
-                  onClick={() => setShowGeminiKey(!showGeminiKey)}
-                >
-                  {showGeminiKey ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label htmlFor="geminiModel" style={styles.label}>Gemini Model Selection</label>
-              <select
-                id="geminiModel"
-                style={styles.select}
-                value={localSettings.geminiModel || 'gemini-2.5-flash'}
-                onChange={(e) => setLocalSettings(prev => ({ ...prev, geminiModel: e.target.value }))}
+          <div>
+            <label style={{ display: 'block', fontSize: '1rem', fontWeight: '600', marginBottom: '8px' }}>
+              Gemini API Key
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showKeys.gemini ? 'text' : 'password'}
+                style={styles.input}
+                placeholder="Enter your Gemini API key"
+                value={localSettings.geminiApiKey || ''}
+                onChange={(e) => setLocalSettings(prev => ({ ...prev, geminiApiKey: e.target.value }))}
+              />
+              <button 
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px'
+                }}
+                onClick={() => setShowKeys(prev => ({ ...prev, gemini: !prev.gemini }))}
               >
-                <option value="gemini-2.5-pro">Gemini 2.5 Pro (Latest, Web Search + RAG)</option>
-                <option value="gemini-2.5-flash">Gemini 2.5 Flash (Web Search + RAG)</option>
-                <option value="gemini-2.0-pro">Gemini 2.0 pro (Fast RAG)</option>
-                <option value="gemini-2.0-flash">Gemini 2.0 Flash (Deep RAG)</option>
-              </select>
+                {showKeys.gemini ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
             </div>
-
-            <button
-              onClick={testGeminiConnection}
-              disabled={testingConnection || !localSettings.geminiApiKey}
-              style={{
-                ...styles.button,
-                ...styles.buttonSecondary,
-                opacity: testingConnection || !localSettings.geminiApiKey ? 0.6 : 1
-              }}
-            >
-              {testingConnection ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Settings size={18} />}
-              Test AI Connection
-            </button>
           </div>
 
-          <div style={{
-            background: settings.darkMode ? colors.dark.background : colors.light.background,
-            padding: '20px',
-            borderRadius: '12px',
-            border: `1px solid ${settings.darkMode ? colors.dark.border : colors.light.border}`,
-            marginBottom: '24px'
-          }}>
-            <h4 style={{
-              margin: '0 0 16px 0',
-              color: settings.darkMode ? colors.dark.primaryText : colors.light.primaryText,
-              fontSize: '1.1rem',
-              fontWeight: '600',
+          <div>
+            <label style={{ display: 'block', fontSize: '1rem', fontWeight: '600', marginBottom: '8px' }}>
+              Gemini Model
+            </label>
+            <select
+              style={styles.input}
+              value={localSettings.geminiModel || 'gemini-2.5-flash'}
+              onChange={(e) => setLocalSettings(prev => ({ ...prev, geminiModel: e.target.value }))}
+            >
+              <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
+              <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
+              <option value="gemini-2.0-pro">Gemini 2.0 Pro</option>
+              <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={{
               display: 'flex',
               alignItems: 'center',
               gap: '10px',
-              paddingBottom: '10px',
-              borderBottom: `1px solid ${settings.darkMode ? colors.dark.border : colors.light.border}`
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: '600'
             }}>
-              <Database size={20} /> Data Source & Interface
-            </h4>
-            
-            <div style={styles.formGroup}>
-              <label htmlFor="nvdApiKey" style={styles.label}>NVD API Key (Optional - Higher Rate Limits)</label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  id="nvdApiKey"
-                  type={showNvdKey ? 'text' : 'password'}
-                  style={styles.input}
-                  placeholder="Enter your NVD API key"
-                  value={localSettings.nvdApiKey || ''}
-                  onChange={(e) => setLocalSettings(prev => ({ ...prev, nvdApiKey: e.target.value }))}
-                />
-                <button 
-                  style={{
-                    position: 'absolute',
-                    right: '12px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: settings.darkMode ? colors.dark.secondaryText : colors.light.secondaryText,
-                    padding: '4px'
-                  }}
-                  onClick={() => setShowNvdKey(!showNvdKey)}
-                >
-                  {showNvdKey ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
-            </div>
+              <input
+                type="checkbox"
+                checked={localSettings.darkMode || false}
+                onChange={(e) => setLocalSettings(prev => ({ ...prev, darkMode: e.target.checked }))}
+                style={{ width: '16px', height: '16px', accentColor: COLORS.blue }}
+              />
+              Dark Mode
+            </label>
+          </div>
 
-            <div style={styles.formGroup}>
-              <label style={{
-                ...styles.label,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                cursor: 'pointer',
-              }}>
-                <input
-                  type="checkbox"
-                  checked={localSettings.darkMode || false}
-                  onChange={(e) => setLocalSettings(prev => ({ ...prev, darkMode: e.target.checked }))}
-                  style={{
-                    width: '16px',
-                    height: '16px',
-                    accentColor: colors.blue,
-                    margin: 0,
-                  }}
-                />
-                Dark Mode Interface
-              </label>
-            </div>
-
-            <div style={styles.formGroup}>
-              <label style={{
-                ...styles.label,
-                display: 'flex',
-                alignItems: 'center',
-                gap: '10px',
-                cursor: 'pointer',
-              }}>
-                <input
-                  type="checkbox"
-                  checked={localSettings.enableRAG !== false}
-                  onChange={(e) => setLocalSettings(prev => ({ ...prev, enableRAG: e.target.checked }))}
-                  style={{
-                    width: '16px',
-                    height: '16px',
-                    accentColor: colors.blue,
-                    margin: 0,
-                  }}
-                />
-                Enable RAG-Enhanced Analysis
-              </label>
-            </div>
+          <div>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: '600'
+            }}>
+              <input
+                type="checkbox"
+                checked={localSettings.enableRAG !== false}
+                onChange={(e) => setLocalSettings(prev => ({ ...prev, enableRAG: e.target.checked }))}
+                style={{ width: '16px', height: '16px', accentColor: COLORS.blue }}
+              />
+              Enable RAG-Enhanced Analysis
+            </label>
           </div>
         </div>
 
@@ -1574,20 +1644,14 @@ const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
           justifyContent: 'flex-end',
           paddingTop: '24px',
           marginTop: '16px',
-          borderTop: `1px solid ${settings.darkMode ? colors.dark.border : colors.light.border}`
+          borderTop: `1px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}`
         }}>
-          <button
-            style={{ ...styles.button, ...styles.buttonSecondary }}
-            onClick={onClose}
-          >
+          <button style={{ ...styles.button, ...styles.buttonSecondary }} onClick={onClose}>
             Cancel
           </button>
-          <button
-            style={{ ...styles.button, ...styles.buttonPrimary }}
-            onClick={handleSave}
-          >
+          <button style={{ ...styles.button, ...styles.buttonPrimary }} onClick={handleSave}>
             <Save size={18} />
-            Save Configuration
+            Save Settings
           </button>
         </div>
       </div>
@@ -1598,29 +1662,10 @@ const SettingsModal = ({ isOpen, onClose, settings, setSettings }) => {
 const SearchComponent = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchHistory, setSearchHistory] = useState([]);
-  
-  const {
-    setVulnerabilities,
-    setLoading,
-    loading,
-    setLoadingSteps,
-    addNotification,
-    settings
-  } = useContext(AppContext);
+  const { setVulnerabilities, setLoading, loading, setLoadingSteps, addNotification, settings } = useContext(AppContext);
+  const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
 
-  const styles = getStyles(settings.darkMode);
-
-  useEffect(() => {
-    document.body.style.backgroundColor = styles.appContainer.backgroundColor;
-    document.body.style.color = styles.appContainer.color;
-    document.body.style.fontFamily = styles.appContainer.fontFamily;
-  }, [settings.darkMode, styles.appContainer]);
-
-  const validateCVEFormat = (cveId) => {
-    return /^CVE-\d{4}-\d{4,}$/i.test(cveId.trim());
-  };
-
-  const handleSearch = async () => {
+  const handleSearch = useCallback(async () => {
     if (!searchTerm.trim()) {
       addNotification({
         type: 'warning',
@@ -1632,7 +1677,7 @@ const SearchComponent = () => {
 
     const cveId = searchTerm.trim().toUpperCase();
     
-    if (!validateCVEFormat(cveId)) {
+    if (!utils.validateCVE(cveId)) {
       addNotification({
         type: 'error',
         title: 'Invalid CVE Format',
@@ -1645,21 +1690,29 @@ const SearchComponent = () => {
     setLoadingSteps([]);
     
     try {
-      const vulnerability = await fetchVulnerabilityDataWithAI(cveId, setLoadingSteps, {
-        nvd: settings.nvdApiKey
-      }, settings);
+      setLoadingSteps(prev => [...prev, `🔍 Fetching ${cveId} from NVD...`]);
+      const cveData = await APIService.fetchCVEData(cveId, settings.nvdApiKey);
+      
+      setLoadingSteps(prev => [...prev, `📊 Fetching EPSS data for ${cveId}...`]);
+      const epssData = await APIService.fetchEPSSData(cveId);
+      
+      const vulnerability = {
+        cve: cveData,
+        epss: epssData,
+        lastUpdated: new Date().toISOString(),
+        sources: ['NVD', epssData ? 'EPSS' : null].filter(Boolean)
+      };
       
       setVulnerabilities([vulnerability]);
       setSearchHistory(prev => [...new Set([cveId, ...prev])].slice(0, 5));
       
       addNotification({
         type: 'success',
-        title: 'AI-Powered Analysis Complete',
-        message: `Successfully analyzed ${cveId} using AI intelligence from ${vulnerability.discoveredSources?.length || 6} security sources`
+        title: 'Analysis Complete',
+        message: `Successfully analyzed ${cveId}`
       });
       
     } catch (error) {
-      console.error('Error in vulnerability search:', error);
       addNotification({
         type: 'error',
         title: 'Search Failed',
@@ -1668,38 +1721,80 @@ const SearchComponent = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [searchTerm, settings, setLoading, setLoadingSteps, setVulnerabilities, addNotification]);
 
-  const handleKeyPress = (e) => {
+  const debouncedSearch = useMemo(() => utils.debounce(handleSearch, 300), [handleSearch]);
+
+  const handleKeyPress = useCallback((e) => {
     if (e.key === 'Enter') {
       handleSearch();
     }
-  };
+  }, [handleSearch]);
 
   return (
-    <div style={styles.searchSection}>
-      <div style={styles.searchContainer}>
-        <h1 style={styles.searchTitle}>AI-Enhanced Vulnerability Intelligence</h1>
-        <p style={styles.searchSubtitle}>
-          AI-powered analysis with multi-source discovery, contextual knowledge retrieval and real-time threat intelligence
+    <div style={{
+      background: `linear-gradient(135deg, ${settings.darkMode ? COLORS.dark.surface : COLORS.light.surface} 0%, ${settings.darkMode ? COLORS.dark.background : COLORS.light.background} 100%)`,
+      padding: '48px 32px 64px 32px',
+      borderBottom: `1px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}`
+    }}>
+      <div style={{ maxWidth: '960px', margin: '0 auto', textAlign: 'center' }}>
+        <h1 style={{
+          fontSize: '2.75rem',
+          fontWeight: '800',
+          background: `linear-gradient(135deg, ${COLORS.blue} 0%, ${COLORS.purple} 100%)`,
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          marginBottom: '12px'
+        }}>
+          AI-Enhanced Vulnerability Intelligence
+        </h1>
+        
+        <p style={{
+          fontSize: '1.25rem',
+          color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText,
+          marginBottom: '40px',
+          fontWeight: '500',
+          maxWidth: '700px',
+          margin: '0 auto 32px auto',
+        }}>
+          AI-powered analysis with multi-source discovery and contextual knowledge retrieval
         </p>
         
-        <div style={styles.searchWrapper}>
-          <Search size={24} style={styles.searchIcon} />
+        <div style={{ position: 'relative', maxWidth: '768px', margin: '0 auto 24px auto' }}>
+          <Search size={24} style={{
+            position: 'absolute',
+            left: '20px',
+            top: '50%',
+            transform: 'translateY(-50%)',
+            color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText
+          }} />
           <input
             type="text"
             placeholder="Enter CVE ID (e.g., CVE-2024-12345)"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyPress={handleKeyPress}
-            style={styles.searchInput}
+            style={{
+              ...styles.input,
+              width: '100%',
+              padding: '20px 22px 20px 56px',
+              fontSize: '1.125rem',
+              minHeight: '64px',
+              paddingRight: '140px'
+            }}
             disabled={loading}
           />
           <button
             onClick={handleSearch}
             disabled={loading || !searchTerm.trim()}
             style={{
-              ...styles.searchButton,
+              ...styles.button,
+              ...styles.buttonPrimary,
+              position: 'absolute',
+              right: '8px',
+              top: '50%',
+              transform: 'translateY(-50%)',
               opacity: loading || !searchTerm.trim() ? 0.6 : 1
             }}
           >
@@ -1708,32 +1803,14 @@ const SearchComponent = () => {
           </button>
         </div>
 
-        <div style={{ 
-          display: 'flex', 
-          gap: '16px', 
-          justifyContent: 'center',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          marginTop: '32px',
-          fontSize: '0.875rem',
-          color: settings.darkMode ? colors.dark.primaryText : colors.light.primaryText
-        }}>
-          {[
-            { icon: <Brain size={16} color={colors.blue} />, text: 'RAG-Enhanced AI' },
-            { icon: <Database size={16} color={colors.purple} />, text: 'Knowledge Retrieval' },
-            { icon: <Globe size={16} color={colors.green} />, text: 'Multi-Source Discovery' },
-            { icon: <Search size={16} color={colors.yellow} />, text: 'Real-time Intelligence' }
-          ].map((item, index) => (
-            <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: settings.darkMode ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', borderRadius: '8px', margin: '4px' }}>
-              {item.icon}
-              <span style={{ fontWeight: '500' }}>{item.text}</span>
-            </div>
-          ))}
-        </div>
-
         {searchHistory.length > 0 && (
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap', marginTop: '28px' }}>
-            <span style={{ fontSize: '0.875rem', color: settings.darkMode ? colors.dark.primaryText : colors.light.primaryText, fontWeight: '500', alignSelf: 'center' }}>
+          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <span style={{ 
+              fontSize: '0.875rem', 
+              color: settings.darkMode ? COLORS.dark.primaryText : COLORS.light.primaryText, 
+              fontWeight: '500', 
+              alignSelf: 'center' 
+            }}>
               Recent:
             </span>
             {searchHistory.map((cve, index) => (
@@ -1743,13 +1820,12 @@ const SearchComponent = () => {
                 style={{
                   ...styles.button,
                   padding: '6px 12px',
-                  background: settings.darkMode ? `rgba(${hexToRgb(colors.blue)}, 0.15)` : `rgba(${hexToRgb(colors.blue)}, 0.1)`,
-                  border: `1px solid rgba(${hexToRgb(colors.blue)}, 0.3)`,
+                  background: settings.darkMode ? `rgba(${utils.hexToRgb(COLORS.blue)}, 0.15)` : `rgba(${utils.hexToRgb(COLORS.blue)}, 0.1)`,
+                  border: `1px solid rgba(${utils.hexToRgb(COLORS.blue)}, 0.3)`,
                   borderRadius: '8px',
                   fontSize: '0.8rem',
-                  color: colors.blue,
+                  color: COLORS.blue,
                   fontWeight: '500',
-                  transition: 'all 0.2s ease',
                 }}
               >
                 {cve}
@@ -1762,44 +1838,38 @@ const SearchComponent = () => {
   );
 };
 
-// Enhanced Loading Component
 const LoadingComponent = () => {
   const { loadingSteps, settings } = useContext(AppContext);
   const [progress, setProgress] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState(30);
-  const styles = getStyles(settings.darkMode);
+  const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
 
   useEffect(() => {
-    const totalSteps = 8;
+    const totalSteps = 10; // Increased for multi-source analysis
     const currentProgress = Math.min((loadingSteps.length / totalSteps) * 100, 95);
     setProgress(currentProgress);
     
-    const estimatedTime = Math.max(30 - (loadingSteps.length * 4), 5);
+    const estimatedTime = Math.max(45 - (loadingSteps.length * 5), 5); // More realistic timing
     setTimeRemaining(estimatedTime);
   }, [loadingSteps.length]);
 
   return (
-    <div style={styles.loadingContainer}>
-      <style>
-        {`
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-          @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-          }
-        `}
-      </style>
-      
-      <div style={{ marginBottom: '32px', textAlign: 'center' }}>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '64px 32px',
+      textAlign: 'center',
+      color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText,
+    }}>
+      <div style={{ marginBottom: '32px' }}>
         <div style={{ position: 'relative', display: 'inline-block' }}>
           <div style={{
             width: '80px',
             height: '80px',
             border: `4px solid ${settings.darkMode ? '#374151' : '#e5e7eb'}`,
-            borderTop: `4px solid ${colors.blue}`,
+            borderTop: `4px solid ${COLORS.blue}`,
             borderRadius: '50%',
             animation: 'spin 1s linear infinite',
             margin: '0 auto'
@@ -1811,7 +1881,7 @@ const LoadingComponent = () => {
             transform: 'translate(-50%, -50%)',
             fontSize: '0.75rem',
             fontWeight: '600',
-            color: colors.blue
+            color: COLORS.blue
           }}>
             {Math.round(progress)}%
           </div>
@@ -1828,7 +1898,7 @@ const LoadingComponent = () => {
           <div style={{
             width: `${progress}%`,
             height: '100%',
-            background: `linear-gradient(90deg, ${colors.blue} 0%, ${colors.purple} 100%)`,
+            background: `linear-gradient(90deg, ${COLORS.blue} 0%, ${COLORS.purple} 100%)`,
             borderRadius: '3px',
             transition: 'width 0.5s ease-out'
           }} />
@@ -1836,7 +1906,7 @@ const LoadingComponent = () => {
         
         <div style={{
           fontSize: '0.8rem',
-          color: settings.darkMode ? colors.dark.tertiaryText : colors.light.tertiaryText,
+          color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -1866,12 +1936,10 @@ const LoadingComponent = () => {
       </p>
       
       <div style={{ 
-        background: settings.darkMode ? '#1e293b' : '#ffffff',
-        borderRadius: '12px',
-        padding: '24px',
+        ...styles.card,
         maxWidth: '700px',
         textAlign: 'left',
-        border: settings.darkMode ? '1px solid #334155' : '1px solid #e2e8f0'
+        background: settings.darkMode ? '#1e293b' : '#ffffff'
       }}>
         <div style={{ 
           marginBottom: '16px', 
@@ -1892,7 +1960,7 @@ const LoadingComponent = () => {
           <div key={index} style={{ 
             marginBottom: '12px',
             fontSize: '0.875rem',
-            color: settings.darkMode ? colors.dark.secondaryText : colors.light.secondaryText,
+            color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText,
             display: 'flex',
             alignItems: 'center',
             gap: '12px'
@@ -1901,7 +1969,7 @@ const LoadingComponent = () => {
               width: '8px',
               height: '8px',
               borderRadius: '50%',
-              background: colors.blue,
+              background: index === loadingSteps.length - 1 ? COLORS.blue : COLORS.green,
               flexShrink: 0,
               animation: index === loadingSteps.length - 1 ? 'pulse 1s ease-in-out infinite' : 'none'
             }} />
@@ -1910,7 +1978,7 @@ const LoadingComponent = () => {
               <div style={{
                 width: '16px',
                 height: '16px',
-                border: `2px solid ${colors.blue}`,
+                border: `2px solid ${COLORS.blue}`,
                 borderTop: '2px solid transparent',
                 borderRadius: '50%',
                 animation: 'spin 1s linear infinite'
@@ -1918,31 +1986,27 @@ const LoadingComponent = () => {
             )}
           </div>
         ))}
+        
+        {loadingSteps.length === 0 && (
+          <div style={{
+            textAlign: 'center',
+            padding: '20px',
+            color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText,
+            fontStyle: 'italic'
+          }}>
+            Initializing AI analysis pipeline...
+          </div>
+        )}
       </div>
     </div>
   );
 };
 
-// Enhanced CVSS Score Component
-const CVSSScoreDisplay = ({ score, severity, vulnerability, settings }) => {
-  const [isAnimating, setIsAnimating] = useState(false);
-
-  const getSeverityColor = (score) => {
-    if (score >= 9) return '#ef4444';
-    if (score >= 7) return '#f59e0b';
-    if (score >= 4) return '#3b82f6';
-    return '#22c55e';
-  };
-
-  useEffect(() => {
-    setIsAnimating(true);
-    const timer = setTimeout(() => setIsAnimating(false), 1500);
-    return () => clearTimeout(timer);
-  }, [score]);
-
-  const circumference = 2 * Math.PI * 45;
-  const strokeDasharray = circumference;
-  const strokeDashoffset = circumference - (score / 10) * circumference;
+const CVSSDisplay = ({ vulnerability, settings }) => {
+  const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
+  const cvssScore = vulnerability.cve?.cvssV3?.baseScore || vulnerability.cve?.cvssV2?.baseScore || 0;
+  const severity = utils.getSeverityLevel(cvssScore);
+  const color = utils.getSeverityColor(severity);
 
   return (
     <div style={{ textAlign: 'center', marginBottom: '28px' }}>
@@ -1952,34 +2016,21 @@ const CVSSScoreDisplay = ({ score, severity, vulnerability, settings }) => {
         height: '120px',
         margin: '0 auto 16px'
       }}>
-        <svg
-          width="120"
-          height="120"
-          viewBox="0 0 100 100"
-          style={{ transform: 'rotate(-90deg)' }}
-        >
+        <svg width="120" height="120" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
           <circle
-            cx="50"
-            cy="50"
-            r="45"
+            cx="50" cy="50" r="45"
             fill="none"
-            stroke={settings.darkMode ? colors.dark.border : colors.light.border}
+            stroke={settings.darkMode ? COLORS.dark.border : COLORS.light.border}
             strokeWidth="8"
           />
           <circle
-            cx="50"
-            cy="50"
-            r="45"
+            cx="50" cy="50" r="45"
             fill="none"
-            stroke={getSeverityColor(score)}
+            stroke={color}
             strokeWidth="8"
             strokeLinecap="round"
-            strokeDasharray={strokeDasharray}
-            strokeDashoffset={isAnimating ? circumference : strokeDashoffset}
-            style={{
-              transition: 'stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1)',
-              filter: 'drop-shadow(0 0 8px ' + getSeverityColor(score) + '40)'
-            }}
+            strokeDasharray={`${(cvssScore / 10) * 283} 283`}
+            style={{ transition: 'stroke-dasharray 1.5s ease' }}
           />
         </svg>
         
@@ -1990,18 +2041,10 @@ const CVSSScoreDisplay = ({ score, severity, vulnerability, settings }) => {
           transform: 'translate(-50%, -50%)',
           textAlign: 'center'
         }}>
-          <div style={{
-            fontSize: '1.625rem',
-            fontWeight: '700',
-            color: settings.darkMode ? colors.dark.primaryText : colors.light.primaryText
-          }}>
-            {score?.toFixed(1) || 'N/A'}
+          <div style={{ fontSize: '1.625rem', fontWeight: '700' }}>
+            {cvssScore?.toFixed(1) || 'N/A'}
           </div>
-          <div style={{
-            fontSize: '0.75rem',
-            color: settings.darkMode ? colors.dark.secondaryText : colors.light.secondaryText,
-            fontWeight: '500'
-          }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: '500' }}>
             CVSS Score
           </div>
         </div>
@@ -2009,35 +2052,27 @@ const CVSSScoreDisplay = ({ score, severity, vulnerability, settings }) => {
 
       {vulnerability.epss && (
         <div style={{
-          background: `rgba(${hexToRgb(colors.purple)}, 0.1)`,
+          background: `rgba(${utils.hexToRgb(COLORS.purple)}, 0.1)`,
           borderRadius: '8px',
           padding: '8px 12px',
-          marginTop: '12px',
-          border: `1px solid rgba(${hexToRgb(colors.purple)}, 0.2)`
+          border: `1px solid rgba(${utils.hexToRgb(COLORS.purple)}, 0.2)`
         }}>
-          <div style={{
-            fontSize: '0.7rem',
-            color: settings.darkMode ? colors.dark.tertiaryText : colors.light.tertiaryText,
-            marginBottom: '4px'
-          }}>
+          <div style={{ fontSize: '0.7rem', marginBottom: '4px' }}>
             EPSS Exploitation Probability
           </div>
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <div style={{
               flex: 1,
               height: '4px',
-              background: settings.darkMode ? colors.dark.border : colors.light.border,
+              background: settings.darkMode ? COLORS.dark.border : COLORS.light.border,
               borderRadius: '2px',
               overflow: 'hidden'
             }}>
               <div style={{
                 width: `${vulnerability.epss.epssFloat * 100}%`,
                 height: '100%',
-                background: vulnerability.epss.epssFloat > 0.5 ? colors.red : vulnerability.epss.epssFloat > 0.1 ? colors.yellow : colors.green,
+                background: vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.HIGH ? COLORS.red : 
+                           vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.MEDIUM ? COLORS.yellow : COLORS.green,
                 borderRadius: '2px',
                 transition: 'width 1s ease-out'
               }} />
@@ -2045,7 +2080,8 @@ const CVSSScoreDisplay = ({ score, severity, vulnerability, settings }) => {
             <span style={{
               fontSize: '0.75rem',
               fontWeight: '600',
-              color: vulnerability.epss.epssFloat > 0.5 ? colors.red : vulnerability.epss.epssFloat > 0.1 ? colors.yellow : colors.green
+              color: vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.HIGH ? COLORS.red : 
+                     vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.MEDIUM ? COLORS.yellow : COLORS.green
             }}>
               {(vulnerability.epss.epssFloat * 100).toFixed(1)}%
             </span>
@@ -2056,155 +2092,14 @@ const CVSSScoreDisplay = ({ score, severity, vulnerability, settings }) => {
   );
 };
 
-// Simple AI Analysis Tab Component
-const EnhancedAIAnalysisTab = ({ aiAnalysis, vulnerability, darkMode }) => {
-  if (!aiAnalysis || !aiAnalysis.analysis) {
-    return (
-      <div style={{
-        textAlign: 'center',
-        padding: '48px 32px',
-        background: darkMode ? '#1e293b' : '#ffffff',
-        borderRadius: '12px',
-        border: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`
-      }}>
-        <Brain size={40} color={darkMode ? '#64748b' : '#94a3b8'} />
-        <h3 style={{ margin: '16px 0 8px 0', color: darkMode ? '#f1f5f9' : '#0f172a' }}>
-          No AI Analysis Available
-        </h3>
-        <p style={{ margin: 0, color: darkMode ? '#94a3b8' : '#64748b' }}>
-          Generate RAG-enhanced analysis to see structured insights
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '24px' 
-      }}>
-        <h2 style={{
-          fontSize: '1.5rem',
-          fontWeight: '700',
-          color: darkMode ? '#f1f5f9' : '#0f172a',
-          margin: 0
-        }}>
-          RAG-Enhanced Security Analysis
-        </h2>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          {aiAnalysis.webGrounded && (
-            <span style={{
-              padding: '4px 8px',
-              background: 'rgba(34, 197, 94, 0.15)',
-              color: '#22c55e',
-              border: '1px solid rgba(34, 197, 94, 0.3)',
-              borderRadius: '6px',
-              fontSize: '0.75rem',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}>
-              <Globe size={12} />
-              REAL-TIME
-            </span>
-          )}
-          {aiAnalysis.ragUsed && (
-            <span style={{
-              padding: '4px 8px',
-              background: 'rgba(139, 92, 246, 0.15)',
-              color: '#8b5cf6',
-              border: '1px solid rgba(139, 92, 246, 0.3)',
-              borderRadius: '6px',
-              fontSize: '0.75rem',
-              fontWeight: '600',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}>
-              <Database size={12} />
-              RAG ENHANCED
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div style={{
-        background: darkMode ? '#1e293b' : '#ffffff',
-        borderRadius: '12px',
-        padding: '24px',
-        border: `1px solid ${darkMode ? '#334155' : '#e2e8f0'}`,
-        marginBottom: '24px'
-      }}>
-        <div style={{
-          fontSize: '1rem',
-          lineHeight: '1.7',
-          color: darkMode ? '#cbd5e1' : '#374151',
-          whiteSpace: 'pre-wrap'
-        }}>
-          {aiAnalysis.analysis}
-        </div>
-      </div>
-
-      <div style={{
-        background: darkMode ? '#334155' : '#f8fafc',
-        border: `1px solid ${darkMode ? '#475569' : '#e2e8f0'}`,
-        borderRadius: '12px',
-        padding: '16px 20px',
-        fontSize: '0.8rem',
-        color: darkMode ? '#94a3b8' : '#64748b',
-        lineHeight: 1.6,
-      }}>
-        <div style={{ fontWeight: '600', marginBottom: '10px', color: darkMode ? '#cbd5e1' : '#475569' }}>
-          Enhanced Analysis Metadata:
-        </div>
-        <ul style={{ margin: 0, paddingLeft: '20px' }}>
-          <li>Data Sources: {aiAnalysis.enhancedSources?.join(', ') || 'NVD, EPSS, AI-Discovery'}</li>
-          {aiAnalysis.ragUsed && (
-            <>
-              <li>Knowledge Base: {aiAnalysis.ragDocuments} relevant security documents retrieved</li>
-              <li>RAG Sources: {aiAnalysis.ragSources?.slice(0,3).join(', ') || 'Security knowledge base'}</li>
-            </>
-          )}
-          {aiAnalysis.webGrounded && (
-            <li>Real-time Intelligence: Current threat landscape data via web search</li>
-          )}
-          <li>Model Used: {aiAnalysis.model || 'Gemini-2.5-flash'}</li>
-          <li>Generated: {new Date().toLocaleString()}</li>
-        </ul>
-      </div>
-    </div>
-  );
-};
-
-// Main CVE Detail View Component
-const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
+const CVEDetailView = ({ vulnerability }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
-  const { settings, addNotification } = useContext(AppContext);
-  const styles = getStyles(settings.darkMode);
+  const { settings, addNotification, setVulnerabilities } = useContext(AppContext);
+  const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
 
-  const getSeverityStyle = (severity) => {
-    switch (severity?.toUpperCase()) {
-      case 'CRITICAL': return styles.badgeCritical;
-      case 'HIGH': return styles.badgeHigh;
-      case 'MEDIUM': return styles.badgeMedium;
-      case 'LOW': return styles.badgeLow;
-      default: return styles.badge;
-    }
-  };
-
-  const cvssScore = vulnerability.cve?.cvssV3?.baseScore || vulnerability.cve?.cvssV2?.baseScore || 0;
-  const severity = vulnerability.cve?.cvssV3?.baseSeverity || 
-                  (cvssScore >= 9 ? 'CRITICAL' : 
-                   cvssScore >= 7 ? 'HIGH' : 
-                   cvssScore >= 4 ? 'MEDIUM' : 'LOW');
-
-  const generateRAGAnalysis = async () => {
+  const generateAnalysis = useCallback(async () => {
     if (!settings.geminiApiKey) {
       addNotification({
         type: 'error',
@@ -2216,14 +2111,14 @@ const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
 
     setAiLoading(true);
     try {
-      const result = await generateEnhancedRAGAnalysis(
+      const result = await APIService.generateAIAnalysis(
         vulnerability,
         settings.geminiApiKey,
-        settings.geminiModel || 'gemini-2.5-flash',
+        settings.geminiModel,
         settings
       );
       setAiAnalysis(result);
-      setActiveTab('ai-analysis');
+      setActiveTab('analysis');
       
       addNotification({
         type: 'success',
@@ -2233,512 +2128,47 @@ const CVEDetailView = ({ vulnerability, onRefresh, onExport }) => {
     } catch (error) {
       addNotification({
         type: 'error',
-        title: 'AI Analysis Failed',
+        title: 'Analysis Failed',
         message: error.message
       });
     } finally {
       setAiLoading(false);
     }
-  };
+  }, [vulnerability, settings, addNotification]);
 
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '40px', marginTop: '40px' }}>
-      <div style={{
-        background: settings.darkMode ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' : '#ffffff',
-        borderRadius: '20px',
-        padding: '32px',
-        boxShadow: settings.darkMode ? `0 8px 32px ${colors.dark.shadow}` : `0 4px 20px ${colors.light.shadow}`,
-        border: `1px solid ${settings.darkMode ? colors.dark.border : colors.light.border}`
-      }}>
-        <div style={{
-          marginBottom: '24px',
-          paddingBottom: '24px',
-          borderBottom: `1px solid ${settings.darkMode ? colors.dark.border : colors.light.border}`
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h1 style={{
-              fontSize: '2rem',
-              fontWeight: '700',
-              background: `linear-gradient(135deg, ${colors.blue} 0%, ${colors.purple} 100%)`,
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-              margin: 0,
-              lineHeight: 1.2,
-            }}>
-              {vulnerability.cve?.id || 'Unknown CVE'}
-            </h1>
-            
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-              <button
-                style={{
-                  ...styles.button,
-                  ...styles.buttonSecondary,
-                  padding: '8px 12px',
-                  fontSize: '0.875rem'
-                }}
-                onClick={() => {
-                  navigator.clipboard.writeText(vulnerability.cve?.id);
-                  addNotification({ type: 'success', title: 'Copied!', message: 'CVE ID copied to clipboard' });
-                }}
-              >
-                <Copy size={14} />
-                {vulnerability.cve?.id}
-              </button>
-              
-              <button
-                style={{
-                  ...styles.button,
-                  ...styles.buttonSecondary,
-                  padding: '8px 12px',
-                  fontSize: '0.875rem'
-                }}
-                onClick={onRefresh}
-              >
-                <RefreshCw size={14} />
-                Refresh
-              </button>
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{
-              ...styles.badge,
-              ...getSeverityStyle(severity),
-              fontSize: '0.85rem',
-              padding: '6px 12px'
-            }}>
-              {severity} - {cvssScore?.toFixed(1) || 'N/A'}
-            </span>
-            
-            {vulnerability.kev?.listed && (
-              <span style={{
-                ...styles.badge,
-                ...styles.badgeCritical,
-                animation: 'pulse 2s ease-in-out infinite'
-              }}>
-                🚨 CISA KEV - ACTIVE EXPLOITATION
-              </span>
-            )}
-            
-            {vulnerability.exploits?.found && (
-              <span style={{
-                ...styles.badge,
-                background: `rgba(${hexToRgb(colors.red)}, 0.15)`,
-                color: colors.red,
-                border: `1px solid rgba(${hexToRgb(colors.red)}, 0.3)`,
-              }}>
-                💣 {vulnerability.exploits.count || 'Multiple'} EXPLOITS FOUND
-              </span>
-            )}
-
-            {vulnerability.aiSearchPerformed && (
-              <span style={{
-                ...styles.badge,
-                background: `rgba(${hexToRgb(colors.purple)}, 0.15)`,
-                color: colors.purple,
-                border: `1px solid rgba(${hexToRgb(colors.purple)}, 0.3)`,
-              }}>
-                <Brain size={12} style={{ marginRight: '6px' }} />
-                AI ENHANCED ({vulnerability.discoveredSources?.length || 0} sources)
-              </span>
-            )}
-          </div>
-        </div>
-
-        <div style={{
-          display: 'flex',
-          borderBottom: `1px solid ${settings.darkMode ? colors.dark.border : colors.light.border}`,
-          marginBottom: '24px',
-          gap: '4px',
-          flexWrap: 'wrap'
-        }}>
-          {['overview', 'ai-sources', 'ai-analysis'].map((tab) => (
-            <button
-              key={tab}
-              style={{
-                padding: '12px 18px',
-                cursor: 'pointer',
-                border: 'none',
-                borderBottom: activeTab === tab ? `3px solid ${colors.blue}` : '3px solid transparent',
-                fontSize: '0.9rem',
-                fontWeight: '600',
-                color: activeTab === tab ? colors.blue : settings.darkMode ? colors.dark.secondaryText : colors.light.secondaryText,
-                transition: 'all 0.2s ease-in-out',
-                borderRadius: '6px 6px 0 0',
-                background: activeTab === tab
-                  ? (settings.darkMode ? `rgba(${hexToRgb(colors.blue)}, 0.1)` : `rgba(${hexToRgb(colors.blue)}, 0.05)`)
-                  : 'transparent',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                outline: 'none',
-              }}
-              onClick={() => setActiveTab(tab)}
-            >
-              {tab === 'overview' && <Info size={16} />}
-              {tab === 'ai-sources' && <Globe size={16} />}
-              {tab === 'ai-analysis' && <Brain size={16} />}
-              {tab === 'ai-sources' ? 'AI Sources' : tab === 'ai-analysis' ? 'RAG Analysis' : tab.charAt(0).toUpperCase() + tab.slice(1)}
-            </button>
-          ))}
-        </div>
-
-        <div style={{ paddingTop: '8px' }}>
-          {activeTab === 'overview' && (
-            <div>
-              <h2 style={{
-                fontSize: '1.5rem',
-                fontWeight: '700',
-                color: settings.darkMode ? colors.dark.primaryText : colors.light.primaryText,
-                marginBottom: '16px'
-              }}>
-                Vulnerability Overview
-              </h2>
-              
-              <div style={{
-                fontSize: '1.0625rem',
-                lineHeight: '1.7',
-                color: settings.darkMode ? colors.dark.secondaryText : colors.light.secondaryText,
-                marginBottom: '24px'
-              }}>
-                <p style={{ margin: 0 }}>
-                  {vulnerability.cve?.description || 'No description available.'}
-                </p>
-              </div>
-
-              {vulnerability.epss && (
-                <div style={{ marginBottom: '24px' }}>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '12px', color: settings.darkMode ? colors.dark.primaryText : colors.light.primaryText }}>
-                    Exploitation Probability (EPSS)
-                  </h3>
-                  <div style={{
-                    background: vulnerability.epss.epssFloat > 0.5 ? `rgba(${hexToRgb(colors.yellow)}, 0.1)` : `rgba(${hexToRgb(colors.green)}, 0.1)`,
-                    border: `1px solid ${vulnerability.epss.epssFloat > 0.5 ? `rgba(${hexToRgb(colors.yellow)}, 0.3)` : `rgba(${hexToRgb(colors.green)}, 0.3)`}`,
-                    borderRadius: '12px',
-                    padding: '20px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                      <Target size={24} color={vulnerability.epss.epssFloat > 0.5 ? colors.yellow : colors.green} />
-                      <div>
-                        <div style={{ fontWeight: '700', fontSize: '1.05rem', color: settings.darkMode ? colors.dark.primaryText : colors.light.primaryText }}>
-                          EPSS Score: {vulnerability.epss.epssPercentage}%
-                        </div>
-                        <div style={{ fontSize: '0.85rem', color: settings.darkMode ? colors.dark.tertiaryText : colors.light.tertiaryText }}>
-                          Percentile: {parseFloat(vulnerability.epss.percentile).toFixed(3)}
-                        </div>
-                        <p style={{ margin: '12px 0 0 0', fontSize: '1rem', color: settings.darkMode ? colors.dark.secondaryText : colors.light.secondaryText }}>
-                          {vulnerability.epss.epssFloat > 0.5
-                            ? 'This vulnerability has a HIGH probability of exploitation. Immediate patching recommended.'
-                            : vulnerability.epss.epssFloat > 0.1
-                              ? 'This vulnerability has a MODERATE probability of exploitation. Monitor for patches and updates.'
-                              : 'This vulnerability has a LOW probability of exploitation, but still requires attention.'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div style={{ 
-                marginTop: '32px',
-                paddingTop: '24px',
-                borderTop: `1px solid ${settings.darkMode ? colors.dark.border : colors.light.border}`,
-                textAlign: 'center'
-              }}>
-                <button
-                  style={{
-                    ...styles.button,
-                    ...styles.buttonPrimary,
-                    opacity: aiLoading || !settings.geminiApiKey ? 0.7 : 1,
-                    fontSize: '1rem',
-                    padding: '16px 32px'
-                  }}
-                  onClick={generateRAGAnalysis}
-                  disabled={aiLoading || !settings.geminiApiKey}
-                >
-                  {aiLoading ? (
-                    <>
-                      <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
-                      Generating RAG-Enhanced Analysis...
-                    </>
-                  ) : (
-                    <>
-                      <Brain size={20} />
-                      <Database size={16} style={{ marginLeft: '4px' }} />
-                      Generate RAG-Powered Analysis
-                    </>
-                  )}
-                </button>
-                {!settings.geminiApiKey && (
-                  <p style={{ fontSize: '0.9rem', color: settings.darkMode ? '#64748b' : '#94a3b8', marginTop: '12px' }}>
-                    Configure Gemini API key in settings to enable RAG-enhanced threat intelligence
-                  </p>
-                )}
-              </div>
-            </div>
-          )}
-
-          {activeTab === 'ai-sources' && (
-            <div>
-              <h2 style={{
-                fontSize: '1.5rem',
-                fontWeight: '700',
-                color: settings.darkMode ? colors.dark.primaryText : colors.light.primaryText,
-                marginBottom: '24px'
-              }}>
-                AI-Discovered Intelligence Sources
-              </h2>
-
-              {(!vulnerability.sources && !vulnerability.discoveredSources) ? (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '48px',
-                  color: settings.darkMode ? colors.dark.tertiaryText : colors.light.tertiaryText
-                }}>
-                  <Brain size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
-                  <p>AI source discovery not yet performed</p>
-                </div>
-              ) : (
-                <div>
-                  <div style={{
-                    background: settings.darkMode ? colors.dark.surface : colors.light.surface,
-                    borderRadius: '12px',
-                    padding: '20px',
-                    marginBottom: '24px',
-                    border: `1px solid ${settings.darkMode ? colors.dark.border : colors.light.border}`
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      marginBottom: '16px'
-                    }}>
-                      <Brain size={24} color={colors.purple} />
-                      <div>
-                        <h3 style={{
-                          fontSize: '1.125rem',
-                          fontWeight: '600',
-                          margin: 0,
-                          color: settings.darkMode ? colors.dark.primaryText : colors.light.primaryText
-                        }}>
-                          AI Analysis Summary
-                        </h3>
-                        <p style={{
-                          margin: '4px 0 0 0',
-                          fontSize: '0.875rem',
-                          color: settings.darkMode ? colors.dark.secondaryText : colors.light.secondaryText
-                        }}>
-                          {vulnerability.summary || `AI searched ${vulnerability.discoveredSources?.length || 6} security sources`}
-                        </p>
-                      </div>
-                    </div>
-
-                    {(vulnerability.kev?.listed || vulnerability.exploits?.found) && (
-                      <div style={{
-                        background: `rgba(${hexToRgb(colors.red)}, 0.1)`,
-                        border: `1px solid rgba(${hexToRgb(colors.red)}, 0.3)`,
-                        borderRadius: '8px',
-                        padding: '12px',
-                        marginBottom: '16px'
-                      }}>
-                        {vulnerability.kev?.listed && (
-                          <div style={{ marginBottom: '8px' }}>
-                            <strong style={{ color: colors.red }}>🚨 CISA KEV:</strong> {vulnerability.kev.details}
-                          </div>
-                        )}
-                        {vulnerability.exploits?.found && (
-                          <div>
-                            <strong style={{ color: colors.red }}>💣 Public Exploits:</strong> Found {vulnerability.exploits.count} exploit(s)
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {vulnerability.discoveredSources && vulnerability.discoveredSources.length > 0 && (
-                      <div>
-                        <h4 style={{
-                          fontSize: '1rem',
-                          fontWeight: '600',
-                          marginBottom: '12px',
-                          color: settings.darkMode ? colors.dark.primaryText : colors.light.primaryText
-                        }}>
-                          Sources Analyzed
-                        </h4>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                          {vulnerability.discoveredSources.map((source, index) => (
-                            <span
-                              key={index}
-                              style={{
-                                padding: '4px 8px',
-                                background: `rgba(${hexToRgb(colors.blue)}, 0.15)`,
-                                color: colors.blue,
-                                border: `1px solid rgba(${hexToRgb(colors.blue)}, 0.3)`,
-                                borderRadius: '6px',
-                                fontSize: '0.75rem',
-                                fontWeight: '600'
-                              }}
-                            >
-                              {source}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {activeTab === 'ai-analysis' && (
-            <EnhancedAIAnalysisTab 
-              aiAnalysis={aiAnalysis}
-              vulnerability={vulnerability}
-              darkMode={settings.darkMode}
-            />
-          )}
-        </div>
-      </div>
-
-      <div style={{
-        background: settings.darkMode ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)' : '#ffffff',
-        borderRadius: '16px',
-        padding: '24px',
-        boxShadow: settings.darkMode ? `0 8px 32px ${colors.dark.shadow}` : `0 4px 20px ${colors.light.shadow}`,
-        border: `1px solid ${settings.darkMode ? colors.dark.border : colors.light.border}`,
-        height: 'fit-content',
-        position: 'sticky',
-        top: '24px',
-      }}>
-        <CVSSScoreDisplay 
-          score={cvssScore} 
-          severity={severity} 
-          vulnerability={vulnerability} 
-          settings={settings} 
-        />
-
-        <div style={{
-          background: settings.darkMode ? colors.dark.surface : colors.light.surface,
-          borderRadius: '12px',
-          padding: '16px',
-          marginBottom: '20px',
-          border: `1px solid ${settings.darkMode ? colors.dark.border : colors.light.border}`
-        }}>
-          <h3 style={{
-            fontSize: '0.95rem',
-            fontWeight: '600',
-            marginBottom: '12px',
-            color: settings.darkMode ? colors.dark.secondaryText : colors.light.secondaryText,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '6px'
-          }}>
-            <Brain size={14} />
-            AI Intelligence Summary
-          </h3>
-          
-          <div style={{ fontSize: '0.8125rem', color: settings.darkMode ? colors.dark.tertiaryText : colors.light.tertiaryText }}>
-            <p style={{ margin: '0 0 8px 0' }}>
-              <strong>Sources Analyzed:</strong> {vulnerability.discoveredSources?.length || 0}
-            </p>
-            <p style={{ margin: '0 0 8px 0' }}>
-              <strong>Exploits Found:</strong> {vulnerability.exploits?.count || 0}
-            </p>
-            <p style={{ margin: '0 0 8px 0' }}>
-              <strong>Active Exploitation:</strong> {vulnerability.kev?.listed ? 'YES' : 'No'}
-            </p>
-            <p style={{ margin: 0 }}>
-              <strong>Last Updated:</strong> {new Date(vulnerability.lastUpdated).toLocaleString()}
-            </p>
-          </div>
-        </div>
-
-        <div style={{ 
-          marginTop: 'auto',
-          paddingTop: '16px',
-          borderTop: `1px solid ${settings.darkMode ? colors.dark.border : colors.light.border}`,
-          fontSize: '0.8rem',
-          color: settings.darkMode ? colors.dark.tertiaryText : colors.light.tertiaryText,
-          textAlign: 'center',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: '6px'
-        }}>
-          <Brain size={12} />
-          <Database size={12} />
-          Powered by RAG + AI
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const VulnerabilityIntelligence = () => {
-  const [vulnerabilities, setVulnerabilities] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [loadingSteps, setLoadingSteps] = useState([]);
-  const [notifications, setNotifications] = useState([]);
-  const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState({
-    darkMode: false,
-    geminiApiKey: '',
-    geminiModel: 'gemini-2.5-flash',
-    nvdApiKey: '',
-    enableRAG: true
-  });
-
-  const styles = getStyles(settings.darkMode);
-
-  const addNotification = (notification) => {
-    const id = Date.now() + Math.random();
-    setNotifications(prev => [...prev, { ...notification, id }]);
-    setTimeout(() => {
-      setNotifications(prev => prev.filter(n => n.id !== id));
-    }, 5000);
-  };
-
-  const handleRefreshAnalysis = async () => {
-    if (vulnerabilities.length === 0) return;
-    
-    const cveId = vulnerabilities[0].cve?.id;
+  const handleRefresh = useCallback(async () => {
+    const cveId = vulnerability.cve?.id;
     if (!cveId) return;
 
-    setLoading(true);
-    setLoadingSteps([]);
-    
     try {
-      const vulnerability = await fetchVulnerabilityDataWithAI(cveId, setLoadingSteps, {
-        nvd: settings.nvdApiKey
-      }, settings);
+      const refreshedVulnerability = await APIService.fetchVulnerabilityDataWithAI(
+        cveId, 
+        (steps) => {}, // Empty function for refresh to avoid loading steps
+        { nvd: settings.nvdApiKey }, 
+        settings
+      );
       
-      setVulnerabilities([vulnerability]);
+      setVulnerabilities([refreshedVulnerability]);
       
       addNotification({
         type: 'success',
-        title: 'Analysis Refreshed',
-        message: `Updated AI-enhanced analysis for ${cveId}`
+        title: 'Data Refreshed',
+        message: `Updated analysis for ${cveId} with latest threat intelligence`
       });
-      
     } catch (error) {
       addNotification({
         type: 'error',
         title: 'Refresh Failed',
         message: error.message
       });
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [vulnerability, settings, setVulnerabilities, addNotification]);
 
-  const handleExportAnalysis = async () => {
-    if (vulnerabilities.length === 0) return;
-    
+  const handleExport = useCallback(() => {
     try {
-      const vulnerability = vulnerabilities[0];
       const exportData = {
         ...vulnerability,
+        aiAnalysis: aiAnalysis,
         exportedAt: new Date().toISOString(),
         exportedBy: 'AI-Enhanced VulnIntel Platform'
       };
@@ -2769,9 +2199,639 @@ const VulnerabilityIntelligence = () => {
         message: error.message
       });
     }
-  };
+  }, [vulnerability, aiAnalysis, addNotification]);
 
-  const contextValue = {
+  const cvssScore = vulnerability.cve?.cvssV3?.baseScore || vulnerability.cve?.cvssV2?.baseScore || 0;
+  const severity = utils.getSeverityLevel(cvssScore);
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 400px', gap: '40px', marginTop: '40px' }}>
+      <div style={styles.card}>
+        <div style={{
+          marginBottom: '24px',
+          paddingBottom: '24px',
+          borderBottom: `1px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}`
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h1 style={{
+              ...styles.title,
+              fontSize: '2rem',
+              margin: 0
+            }}>
+              {vulnerability.cve?.id || 'Unknown CVE'}
+            </h1>
+            
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <button
+                style={{
+                  ...styles.button,
+                  ...styles.buttonSecondary,
+                  padding: '8px 12px',
+                  fontSize: '0.875rem'
+                }}
+                onClick={() => {
+                  navigator.clipboard.writeText(vulnerability.cve?.id);
+                  addNotification({ type: 'success', title: 'Copied!', message: 'CVE ID copied to clipboard' });
+                }}
+              >
+                <Copy size={14} />
+                {vulnerability.cve?.id}
+              </button>
+              
+              <button
+                style={{
+                  ...styles.button,
+                  ...styles.buttonSecondary,
+                  padding: '8px 12px',
+                  fontSize: '0.875rem'
+                }}
+                onClick={handleRefresh}
+              >
+                <RefreshCw size={14} />
+                Refresh
+              </button>
+
+              <button
+                style={{
+                  ...styles.button,
+                  ...styles.buttonSecondary,
+                  padding: '8px 12px',
+                  fontSize: '0.875rem'
+                }}
+                onClick={handleExport}
+              >
+                <Package size={14} />
+                Export
+              </button>
+            </div>
+          </div>
+          
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{
+              ...styles.badge,
+              ...(severity === 'CRITICAL' ? styles.badgeCritical :
+                  severity === 'HIGH' ? styles.badgeHigh :
+                  severity === 'MEDIUM' ? styles.badgeMedium : styles.badgeLow),
+              fontSize: '0.85rem',
+              padding: '6px 12px'
+            }}>
+              {severity} - {cvssScore?.toFixed(1) || 'N/A'}
+            </span>
+            
+            {vulnerability.kev?.listed && (
+              <span style={{
+                ...styles.badge,
+                ...styles.badgeCritical,
+                animation: 'pulse 2s ease-in-out infinite'
+              }}>
+                🚨 CISA KEV - ACTIVE EXPLOITATION
+              </span>
+            )}
+            
+            {vulnerability.exploits?.found && (
+              <span style={{
+                ...styles.badge,
+                background: `rgba(${utils.hexToRgb(COLORS.red)}, 0.15)`,
+                color: COLORS.red,
+                border: `1px solid rgba(${utils.hexToRgb(COLORS.red)}, 0.3)`,
+              }}>
+                💣 {vulnerability.exploits.count || 'Multiple'} EXPLOITS FOUND
+              </span>
+            )}
+
+            {vulnerability.aiSearchPerformed && (
+              <span style={{
+                ...styles.badge,
+                background: `rgba(${utils.hexToRgb(COLORS.purple)}, 0.15)`,
+                color: COLORS.purple,
+                border: `1px solid rgba(${utils.hexToRgb(COLORS.purple)}, 0.3)`,
+              }}>
+                <Brain size={12} style={{ marginRight: '6px' }} />
+                AI ENHANCED ({vulnerability.discoveredSources?.length || 0} sources)
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div style={{
+          display: 'flex',
+          borderBottom: `1px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}`,
+          marginBottom: '24px',
+          gap: '4px',
+          flexWrap: 'wrap'
+        }}>
+          {['overview', 'ai-sources', 'analysis'].map((tab) => (
+            <button
+              key={tab}
+              style={{
+                padding: '12px 18px',
+                cursor: 'pointer',
+                border: 'none',
+                borderBottom: activeTab === tab ? `3px solid ${COLORS.blue}` : '3px solid transparent',
+                fontSize: '0.9rem',
+                fontWeight: '600',
+                color: activeTab === tab ? COLORS.blue : settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText,
+                transition: 'all 0.2s ease-in-out',
+                borderRadius: '6px 6px 0 0',
+                background: activeTab === tab
+                  ? (settings.darkMode ? `rgba(${utils.hexToRgb(COLORS.blue)}, 0.1)` : `rgba(${utils.hexToRgb(COLORS.blue)}, 0.05)`)
+                  : 'transparent',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                outline: 'none',
+              }}
+              onClick={() => setActiveTab(tab)}
+            >
+              {tab === 'overview' && <Info size={16} />}
+              {tab === 'ai-sources' && <Globe size={16} />}
+              {tab === 'analysis' && <Brain size={16} />}
+              {tab === 'ai-sources' ? 'AI Sources' : tab === 'analysis' ? 'RAG Analysis' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+            </button>
+          ))}
+        </div>
+
+        <div>
+          {activeTab === 'overview' && (
+            <div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '16px' }}>
+                Vulnerability Overview
+              </h2>
+              
+              <p style={{
+                fontSize: '1.0625rem',
+                lineHeight: '1.7',
+                color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText,
+                marginBottom: '24px'
+              }}>
+                {vulnerability.cve?.description || 'No description available.'}
+              </p>
+
+              {vulnerability.epss && (
+                <div style={{ marginBottom: '24px' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '12px' }}>
+                    Exploitation Probability (EPSS)
+                  </h3>
+                  <div style={{
+                    background: vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.HIGH ? 
+                      `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)` : `rgba(${utils.hexToRgb(COLORS.green)}, 0.1)`,
+                    border: `1px solid ${vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.HIGH ? 
+                      `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.3)` : `rgba(${utils.hexToRgb(COLORS.green)}, 0.3)`}`,
+                    borderRadius: '12px',
+                    padding: '20px'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                      <Target size={24} color={vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.HIGH ? COLORS.yellow : COLORS.green} />
+                      <div>
+                        <div style={{ fontWeight: '700', fontSize: '1.05rem' }}>
+                          EPSS Score: {vulnerability.epss.epssPercentage}%
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
+                          Percentile: {parseFloat(vulnerability.epss.percentile).toFixed(3)}
+                        </div>
+                        <p style={{ margin: '12px 0 0 0', fontSize: '1rem' }}>
+                          {vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.HIGH
+                            ? 'This vulnerability has a HIGH probability of exploitation. Immediate patching recommended.'
+                            : vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.MEDIUM
+                              ? 'This vulnerability has a MODERATE probability of exploitation. Monitor for patches.'
+                              : 'This vulnerability has a LOW probability of exploitation, but still requires attention.'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div style={{ textAlign: 'center', marginTop: '32px', paddingTop: '24px', borderTop: `1px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}` }}>
+                <button
+                  style={{
+                    ...styles.button,
+                    ...styles.buttonPrimary,
+                    opacity: aiLoading || !settings.geminiApiKey ? 0.7 : 1,
+                    fontSize: '1rem',
+                    padding: '16px 32px'
+                  }}
+                  onClick={generateAnalysis}
+                  disabled={aiLoading || !settings.geminiApiKey}
+                >
+                  {aiLoading ? (
+                    <>
+                      <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
+                      Generating RAG-Enhanced Analysis...
+                    </>
+                  ) : (
+                    <>
+                      <Brain size={20} />
+                      <Database size={16} style={{ marginLeft: '4px' }} />
+                      Generate RAG-Powered Analysis
+                    </>
+                  )}
+                </button>
+                {!settings.geminiApiKey && (
+                  <p style={{ fontSize: '0.9rem', color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText, marginTop: '12px' }}>
+                    Configure Gemini API key in settings to enable RAG-enhanced threat intelligence
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'ai-sources' && (
+            <div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '24px' }}>
+                AI-Discovered Intelligence Sources
+              </h2>
+
+              {(!vulnerability.sources && !vulnerability.discoveredSources) ? (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '48px',
+                  color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText
+                }}>
+                  <Brain size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                  <p>AI source discovery not yet performed</p>
+                </div>
+              ) : (
+                <div>
+                  <div style={{
+                    ...styles.card,
+                    marginBottom: '24px',
+                    background: settings.darkMode ? COLORS.dark.background : COLORS.light.background
+                  }}>
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      marginBottom: '16px'
+                    }}>
+                      <Brain size={24} color={COLORS.purple} />
+                      <div>
+                        <h3 style={{
+                          fontSize: '1.125rem',
+                          fontWeight: '600',
+                          margin: 0
+                        }}>
+                          AI Analysis Summary
+                        </h3>
+                        <p style={{
+                          margin: '4px 0 0 0',
+                          fontSize: '0.875rem',
+                          color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText
+                        }}>
+                          {vulnerability.summary || `AI searched ${vulnerability.discoveredSources?.length || 2} security sources`}
+                        </p>
+                      </div>
+                    </div>
+
+                    {(vulnerability.kev?.listed || vulnerability.exploits?.found || vulnerability.activeExploitation?.confirmed) && (
+                      <div style={{
+                        background: `rgba(${utils.hexToRgb(COLORS.red)}, 0.1)`,
+                        border: `1px solid rgba(${utils.hexToRgb(COLORS.red)}, 0.3)`,
+                        borderRadius: '8px',
+                        padding: '12px',
+                        marginBottom: '16px'
+                      }}>
+                        {vulnerability.kev?.listed && (
+                          <div style={{ marginBottom: '8px' }}>
+                            <strong style={{ color: COLORS.red }}>🚨 CISA KEV:</strong> {vulnerability.kev.details}
+                          </div>
+                        )}
+                        {vulnerability.exploits?.found && (
+                          <div style={{ marginBottom: '8px' }}>
+                            <strong style={{ color: COLORS.red }}>💣 Public Exploits:</strong> Found {vulnerability.exploits.count} exploit(s)
+                          </div>
+                        )}
+                        {vulnerability.activeExploitation?.confirmed && (
+                          <div>
+                            <strong style={{ color: COLORS.red }}>🔍 Active Exploitation:</strong> {vulnerability.activeExploitation.details}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {vulnerability.discoveredSources && vulnerability.discoveredSources.length > 0 && (
+                      <div>
+                        <h4 style={{
+                          fontSize: '1rem',
+                          fontWeight: '600',
+                          marginBottom: '12px'
+                        }}>
+                          Sources Analyzed
+                        </h4>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {vulnerability.discoveredSources.map((source, index) => (
+                            <span
+                              key={index}
+                              style={{
+                                padding: '4px 8px',
+                                background: `rgba(${utils.hexToRgb(COLORS.blue)}, 0.15)`,
+                                color: COLORS.blue,
+                                border: `1px solid rgba(${utils.hexToRgb(COLORS.blue)}, 0.3)`,
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                                fontWeight: '600'
+                              }}
+                            >
+                              {source}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'analysis' && (
+            <div>
+              {aiAnalysis ? (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                    <h2 style={{ fontSize: '1.5rem', fontWeight: '700', margin: 0 }}>
+                      RAG-Enhanced Security Analysis
+                    </h2>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {aiAnalysis.webGrounded && (
+                        <span style={{
+                          padding: '4px 8px',
+                          background: 'rgba(34, 197, 94, 0.15)',
+                          color: '#22c55e',
+                          border: '1px solid rgba(34, 197, 94, 0.3)',
+                          borderRadius: '6px',
+                          fontSize: '0.75rem',
+                          fontWeight: '600',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}>
+                          <Globe size={12} />
+                          REAL-TIME
+                        </span>
+                      )}
+                      {aiAnalysis.ragUsed && (
+                        <span style={{
+                          ...styles.badge,
+                          background: `rgba(${utils.hexToRgb(COLORS.purple)}, 0.15)`,
+                          color: COLORS.purple,
+                          border: `1px solid rgba(${utils.hexToRgb(COLORS.purple)}, 0.3)`
+                        }}>
+                          <Database size={12} />
+                          RAG ENHANCED
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    ...styles.card,
+                    marginBottom: '24px',
+                    background: settings.darkMode ? COLORS.dark.background : COLORS.light.background
+                  }}>
+                    <div style={{
+                      fontSize: '1rem',
+                      lineHeight: '1.7',
+                      whiteSpace: 'pre-wrap'
+                    }}>
+                      {aiAnalysis.analysis}
+                    </div>
+                  </div>
+
+                  <div style={{
+                    background: settings.darkMode ? COLORS.dark.surface : COLORS.light.background,
+                    border: `1px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}`,
+                    borderRadius: '12px',
+                    padding: '16px 20px',
+                    fontSize: '0.8rem',
+                    color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText
+                  }}>
+                    <div style={{ fontWeight: '600', marginBottom: '10px' }}>
+                      Enhanced Analysis Metadata:
+                    </div>
+                    <ul style={{ margin: 0, paddingLeft: '20px' }}>
+                      <li>Data Sources: {aiAnalysis.enhancedSources?.join(', ') || 'NVD, EPSS, AI-Discovery'}</li>
+                      {aiAnalysis.ragUsed && (
+                        <>
+                          <li>Knowledge Base: {aiAnalysis.ragDocuments} relevant security documents retrieved</li>
+                          <li>RAG Sources: {aiAnalysis.ragSources?.slice(0,3).join(', ') || 'Security knowledge base'}</li>
+                        </>
+                      )}
+                      {aiAnalysis.webGrounded && (
+                        <li>Real-time Intelligence: Current threat landscape data via web search</li>
+                      )}
+                      <li>Model Used: {aiAnalysis.model || 'Gemini-2.5-flash'}</li>
+                      <li>Generated: {utils.formatDate(aiAnalysis.analysisTimestamp)}</li>
+                      <li>RAG Database: {aiAnalysis.ragDatabaseSize || 0} total documents</li>
+                      {aiAnalysis.embeddingType && (
+                        <li>Embeddings: {aiAnalysis.embeddingType} ({aiAnalysis.geminiEmbeddingsCount || 0} Gemini embeddings)</li>
+                      )}
+                      {aiAnalysis.realTimeData && (
+                        <>
+                          <li>CISA KEV: {aiAnalysis.realTimeData.cisaKev ? 'Listed' : 'Not Listed'}</li>
+                          <li>Exploits Found: {aiAnalysis.realTimeData.exploitsFound || 0}</li>
+                          <li>Threat Level: {aiAnalysis.realTimeData.threatLevel || 'Standard'}</li>
+                        </>
+                      )}
+                    </ul>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '48px 32px' }}>
+                  <Brain size={40} color={settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText} />
+                  <h3 style={{ margin: '16px 0 8px 0' }}>No AI Analysis Available</h3>
+                  <p style={{ margin: 0, color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
+                    Generate RAG-enhanced analysis to see structured insights
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{
+        ...styles.card,
+        height: 'fit-content',
+        position: 'sticky',
+        top: '24px',
+      }}>
+        <CVSSDisplay vulnerability={vulnerability} settings={settings} />
+
+        <div style={{
+          ...styles.card,
+          background: settings.darkMode ? COLORS.dark.background : COLORS.light.background,
+          marginBottom: '20px'
+        }}>
+          <h3 style={{
+            fontSize: '0.95rem',
+            fontWeight: '600',
+            marginBottom: '12px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px'
+          }}>
+            <Brain size={14} />
+            AI Intelligence Summary
+          </h3>
+          
+          <div style={{ fontSize: '0.8125rem', color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
+            <p style={{ margin: '0 0 8px 0' }}>
+              <strong>Sources Analyzed:</strong> {vulnerability.discoveredSources?.length || 0}
+            </p>
+            <p style={{ margin: '0 0 8px 0' }}>
+              <strong>Exploits Found:</strong> {vulnerability.exploits?.count || 0}
+            </p>
+            <p style={{ margin: '0 0 8px 0' }}>
+              <strong>Active Exploitation:</strong> {vulnerability.kev?.listed ? 'YES' : 'No'}
+            </p>
+            <p style={{ margin: '0 0 8px 0' }}>
+              <strong>CISA KEV:</strong> {vulnerability.kev?.listed ? 'LISTED' : 'Not Listed'}
+            </p>
+            <p style={{ margin: '0 0 8px 0' }}>
+              <strong>Threat Level:</strong> {vulnerability.threatLevel || 'Standard'}
+            </p>
+            <p style={{ margin: 0 }}>
+              <strong>Last Updated:</strong> {utils.formatDate(vulnerability.lastUpdated)}
+            </p>
+          </div>
+        </div>
+
+        <div style={{ 
+          fontSize: '0.8rem',
+          color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText,
+          textAlign: 'center',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '6px'
+        }}>
+          <Brain size={12} />
+          <Database size={12} />
+          Powered by AI + RAG
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const EmptyState = () => {
+  const { settings } = useContext(AppContext);
+  const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
+
+  return (
+    <div style={{ 
+      textAlign: 'center', 
+      padding: '64px 32px',
+      color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText 
+    }}>
+      <div style={{ 
+        marginBottom: '28px', 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        gap: '16px' 
+      }}>
+        <Brain size={56} color={settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText} />
+        <Database size={40} color={settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText} />
+        <Globe size={44} color={settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText} />
+      </div>
+      
+      <h3 style={{
+        fontSize: '1.375rem',
+        fontWeight: '600',
+        marginBottom: '16px',
+        color: settings.darkMode ? COLORS.dark.primaryText : COLORS.light.primaryText
+      }}>
+        AI-Enhanced Intelligence Platform Ready
+      </h3>
+      
+      <p style={{
+        fontSize: '0.95rem',
+        marginBottom: '12px',
+        color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText,
+        lineHeight: 1.6,
+        maxWidth: '600px',
+        margin: '0 auto 12px auto'
+      }}>
+        Enter a CVE ID to begin comprehensive AI-powered vulnerability analysis with multi-source discovery and contextual knowledge retrieval.
+      </p>
+      
+      <p style={{
+        fontSize: '0.875rem',
+        color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText,
+        marginBottom: '28px',
+        maxWidth: '600px',
+        margin: '0 auto 28px auto'
+      }}>
+        Real-time intelligence enhanced with semantic search, security sources, and domain expertise.
+      </p>
+      
+      {!settings.geminiApiKey && (
+        <div style={{
+          marginTop: '32px',
+          padding: '16px 20px',
+          background: settings.darkMode
+            ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)`
+            : `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.07)`,
+          border: `1px solid rgba(${utils.hexToRgb(COLORS.yellow)}, 0.3)`,
+          borderRadius: '12px',
+          maxWidth: '550px',
+          margin: '32px auto 0'
+        }}>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '12px', 
+            marginBottom: '10px' 
+          }}>
+            <AlertTriangle size={20} color={COLORS.yellow} />
+            <span style={{ 
+              fontWeight: '600', 
+              color: COLORS.yellow, 
+              fontSize: '0.95rem' 
+            }}>
+              AI Configuration Required
+            </span>
+          </div>
+          <p style={{
+            fontSize: '0.875rem',
+            margin: 0,
+            color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText,
+            lineHeight: 1.5
+          }}>
+            Configure your Gemini API key in settings to enable AI-enhanced multi-source vulnerability analysis.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Main Application Component
+const VulnerabilityIntelligence = () => {
+  const [vulnerabilities, setVulnerabilities] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [loadingSteps, setLoadingSteps] = useState([]);
+  const [showSettings, setShowSettings] = useState(false);
+  
+  const { notifications, addNotification } = useNotifications();
+  const { settings, setSettings } = useSettings();
+  const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
+
+  // Apply theme to document body
+  useEffect(() => {
+    document.body.style.backgroundColor = styles.app.backgroundColor;
+    document.body.style.color = styles.app.color;
+    document.body.style.fontFamily = styles.app.fontFamily;
+  }, [styles.app]);
+
+  // Initialize RAG database
+  useEffect(() => {
+    ragDatabase.initialize().catch(console.error);
+  }, []);
+
+  const contextValue = useMemo(() => ({
     vulnerabilities,
     setVulnerabilities,
     loading,
@@ -2782,11 +2842,19 @@ const VulnerabilityIntelligence = () => {
     addNotification,
     settings,
     setSettings
-  };
+  }), [
+    vulnerabilities,
+    loading,
+    loadingSteps,
+    notifications,
+    addNotification,
+    settings,
+    setSettings
+  ]);
 
   return (
     <AppContext.Provider value={contextValue}>
-      <div style={styles.appContainer}>
+      <div style={styles.app}>
         <style>
           {`
             @keyframes spin {
@@ -2803,7 +2871,7 @@ const VulnerabilityIntelligence = () => {
             input:focus-visible, 
             select:focus-visible, 
             a:focus-visible {
-              outline: 2px solid ${colors.blue} !important;
+              outline: 2px solid ${COLORS.blue} !important;
               outline-offset: 2px !important;
             }
             
@@ -2825,30 +2893,39 @@ const VulnerabilityIntelligence = () => {
         
         <header style={styles.header}>
           <div style={styles.headerContent}>
-            <div style={styles.headerTitle}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               <div style={{ position: 'relative' }}>
-                <Brain size={32} color="#3b82f6" />
-                <Database size={20} color="#8b5cf6" style={{ position: 'absolute', top: '16px', left: '20px' }} />
+                <Brain size={32} color={COLORS.blue} />
+                <Database size={20} color={COLORS.purple} style={{ 
+                  position: 'absolute', 
+                  top: '16px', 
+                  left: '20px' 
+                }} />
               </div>
               <div>
                 <h1 style={styles.title}>AI VulnIntel Pro</h1>
-                <p style={styles.subtitle}>AI-Powered Multi-Source Vulnerability Intelligence with RAG Enhancement</p>
+                <p style={styles.subtitle}>
+                  AI-Powered Multi-Source Vulnerability Intelligence with RAG Enhancement
+                </p>
               </div>
             </div>
             
-            <div style={styles.headerActions}>
-              <div
-                style={{
-                  ...styles.statusIndicator,
-                  background: settings.geminiApiKey
-                    ? (settings.darkMode ? `rgba(${hexToRgb(colors.green)}, 0.15)` : `rgba(${hexToRgb(colors.green)}, 0.1)`)
-                    : (settings.darkMode ? `rgba(${hexToRgb(colors.yellow)}, 0.15)` : `rgba(${hexToRgb(colors.yellow)}, 0.1)`),
-                  borderColor: settings.geminiApiKey
-                    ? `rgba(${hexToRgb(colors.green)}, 0.3)`
-                    : `rgba(${hexToRgb(colors.yellow)}, 0.3)`,
-                  color: settings.geminiApiKey ? colors.green : colors.yellow,
-                }}
-              >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{
+                ...styles.badge,
+                background: settings.geminiApiKey
+                  ? (settings.darkMode ? `rgba(${utils.hexToRgb(COLORS.green)}, 0.15)` : `rgba(${utils.hexToRgb(COLORS.green)}, 0.1)`)
+                  : (settings.darkMode ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.15)` : `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)`),
+                borderColor: settings.geminiApiKey
+                  ? `rgba(${utils.hexToRgb(COLORS.green)}, 0.3)`
+                  : `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.3)`,
+                color: settings.geminiApiKey ? COLORS.green : COLORS.yellow,
+                border: `1px solid`,
+                fontWeight: '600',
+                fontSize: '0.875rem',
+                padding: '8px 14px',
+                minHeight: '44px',
+              }}>
                 <Brain size={16} />
                 {settings.geminiApiKey ? 'AI Ready' : 'AI Offline'}
               </div>
@@ -2867,79 +2944,13 @@ const VulnerabilityIntelligence = () => {
         <main>
           <SearchComponent />
           
-          <div style={styles.mainContent}>
+          <div style={{ maxWidth: '1536px', margin: '0 auto', padding: '24px 32px' }}>
             {loading && <LoadingComponent />}
             
-            {!loading && vulnerabilities.length === 0 && (
-              <div style={{...styles.emptyState, paddingTop: '48px', paddingBottom: '48px' }}>
-                <div style={{ marginBottom: '28px', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '16px' }}>
-                  <Brain size={56} color={settings.darkMode ? colors.dark.tertiaryText : colors.light.tertiaryText} />
-                  <Database size={40} color={settings.darkMode ? colors.dark.tertiaryText : colors.light.tertiaryText} />
-                  <Globe size={44} color={settings.darkMode ? colors.dark.tertiaryText : colors.light.tertiaryText} />
-                </div>
-                <h3 style={{
-                  fontSize: '1.375rem',
-                  fontWeight: '600',
-                  marginBottom: '16px',
-                  color: settings.darkMode ? colors.dark.primaryText : colors.light.primaryText
-                }}>
-                  AI-Enhanced Intelligence Platform Ready
-                </h3>
-                <p style={{
-                  fontSize: '0.95rem',
-                  marginBottom: '12px',
-                  color: settings.darkMode ? colors.dark.secondaryText : colors.light.secondaryText,
-                  lineHeight: 1.6,
-                  maxWidth: '600px',
-                  margin: '0 auto 12px auto'
-                }}>
-                  Enter a CVE ID to begin comprehensive AI-powered vulnerability analysis with multi-source discovery and contextual knowledge retrieval.
-                </p>
-                <p style={{
-                  fontSize: '0.875rem',
-                  color: settings.darkMode ? colors.dark.tertiaryText : colors.light.tertiaryText,
-                  marginBottom: '28px',
-                  maxWidth: '600px',
-                  margin: '0 auto 28px auto'
-                }}>
-                  Real-time intelligence enhanced with semantic search, security sources, and domain expertise.
-                </p>
-                
-                {!settings.geminiApiKey && (
-                  <div style={{
-                    marginTop: '32px',
-                    padding: '16px 20px',
-                    background: settings.darkMode
-                      ? `rgba(${hexToRgb(colors.yellow)}, 0.1)`
-                      : `rgba(${hexToRgb(colors.yellow)}, 0.07)`,
-                    border: `1px solid rgba(${hexToRgb(colors.yellow)}, 0.3)`,
-                    borderRadius: '12px',
-                    maxWidth: '550px',
-                    margin: '32px auto 0'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-                      <AlertTriangle size={20} color={colors.yellow} />
-                      <span style={{ fontWeight: '600', color: colors.yellow, fontSize: '0.95rem' }}>AI Configuration Required</span>
-                    </div>
-                    <p style={{
-                      fontSize: '0.875rem',
-                      margin: 0,
-                      color: settings.darkMode ? colors.dark.secondaryText : colors.light.secondaryText,
-                      lineHeight: 1.5
-                    }}>
-                      Configure your Gemini API key in settings to enable AI-enhanced multi-source vulnerability analysis.
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+            {!loading && vulnerabilities.length === 0 && <EmptyState />}
             
             {!loading && vulnerabilities.length > 0 && (
-              <CVEDetailView 
-                vulnerability={vulnerabilities[0]} 
-                onRefresh={handleRefreshAnalysis}
-                onExport={handleExportAnalysis}
-              />
+              <CVEDetailView vulnerability={vulnerabilities[0]} />
             )}
           </div>
         </main>
@@ -2947,8 +2958,6 @@ const VulnerabilityIntelligence = () => {
         <SettingsModal
           isOpen={showSettings}
           onClose={() => setShowSettings(false)}
-          settings={settings}
-          setSettings={setSettings}
         />
       </div>
     </AppContext.Provider>
