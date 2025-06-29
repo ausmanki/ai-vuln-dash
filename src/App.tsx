@@ -659,28 +659,106 @@ class APIService {
 
     const searchPrompt = `You are a cybersecurity analyst researching ${cveId}. Use web search to find current information.
 
-SEARCH FOR:
-1. CISA KEV Status: Search "CISA Known Exploited Vulnerabilities ${cveId}" - Is this in the CISA KEV catalog?
-2. Active Exploitation: Search "${cveId} active exploitation in the wild" - Any confirmed exploitation?
-3. Public Exploits: Search "${cveId} exploit proof of concept github" - Are there public exploits available?
-4. Security Advisories: Search "${cveId} security advisory vendor response" - What are vendors saying?
-5. Threat Intelligence: Search "${cveId} threat intelligence IOCs" - Any IOCs or threat actor usage?
+SEARCH FOR AND ANALYZE:
+1. CISA KEV Status: Search "CISA Known Exploited Vulnerabilities ${cveId}" - Is this CVE listed in the CISA KEV catalog? If yes, get exact details including due date and required actions.
 
-CVE DATA:
+2. Active Exploitation: Search "${cveId} active exploitation in the wild" - Are there confirmed reports of this vulnerability being actively exploited?
+
+3. Public Exploits: Search "${cveId} exploit proof of concept github" - Are there public exploits, POCs, or detailed technical analyses available?
+
+4. Security Advisories: Search "${cveId} security advisory vendor response" - What are vendors saying? Any emergency patches or workarounds?
+
+5. Threat Intelligence: Search "${cveId} threat intelligence IOCs indicators" - Any IOCs, attack patterns, or threat actor usage?
+
+6. EPSS Score Updates: Search "${cveId} EPSS score exploitation probability" - Get the latest EPSS exploitation probability data.
+
+7. CVSS Analysis: Search "${cveId} CVSS score analysis impact" - Find detailed CVSS scoring rationale and impact analysis.
+
+CURRENT CVE DATA:
 - CVE: ${cveId}
-- CVSS: ${cveData?.cvssV3?.baseScore || 'Unknown'}
+- CVSS: ${cveData?.cvssV3?.baseScore || 'Unknown'} (${cveData?.cvssV3?.baseSeverity || 'Unknown'})
 - EPSS: ${epssData?.epssPercentage || 'Unknown'}%
+- Attack Vector: ${cveData?.cvssV3?.attackVector || 'Unknown'}
+- Attack Complexity: ${cveData?.cvssV3?.attackComplexity || 'Unknown'}
 - Description: ${cveData?.description?.substring(0, 300) || 'No description'}
 
-Return findings in JSON:
+For each search result, provide:
+- Source credibility (CISA, vendor, security researcher, etc.)
+- Specific findings with dates
+- Exploitation status (confirmed/suspected/none)
+- Available exploits or IOCs
+- Recommended actions
+- Updated threat assessment
+
+**IMPORTANT**: Update the threat intelligence summary with discovered information including:
+- Total number of security sources analyzed
+- Confirmed exploit count and confidence level
+- Active exploitation status with evidence
+- CISA KEV listing status with details
+- Overall threat level assessment
+- Data freshness and analysis method
+
+Return your findings in this JSON structure:
 {
-  "cisaKev": {"listed": boolean, "details": "string", "source": "URL"},
-  "activeExploitation": {"confirmed": boolean, "details": "string", "sources": ["URLs"]},
-  "publicExploits": {"found": boolean, "count": number, "sources": ["URLs"], "types": ["POC", "working exploit"]},
-  "securityAdvisories": {"count": number, "vendors": ["names"], "patchStatus": "available/pending/none"},
-  "threatIntelligence": {"iocs": ["IOCs"], "threatActors": ["groups"], "campaignDetails": "string"},
+  "cisaKev": {
+    "listed": boolean,
+    "details": "string with specifics including due dates",
+    "dueDate": "if applicable",
+    "source": "URL or source",
+    "emergencyDirective": boolean
+  },
+  "activeExploitation": {
+    "confirmed": boolean,
+    "details": "description of exploitation with evidence",
+    "sources": ["array of source URLs"],
+    "threatActors": ["known threat groups using this"],
+    "campaigns": ["specific attack campaigns"]
+  },
+  "publicExploits": {
+    "found": boolean,
+    "count": number,
+    "sources": ["array of exploit URLs"],
+    "types": ["POC", "working exploit", "weaponized", etc.],
+    "confidence": "HIGH/MEDIUM/LOW",
+    "githubRepos": number
+  },
+  "securityAdvisories": {
+    "count": number,
+    "vendors": ["vendor names with advisories"],
+    "patchStatus": "available/pending/none",
+    "advisoryUrls": ["security advisory URLs"]
+  },
+  "threatIntelligence": {
+    "iocs": ["any IOCs found"],
+    "threatActors": ["any associated groups"],
+    "campaignDetails": "if part of broader campaign",
+    "ransomwareUsage": boolean,
+    "aptGroups": ["nation-state actors"]
+  },
+  "cvssAnalysis": {
+    "scoreConfirmed": number,
+    "severityLevel": "string",
+    "attackVector": "string",
+    "impactAssessment": "detailed impact analysis"
+  },
+  "epssAnalysis": {
+    "probabilityScore": "percentage string",
+    "riskLevel": "HIGH/MEDIUM/LOW",
+    "trendAnalysis": "increasing/stable/decreasing"
+  },
+  "intelligenceSummary": {
+    "sourcesAnalyzed": number,
+    "exploitsFound": number,
+    "activeExploitation": boolean,
+    "cisaKevListed": boolean,
+    "threatLevel": "CRITICAL/HIGH/MEDIUM/LOW",
+    "dataFreshness": "timestamp or freshness indicator",
+    "analysisMethod": "AI_WEB_SEARCH",
+    "confidenceLevel": "HIGH/MEDIUM/LOW"
+  },
   "overallThreatLevel": "CRITICAL/HIGH/MEDIUM/LOW",
-  "summary": "executive summary"
+  "lastUpdated": "current date",
+  "summary": "comprehensive executive summary with actionable intelligence"
 }`;
 
     try {
@@ -940,54 +1018,76 @@ Return findings in JSON:
         sources.push({ name: 'EPSS', url: `https://api.first.org/data/v1/epss?cve=${cveId}` });
       }
       
-      if (aiThreatIntel.cisaKev.listed) {
+      if (aiThreatIntel.cisaKev?.listed) {
         discoveredSources.push('CISA KEV');
         sources.push({ name: 'CISA KEV', url: aiThreatIntel.cisaKev.source || 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog' });
       }
       
-      if (aiThreatIntel.publicExploits.found) {
+      if (aiThreatIntel.publicExploits?.found) {
         discoveredSources.push('Exploit Intelligence');
-        sources.push(...aiThreatIntel.publicExploits.sources.map(url => ({ 
+        sources.push(...(aiThreatIntel.publicExploits.sources || []).map(url => ({ 
           name: `Exploit Source`, 
           url: url 
         })));
       }
       
-      if (aiThreatIntel.securityAdvisories.count > 0) {
+      if (aiThreatIntel.securityAdvisories?.count > 0) {
         discoveredSources.push('Security Advisories');
+        if (aiThreatIntel.securityAdvisories.advisoryUrls) {
+          sources.push(...aiThreatIntel.securityAdvisories.advisoryUrls.map(url => ({
+            name: 'Security Advisory',
+            url: url
+          })));
+        }
       }
       
-      if (aiThreatIntel.activeExploitation.confirmed) {
+      if (aiThreatIntel.activeExploitation?.confirmed) {
         discoveredSources.push('Threat Intelligence');
       }
+
+      // Use intelligence summary if available, otherwise fallback to individual fields
+      const intelligenceSummary = aiThreatIntel.intelligenceSummary || {
+        sourcesAnalyzed: discoveredSources.length,
+        exploitsFound: aiThreatIntel.publicExploits?.count || 0,
+        activeExploitation: aiThreatIntel.activeExploitation?.confirmed || false,
+        cisaKevListed: aiThreatIntel.cisaKev?.listed || false,
+        threatLevel: aiThreatIntel.overallThreatLevel || 'MEDIUM',
+        dataFreshness: 'AI_WEB_SEARCH',
+        analysisMethod: 'AI_WEB_SEARCH',
+        confidenceLevel: aiThreatIntel.publicExploits?.confidence || 'MEDIUM'
+      };
       
       // Generate comprehensive summary
-      const threatLevel = aiThreatIntel.overallThreatLevel;
+      const threatLevel = aiThreatIntel.overallThreatLevel || intelligenceSummary.threatLevel;
       const summary = aiThreatIntel.summary;
       
       const enhancedVulnerability = {
         cve,
         epss,
         kev: aiThreatIntel.cisaKev,
-        exploits: aiThreatIntel.publicExploits,
+        exploits: {
+          ...aiThreatIntel.publicExploits,
+          confidence: aiThreatIntel.publicExploits?.confidence || intelligenceSummary.confidenceLevel
+        },
         github: { 
-          found: aiThreatIntel.securityAdvisories.count > 0,
-          count: aiThreatIntel.securityAdvisories.count 
+          found: aiThreatIntel.publicExploits?.githubRepos > 0 || aiThreatIntel.securityAdvisories?.count > 0,
+          count: aiThreatIntel.publicExploits?.githubRepos || aiThreatIntel.securityAdvisories?.count || 0
         },
         activeExploitation: aiThreatIntel.activeExploitation,
         threatIntelligence: aiThreatIntel.threatIntelligence,
+        intelligenceSummary: intelligenceSummary,
         sources,
         discoveredSources,
         summary,
         threatLevel,
-        dataFreshness: 'AI_WEB_SEARCH',
+        dataFreshness: intelligenceSummary.dataFreshness || 'AI_WEB_SEARCH',
         lastUpdated: new Date().toISOString(),
         searchTimestamp: new Date().toISOString(),
         ragEnhanced: true,
         aiSearchPerformed: true,
         aiWebGrounded: true,
         enhancedSources: discoveredSources,
-        analysisMethod: aiThreatIntel.analysisMethod || 'AI_WEB_SEARCH'
+        analysisMethod: intelligenceSummary.analysisMethod || aiThreatIntel.analysisMethod || 'AI_WEB_SEARCH'
       };
       
       setLoadingSteps(prev => [...prev, `✅ AI web-based analysis complete: ${discoveredSources.length} sources analyzed, ${threatLevel} threat level`]);
@@ -2677,22 +2777,90 @@ const CVEDetailView = ({ vulnerability }) => {
           
           <div style={{ fontSize: '0.8125rem', color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
             <p style={{ margin: '0 0 8px 0' }}>
-              <strong>Sources Analyzed:</strong> {vulnerability.discoveredSources?.length || 0}
+              <strong>CVSS Score:</strong> {cvssScore?.toFixed(1) || 'N/A'} ({severity})
+            </p>
+            <p style={{ margin: '0 0 8px 0' }}>
+              <strong>EPSS Score:</strong> {vulnerability.epss?.epssPercentage || 'N/A'}% 
+              {vulnerability.epss && (
+                <span style={{ color: vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.HIGH ? COLORS.red : vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.MEDIUM ? COLORS.yellow : COLORS.green }}>
+                  {vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.HIGH ? ' (High Risk)' : vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.MEDIUM ? ' (Medium Risk)' : ' (Low Risk)'}
+                </span>
+              )}
+            </p>
+            <p style={{ margin: '0 0 8px 0' }}>
+              <strong>Sources Analyzed:</strong> {vulnerability.discoveredSources?.length || vulnerability.sources?.length || 2}
+              {vulnerability.aiSearchPerformed && (
+                <span style={{ color: COLORS.blue, marginLeft: '4px' }}>
+                  (AI Enhanced)
+                </span>
+              )}
             </p>
             <p style={{ margin: '0 0 8px 0' }}>
               <strong>Exploits Found:</strong> {vulnerability.exploits?.count || 0}
+              {vulnerability.exploits?.confidence && vulnerability.exploits.count > 0 && (
+                <span style={{ 
+                  color: vulnerability.exploits.confidence === 'HIGH' ? COLORS.red : vulnerability.exploits.confidence === 'MEDIUM' ? COLORS.yellow : COLORS.blue,
+                  marginLeft: '4px',
+                  fontSize: '0.75rem'
+                }}>
+                  ({vulnerability.exploits.confidence})
+                </span>
+              )}
             </p>
             <p style={{ margin: '0 0 8px 0' }}>
-              <strong>Active Exploitation:</strong> {vulnerability.kev?.listed ? 'YES' : 'No'}
+              <strong>Active Exploitation:</strong> 
+              <span style={{ 
+                color: vulnerability.kev?.listed || vulnerability.activeExploitation?.confirmed ? COLORS.red : COLORS.green,
+                marginLeft: '4px',
+                fontWeight: '600'
+              }}>
+                {vulnerability.kev?.listed || vulnerability.activeExploitation?.confirmed ? 'YES' : 'No'}
+              </span>
+              {vulnerability.activeExploitation?.confirmed && !vulnerability.kev?.listed && (
+                <span style={{ color: COLORS.yellow, fontSize: '0.75rem', marginLeft: '4px' }}>
+                  (Detected)
+                </span>
+              )}
             </p>
             <p style={{ margin: '0 0 8px 0' }}>
-              <strong>CISA KEV:</strong> {vulnerability.kev?.listed ? 'LISTED' : 'Not Listed'}
+              <strong>CISA KEV:</strong> 
+              <span style={{ 
+                color: vulnerability.kev?.listed ? COLORS.red : COLORS.green,
+                marginLeft: '4px',
+                fontWeight: '600'
+              }}>
+                {vulnerability.kev?.listed ? 'LISTED' : 'Not Listed'}
+              </span>
+              {vulnerability.kev?.listed && (
+                <span style={{ color: COLORS.red, fontSize: '0.75rem', marginLeft: '4px' }}>
+                  (Emergency Patch Required)
+                </span>
+              )}
             </p>
             <p style={{ margin: '0 0 8px 0' }}>
-              <strong>Threat Level:</strong> {vulnerability.threatLevel || 'Standard'}
+              <strong>Threat Level:</strong> 
+              <span style={{ 
+                color: vulnerability.threatLevel === 'CRITICAL' ? COLORS.red : 
+                      vulnerability.threatLevel === 'HIGH' ? COLORS.yellow : 
+                      vulnerability.threatLevel === 'MEDIUM' ? COLORS.blue : COLORS.green,
+                marginLeft: '4px',
+                fontWeight: '600'
+              }}>
+                {vulnerability.threatLevel || 'Standard'}
+              </span>
+              {vulnerability.analysisMethod && (
+                <span style={{ color: COLORS.purple, fontSize: '0.75rem', marginLeft: '4px' }}>
+                  ({vulnerability.analysisMethod === 'AI_WEB_SEARCH' ? 'AI Enhanced' : 'Heuristic'})
+                </span>
+              )}
             </p>
             <p style={{ margin: 0 }}>
               <strong>Last Updated:</strong> {utils.formatDate(vulnerability.lastUpdated)}
+              {vulnerability.dataFreshness && (
+                <span style={{ color: COLORS.blue, fontSize: '0.75rem', marginLeft: '4px' }}>
+                  ({vulnerability.dataFreshness})
+                </span>
+              )}
             </p>
           </div>
         </div>
