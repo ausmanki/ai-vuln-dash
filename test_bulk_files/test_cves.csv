@@ -1,0 +1,5 @@
+CVE-ID,Description,Status
+CVE-2023-12345,A vulnerability,Open
+CVE-2023-67890,Another one,Patched
+cve-2022-1111, Mixed case, CVE-2021-00000004, 8-digit
+Invalid CVE-202-123,CVE-1998-0001,CVE-2024-123456789
