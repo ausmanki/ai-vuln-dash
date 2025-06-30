@@ -298,6 +298,20 @@ export interface ExtractionMetadata {
   errors?: string[]; // Any errors during extraction from this source
 }
 
+export interface InformationSource {
+  name: string;
+  url?: string;
+  type?: string;
+  aiDiscovered?: boolean;
+  [key: string]: any;
+}
+
+export interface ConflictingInfo {
+  field: string;
+  details: string;
+  sources?: string[];
+}
+
 
 // --- CVEValidationData for Legitimacy Analysis ---
 export interface AdvisoryInfo { // Duplicated for now, consider moving to a shared types location if not already
@@ -378,7 +392,7 @@ export interface EnhancedVulnerabilityData {
   advisories?: VendorAdvisory[]; // Direct advisory info (might be duplicated if also in vendorAdvisories)
   patchSearchSummary?: PatchSearchSummary;
 
-  sources?: Array<{name: string; url?: string; type?: string; [key: string]: any}>; // List of all information sources used
+  sources?: InformationSource[]; // List of all information sources used
   discoveredSources?: string[]; // Names of sources AI found data in
 
   summary?: string; // Overall AI-generated summary of the CVE

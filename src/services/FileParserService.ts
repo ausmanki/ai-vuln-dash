@@ -49,6 +49,7 @@ export async function extractCVEsFromCSV(file: File): Promise<string[]> {
 }
 
 import * as pdfjsLib from 'pdfjs-dist/build/pdf';
+import { PDFTextItem } from '../types/pdf';
 // You might need to configure the worker path depending on your bundler.
 // For Vite, often it can resolve this, or you might need:
 // import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.entry';
@@ -116,7 +117,7 @@ export async function extractCVEsFromPDF(file: File): Promise<string[]> {
         for (let i = 1; i <= pdf.numPages; i++) {
           const page = await pdf.getPage(i);
           const textContent = await page.getTextContent();
-          const pageText = textContent.items.map(item => (item as any).str).join(' '); // item.str is the text
+          const pageText = textContent.items.map(item => (item as PDFTextItem).str).join(' ');
           allTextContent += pageText + "\n";
         }
 
@@ -164,7 +165,7 @@ export async function extractCVEsFromXLSX(file: File): Promise<string[]> {
           const worksheet = workbook.Sheets[sheetName];
           // Convert sheet to an array of arrays (rows) of cell values
           // XLSX.utils.sheet_to_json with header:1 converts to array of arrays
-          const sheetData: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+          const sheetData: unknown[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
 
           sheetData.forEach(row => {
             row.forEach(cell => {

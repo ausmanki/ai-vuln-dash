@@ -12,6 +12,8 @@ import {
   fetchAIThreatIntelligence,
   // generateAIAnalysis, // generateAIAnalysis is typically user-triggered, might not be part of this agent's primary flow initially
 } from '../services/AIEnhancementService';
+import { AgentSettings, InformationSource, PatchData } from '../types/cveData';
+import { AIThreatIntelData } from '../types/aiThreatIntel';
 import {
     fetchWithFallback,
     processCVEData,
@@ -33,7 +35,11 @@ export class ResearchAgent {
     this.setLoadingSteps(prev => [...prev, message]);
   }
 
-  async analyzeCVE(cveId: string, apiKeys: { nvd?: string; geminiApiKey?: string }, settings: any) {
+  async analyzeCVE(
+    cveId: string,
+    apiKeys: { nvd?: string; geminiApiKey?: string },
+    settings: AgentSettings
+  ) {
     this.updateSteps(`🚀 Research Agent starting analysis for ${cveId}...`);
 
     // RAG Initialization (moved from APIService)
@@ -58,15 +64,27 @@ export class ResearchAgent {
     }
 
     this.updateSteps(`🤖 Agent fetching AI threat intelligence for ${cveId}...`);
-    const aiThreatIntel = await fetchAIThreatIntelligence(
-        cveId, cve, epss, settings, this.setLoadingSteps,
-        ragDatabase, fetchWithFallback, parseAIThreatIntelligence, performHeuristicAnalysis
+    const aiThreatIntel: AIThreatIntelData = await fetchAIThreatIntelligence(
+        cveId,
+        cve,
+        epss,
+        settings,
+        this.setLoadingSteps,
+        ragDatabase,
+        fetchWithFallback,
+        parseAIThreatIntelligence,
+        performHeuristicAnalysis
     );
 
     this.updateSteps(`🔧 Agent fetching patches and advisories for ${cveId}...`);
-    const patchAdvisoryData = await fetchPatchesAndAdvisories(
-        cveId, cve, settings, this.setLoadingSteps,
-        fetchWithFallback, parsePatchAndAdvisoryResponse, getHeuristicPatchesAndAdvisories
+    const patchAdvisoryData: PatchData = await fetchPatchesAndAdvisories(
+        cveId,
+        cve,
+        settings,
+        this.setLoadingSteps,
+        fetchWithFallback,
+        parsePatchAndAdvisoryResponse,
+        getHeuristicPatchesAndAdvisories
     );
 
     this.updateSteps(`🛡️ Agent validating AI findings for ${cveId}...`);
@@ -87,7 +105,9 @@ export class ResearchAgent {
     // Constructing discoveredSources and sources (logic from APIService)
     // This part might need refinement if the agent is to be more autonomous in source discovery reporting
     const discoveredSources = ['NVD'];
-    const sources: any[] = [{ name: 'NVD', url: `https://nvd.nist.gov/vuln/detail/${cveId}`, aiDiscovered: false }];
+    const sources: InformationSource[] = [
+      { name: 'NVD', url: `https://nvd.nist.gov/vuln/detail/${cveId}`, aiDiscovered: false }
+    ];
 
     if (epss) {
         discoveredSources.push('EPSS/FIRST');
