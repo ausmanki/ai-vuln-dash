@@ -468,15 +468,15 @@ const CVEDetailView = ({ vulnerability }) => {
                       </div>
                     )}
 
-                    {vulnerability.discoveredSources && vulnerability.discoveredSources.length > 0 && (
-                      <div>
-                        <h4 style={{
-                          fontSize: '1rem',
-                          fontWeight: '600',
-                          marginBottom: '12px'
-                        }}>
-                          Sources Analyzed
-                        </h4>
+                    <div>
+                      <h4 style={{
+                        fontSize: '1rem',
+                        fontWeight: '600',
+                        marginBottom: '12px'
+                      }}>
+                        Sources Analyzed
+                      </h4>
+                      {vulnerability.discoveredSources && vulnerability.discoveredSources.length > 0 ? (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                           {vulnerability.discoveredSources.map((source, index) => (
                             <span
@@ -497,18 +497,48 @@ const CVEDetailView = ({ vulnerability }) => {
                             </span>
                           ))}
                         </div>
-                      </div>
+                    ) : (
+                      <p style={{
+                        fontSize: '0.875rem',
+                        color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText
+                      }}>
+                        No sources identified.
+                      </p>
                     )}
+                  </div>
 
-                    {vulnerability.sources && vulnerability.sources.length > 0 && (
-                      <div style={{ marginTop: '24px' }}>
-                        <h4 style={{
-                          fontSize: '1rem',
-                          fontWeight: '600',
-                          marginBottom: '12px'
-                        }}>
-                          Source Links & Details
-                        </h4>
+                  <div style={{ marginTop: '16px' }}>
+                    <h4 style={{
+                      fontSize: '1rem',
+                      fontWeight: '600',
+                      marginBottom: '8px'
+                    }}>
+                      Patch Summary
+                    </h4>
+                    {vulnerability.patchSearchSummary ? (
+                      <p style={{ fontSize: '0.875rem' }}>
+                        {vulnerability.patchSearchSummary.patchesFound > 0
+                          ? `${vulnerability.patchSearchSummary.patchesFound} patch(es) found across ${vulnerability.patchSearchSummary.vendorsSearched?.length || 0} vendor(s).`
+                          : 'No patches identified in initial sources.'}
+                      </p>
+                    ) : (
+                      <p style={{ fontSize: '0.875rem' }}>
+                        {vulnerability.patches && vulnerability.patches.length > 0
+                          ? `${vulnerability.patches.length} patch(es) discovered.`
+                          : 'No patch data available.'}
+                      </p>
+                    )}
+                  </div>
+
+                    <div style={{ marginTop: '24px' }}>
+                      <h4 style={{
+                        fontSize: '1rem',
+                        fontWeight: '600',
+                        marginBottom: '12px'
+                      }}>
+                        Source Links & Details
+                      </h4>
+                      {vulnerability.sources && vulnerability.sources.length > 0 ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                           {vulnerability.sources.map((source, index) => (
                             <div
@@ -655,8 +685,15 @@ const CVEDetailView = ({ vulnerability }) => {
                             </div>
                           ))}
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <p style={{
+                          fontSize: '0.875rem',
+                          color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText
+                        }}>
+                          No additional source links found.
+                        </p>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
