@@ -382,6 +382,10 @@ export function parseAIThreatIntelligence(aiResponseOrMetadata, cveId, setLoadin
     // Handle groundingMetadata object
     updateStepsParse(prev => [...prev, `ℹ️ Processing grounding metadata for ${cveId}`]);
     const searchQueries = aiResponseOrMetadata.searchQueries || [];
+    const queryExample = searchQueries.slice(0, 3).join('; ');
+    const noSummaryText = searchQueries.length > 0
+      ? `AI search performed (${searchQueries.length} queries) but no textual summary returned. Example queries: ${queryExample}`
+      : 'AI search performed but no textual summary returned.';
     return {
       cisaKev: { listed: false, details: 'No direct AI summary, grounding info only.', source: '', confidence: 'LOW', aiDiscovered: true },
       activeExploitation: { confirmed: false, details: 'No direct AI summary, grounding info only.', sources: [], aiDiscovered: true },
@@ -398,7 +402,7 @@ export function parseAIThreatIntelligence(aiResponseOrMetadata, cveId, setLoadin
       },
       overallThreatLevel: 'UNKNOWN', // Or 'LOW' as it's unconfirmed
       lastUpdated: new Date().toISOString(),
-      summary: 'AI analysis did not yield a direct textual summary. Grounding searches were performed.',
+      summary: noSummaryText,
       hallucinationFlags: ['NO_TEXTUAL_AI_SUMMARY']
     };
   } else {
