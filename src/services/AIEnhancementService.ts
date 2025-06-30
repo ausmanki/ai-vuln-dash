@@ -310,7 +310,19 @@ CRITICAL REQUIREMENTS:
     }
 
     const data = await response.json();
-    const aiResponse = data.candidates[0].content.parts[0].text;
+
+    if (!data.candidates || data.candidates.length === 0) {
+      console.error('AI Threat Intelligence API response missing candidates:', JSON.stringify(data, null, 2));
+      throw new Error(`AI Threat Intelligence API error: Response missing 'candidates' array or array is empty. Response: ${JSON.stringify(data)}`);
+    }
+
+    const candidate = data.candidates[0];
+    if (!candidate.content || !candidate.content.parts || candidate.content.parts.length === 0 || !candidate.content.parts[0].text) {
+      console.error('AI Threat Intelligence API response missing expected content structure:', JSON.stringify(data, null, 2));
+      throw new Error(`AI Threat Intelligence API error: Response candidate missing content parts or text. Response: ${JSON.stringify(data)}`);
+    }
+
+    const aiResponse = candidate.content.parts[0].text;
 
     updateSteps(prev => [...prev, `✅ AI completed web-based CISA KEV and threat intelligence analysis for ${cveId}`]);
 
