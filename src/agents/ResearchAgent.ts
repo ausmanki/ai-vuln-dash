@@ -70,7 +70,12 @@ export class ResearchAgent {
     );
 
     this.updateSteps(`🛡️ Agent validating AI findings for ${cveId}...`);
-    const validation = await ValidationService.validateAIFindings(aiThreatIntel, cveId, this.setLoadingSteps);
+    const validation = await ValidationService.validateAIFindings(
+        cveId,
+        cve,
+        aiThreatIntel,
+        patchAdvisoryData
+    );
 
     this.updateSteps(`💯 Agent scoring confidence for ${cveId}...`);
     const confidence = ConfidenceScorer.scoreAIFindings(
@@ -171,7 +176,7 @@ export class ResearchAgent {
         kev: { ...aiThreatIntel.cisaKev, validated: validation.cisaKev?.verified || false, actualStatus: validation.cisaKev?.actualStatus },
         exploits: { ...aiThreatIntel.exploitDiscovery, validated: validation.exploits?.verified || false, verifiedCount: validation.exploits?.verifiedExploits?.length || 0 },
         vendorAdvisories: { ...aiThreatIntel.vendorAdvisories, validated: validation.vendorAdvisories?.verified || false },
-        cveValidation: aiThreatIntel.cveValidation, // Assuming this comes from aiThreatIntel or a dedicated step
+        cveValidation: validation,
         technicalAnalysis: aiThreatIntel.technicalAnalysis,
         github: {
             found: (aiThreatIntel.exploitDiscovery?.githubRepos || 0) > 0 || (aiThreatIntel.vendorAdvisories?.count || 0) > 0,
