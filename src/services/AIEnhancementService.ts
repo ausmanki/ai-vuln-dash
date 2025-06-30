@@ -119,11 +119,30 @@ CRITICAL: Only include URLs that were actually found in search results. Do not g
     }
 
     const data = await response.json();
-    const aiResponse = data.candidates[0].content.parts[0].text;
+    let aiResponseContent = null;
 
-    updateSteps(prev => [...prev, `✅ AI completed patch and advisory search for ${cveId}`]);
+    if (!data.candidates || data.candidates.length === 0) {
+      console.error(`AI Patch/Advisory API response missing candidates for ${cveId}:`, JSON.stringify(data, null, 2));
+      updateSteps(prev => [...prev, `⚠️ AI patch/advisory response missing candidates, using heuristic for ${cveId}`]);
+      return getHeuristicPatchesAndAdvisories(cveId, cveData);
+    }
 
-    const patchData = parsePatchAndAdvisoryResponse(aiResponse, cveId);
+    const candidate = data.candidates[0];
+
+    if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0 && candidate.content.parts[0].text) {
+      aiResponseContent = candidate.content.parts[0].text;
+      updateSteps(prev => [...prev, `✅ AI completed patch and advisory search for ${cveId}`]);
+    } else if (candidate.groundingMetadata) {
+      console.log(`AI Patch/Advisory: No direct text response, but groundingMetadata found for ${cveId}.`);
+      aiResponseContent = { groundingMetadata: candidate.groundingMetadata, searchQueries: candidate.groundingMetadata.webSearchQueries || [] };
+      updateSteps(prev => [...prev, `ℹ️ AI provided grounding info but no direct text for patch/advisory for ${cveId}`]);
+    } else {
+      console.error(`AI Patch/Advisory API response candidate missing content/grounding for ${cveId}:`, JSON.stringify(data, null, 2));
+      updateSteps(prev => [...prev, `⚠️ AI patch/advisory response candidate malformed, using heuristic for ${cveId}`]);
+      return getHeuristicPatchesAndAdvisories(cveId, cveData);
+    }
+
+    const patchData = parsePatchAndAdvisoryResponse(aiResponseContent, cveId);
 
     // Enhance with heuristic patches as fallback
     const heuristicData = getHeuristicPatchesAndAdvisories(cveId, cveData);
@@ -310,23 +329,32 @@ CRITICAL REQUIREMENTS:
     }
 
     const data = await response.json();
+    let aiResponseContent = null; // Can be string (text response) or object (groundingMetadata)
 
     if (!data.candidates || data.candidates.length === 0) {
       console.error('AI Threat Intelligence API response missing candidates:', JSON.stringify(data, null, 2));
-      throw new Error(`AI Threat Intelligence API error: Response missing 'candidates' array or array is empty. Response: ${JSON.stringify(data)}`);
+      // Fallback to heuristic if no candidates are provided at all
+      updateSteps(prev => [...prev, `⚠️ AI response missing candidates, falling back for ${cveId}`]);
+      return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
     }
 
     const candidate = data.candidates[0];
-    if (!candidate.content || !candidate.content.parts || candidate.content.parts.length === 0 || !candidate.content.parts[0].text) {
-      console.error('AI Threat Intelligence API response missing expected content structure:', JSON.stringify(data, null, 2));
-      throw new Error(`AI Threat Intelligence API error: Response candidate missing content parts or text. Response: ${JSON.stringify(data)}`);
+
+    if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0 && candidate.content.parts[0].text) {
+      aiResponseContent = candidate.content.parts[0].text;
+      updateSteps(prev => [...prev, `✅ AI completed web-based CISA KEV and threat intelligence analysis for ${cveId}`]);
+    } else if (candidate.groundingMetadata) {
+      console.log(`AI Threat Intelligence: No direct text response, but groundingMetadata found for ${cveId}.`);
+      aiResponseContent = { groundingMetadata: candidate.groundingMetadata, searchQueries: candidate.groundingMetadata.webSearchQueries || [] };
+      updateSteps(prev => [...prev, `ℹ️ AI provided grounding info but no direct text summary for ${cveId}`]);
+    } else {
+      console.error('AI Threat Intelligence API response candidate missing content parts or grounding metadata:', JSON.stringify(data, null, 2));
+      // Fallback to heuristic if candidate structure is unexpected
+      updateSteps(prev => [...prev, `⚠️ AI response candidate malformed, falling back for ${cveId}`]);
+      return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
     }
 
-    const aiResponse = candidate.content.parts[0].text;
-
-    updateSteps(prev => [...prev, `✅ AI completed web-based CISA KEV and threat intelligence analysis for ${cveId}`]);
-
-    const findings = parseAIThreatIntelligence(aiResponse, cveId, setLoadingSteps);
+    const findings = parseAIThreatIntelligence(aiResponseContent, cveId, setLoadingSteps);
 
     // Add enhanced extraction metadata for web-based validation
     findings.extractionMetadata = {

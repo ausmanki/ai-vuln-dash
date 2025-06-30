@@ -63,66 +63,74 @@ export function processCVEData(cve) {
   };
 }
 
-export function parsePatchAndAdvisoryResponse(aiResponse, cveId) {
-  try {
-    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      return {
-        patches: parsed.patches || [],
-        advisories: parsed.advisories || [],
-        searchSummary: parsed.searchSummary || {}
-      };
+export function parsePatchAndAdvisoryResponse(aiResponseOrMetadata, cveId) {
+  if (typeof aiResponseOrMetadata === 'string') {
+    // Existing logic for text response
+    try {
+      const jsonMatch = aiResponseOrMetadata.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        return {
+          patches: parsed.patches || [],
+          advisories: parsed.advisories || [],
+          searchSummary: { ...parsed.searchSummary, searchMethod: parsed.searchSummary?.searchMethod || 'JSON_PARSED' } || { searchMethod: 'JSON_PARSED' }
+        };
+      }
+    } catch (e) {
+      console.log('Failed to parse patch response JSON from text, using raw text analysis...');
+      // Fall through to conservative text parsing if JSON parsing fails
     }
-  } catch (e) {
-    console.log('Failed to parse patch response JSON, using text analysis...');
+
+    // Fallback text parsing for string input
+    const patches = [];
+    const advisories = [];
+    const urls = aiResponseOrMetadata.match(/https?:\/\/[^\s<>"{}|\\^`[\]]+/g) || [];
+    urls.forEach(url => {
+      if (url.includes('microsoft.com') || url.includes('msrc') || url.includes('update')) {
+        patches.push({ vendor: 'Microsoft', downloadUrl: url, confidence: 'MEDIUM', patchType: 'Security Update', description: 'Microsoft security update found via AI search' });
+      } else if (url.includes('redhat.com') || url.includes('rhsa')) {
+        patches.push({ vendor: 'Red Hat', downloadUrl: url, confidence: 'MEDIUM', patchType: 'Security Advisory', description: 'Red Hat security advisory found via AI search' });
+      } else if (url.includes('security') || url.includes('advisory') || url.includes('cve')) {
+        advisories.push({ source: 'Security Advisory', url: url, confidence: 'MEDIUM', type: 'Security Advisory', description: 'Security advisory found via AI search' });
+      }
+    });
+    return {
+      patches,
+      advisories,
+      searchSummary: { patchesFound: patches.length, advisoriesFound: advisories.length, searchMethod: 'TEXT_PARSING_FALLBACK', searchTimestamp: new Date().toISOString() }
+    };
+
+  } else if (typeof aiResponseOrMetadata === 'object' && aiResponseOrMetadata.groundingMetadata) {
+    // Handle groundingMetadata object
+    const searchQueries = aiResponseOrMetadata.searchQueries || [];
+    console.log(`Patch/Advisory parsing: Received groundingMetadata for ${cveId}`);
+    return {
+      patches: [],
+      advisories: [],
+      searchSummary: {
+        patchesFound: 0,
+        advisoriesFound: 0,
+        searchMethod: 'GROUNDING_INFO_ONLY',
+        searchTimestamp: new Date().toISOString(),
+        searchQueries: searchQueries,
+        note: 'AI did not provide a textual summary for patches/advisories. Displaying search queries performed.'
+      }
+    };
+  } else {
+    // Should not happen, safeguard
+    console.error(`Unknown content type for patch/advisory parsing: ${typeof aiResponseOrMetadata}`);
+    return {
+      patches: [],
+      advisories: [],
+      searchSummary: {
+        patchesFound: 0,
+        advisoriesFound: 0,
+        searchMethod: 'PARSING_FAILED_UNEXPECTED_TYPE',
+        searchTimestamp: new Date().toISOString(),
+        note: 'Failed to parse patch/advisory information due to an unexpected AI response format.'
+      }
+    };
   }
-
-  // Fallback text parsing
-  const patches = [];
-  const advisories = [];
-
-  // Look for patch URLs in text
-  const urls = aiResponse.match(/https?:\/\/[^\s<>"{}|\\^`[\]]+/g) || [];
-
-  urls.forEach(url => {
-    if (url.includes('microsoft.com') || url.includes('msrc') || url.includes('update')) {
-      patches.push({
-        vendor: 'Microsoft',
-        downloadUrl: url,
-        confidence: 'MEDIUM',
-        patchType: 'Security Update',
-        description: 'Microsoft security update found via AI search'
-      });
-    } else if (url.includes('redhat.com') || url.includes('rhsa')) {
-      patches.push({
-        vendor: 'Red Hat',
-        downloadUrl: url,
-        confidence: 'MEDIUM',
-        patchType: 'Security Advisory',
-        description: 'Red Hat security advisory found via AI search'
-      });
-    } else if (url.includes('security') || url.includes('advisory') || url.includes('cve')) {
-      advisories.push({
-        source: 'Security Advisory',
-        url: url,
-        confidence: 'MEDIUM',
-        type: 'Security Advisory',
-        description: 'Security advisory found via AI search'
-      });
-    }
-  });
-
-  return {
-    patches,
-    advisories,
-    searchSummary: {
-      patchesFound: patches.length,
-      advisoriesFound: advisories.length,
-      searchMethod: 'TEXT_PARSING',
-      searchTimestamp: new Date().toISOString()
-    }
-  };
 }
 
 export function getHeuristicPatchesAndAdvisories(cveId, cveData) {
@@ -340,30 +348,72 @@ export function getHeuristicPatchesAndAdvisories(cveId, cveData) {
   };
 }
 
-export function parseAIThreatIntelligence(aiResponse, cveId, setLoadingSteps) {
+export function parseAIThreatIntelligence(aiResponseOrMetadata, cveId, setLoadingSteps) {
   const updateStepsParse = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
 
-  try {
-    const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const parsed = JSON.parse(jsonMatch[0]);
-      updateStepsParse(prev => [...prev, `📊 Parsed structured threat intelligence for ${cveId}`]);
+  if (typeof aiResponseOrMetadata === 'string') {
+    // Existing logic for text response
+    try {
+      const jsonMatch = aiResponseOrMetadata.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        updateStepsParse(prev => [...prev, `📊 Parsed structured threat intelligence for ${cveId}`]);
 
-      // Add validation flags to parsed data
-      parsed.parsingMethod = 'JSON_EXTRACTION';
-      parsed.hallucinationFlags = detectHallucinationFlags(parsed);
+        parsed.parsingMethod = 'JSON_EXTRACTION';
+        parsed.hallucinationFlags = detectHallucinationFlags(parsed);
 
-      return normalizeAIFindings(parsed, cveId);
+        return normalizeAIFindings(parsed, cveId);
+      }
+    } catch (e) {
+      console.log('Failed to parse JSON from text response, analyzing raw text...');
+      // Fall through to conservative text analysis if JSON parsing fails
     }
-  } catch (e) {
-    console.log('Failed to parse JSON, analyzing text response...');
+
+    // Fallback text analysis with conservative interpretation for string input
+    const findings = performConservativeTextAnalysis(aiResponseOrMetadata, cveId);
+    updateStepsParse(prev => [...prev, `📈 Used conservative text analysis for ${cveId}`]);
+    return findings;
+
+  } else if (typeof aiResponseOrMetadata === 'object' && aiResponseOrMetadata.groundingMetadata) {
+    // Handle groundingMetadata object
+    updateStepsParse(prev => [...prev, `ℹ️ Processing grounding metadata for ${cveId}`]);
+    const searchQueries = aiResponseOrMetadata.searchQueries || [];
+    return {
+      cisaKev: { listed: false, details: 'No direct AI summary, grounding info only.', source: '', confidence: 'LOW', aiDiscovered: true },
+      activeExploitation: { confirmed: false, details: 'No direct AI summary, grounding info only.', sources: [], aiDiscovered: true },
+      exploitDiscovery: { found: false, totalCount: 0, exploits: [], confidence: 'LOW', aiDiscovered: true },
+      vendorAdvisories: { found: false, count: 0, advisories: [], aiDiscovered: true },
+      intelligenceSummary: {
+        sourcesAnalyzed: searchQueries.length,
+        analysisMethod: 'GROUNDING_INFO_ONLY',
+        confidenceLevel: 'VERY_LOW',
+        aiEnhanced: true,
+        extractionBased: false, // No text was extracted
+        searchQueries: searchQueries,
+        note: 'AI did not provide a textual summary. Displaying search queries performed.'
+      },
+      overallThreatLevel: 'UNKNOWN', // Or 'LOW' as it's unconfirmed
+      lastUpdated: new Date().toISOString(),
+      summary: 'AI analysis did not yield a direct textual summary. Grounding searches were performed.',
+      hallucinationFlags: ['NO_TEXTUAL_AI_SUMMARY']
+    };
+  } else {
+    // Should not happen if fetchAIThreatIntelligence is correct, but as a safeguard:
+    console.error(`Unknown content type for AI threat intelligence parsing: ${typeof aiResponseOrMetadata}`);
+    updateStepsParse(prev => [...prev, `⚠️ Unknown AI response type for ${cveId}, cannot parse.`]);
+    // Return a minimal structure indicating failure
+    return {
+      cisaKev: { listed: false, details: 'Parsing failed due to unknown AI response type.', source: '', confidence: 'VERY_LOW', aiDiscovered: false },
+      activeExploitation: { confirmed: false, details: 'Parsing failed.', sources: [], aiDiscovered: false },
+      exploitDiscovery: { found: false, totalCount: 0, exploits: [], confidence: 'VERY_LOW', aiDiscovered: false },
+      vendorAdvisories: { found: false, count: 0, advisories: [], aiDiscovered: false },
+      intelligenceSummary: { analysisMethod: 'PARSING_FAILED', confidenceLevel: 'VERY_LOW' },
+      overallThreatLevel: 'UNKNOWN',
+      lastUpdated: new Date().toISOString(),
+      summary: 'Failed to parse AI threat intelligence due to an unexpected response format.',
+      hallucinationFlags: ['PARSING_FAILURE_UNEXPECTED_TYPE']
+    };
   }
-
-  // Fallback text analysis with conservative interpretation
-  const findings = performConservativeTextAnalysis(aiResponse, cveId);
-  updateStepsParse(prev => [...prev, `📈 Used conservative text analysis for ${cveId}`]);
-
-  return findings;
 }
 
 export function detectHallucinationFlags(parsed) {
