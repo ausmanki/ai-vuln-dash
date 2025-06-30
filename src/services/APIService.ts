@@ -160,6 +160,17 @@ export class APIService {
         }
       }
 
+      if (aiThreatIntel.intelligenceSummary?.analysisMethod === 'GROUNDING_INFO_ONLY' && aiThreatIntel.intelligenceSummary.searchQueries?.length > 0) {
+        discoveredSources.push('AI Performed Searches');
+        sources.push({
+          name: 'AI Search Queries Performed',
+          type: 'ai-search-queries', // New type for UI to potentially handle differently
+          queries: aiThreatIntel.intelligenceSummary.searchQueries,
+          aiDiscovered: true,
+          description: 'The AI performed these web searches but did not provide a textual summary based on them.'
+        });
+      }
+
       const intelligenceSummary = aiThreatIntel.intelligenceSummary || {
         sourcesAnalyzed: discoveredSources.length,
         exploitsFound: aiThreatIntel.exploitDiscovery?.totalCount || 0,
