@@ -2,7 +2,7 @@ import React, { useState, createContext, useContext, useEffect, useCallback, use
 import { 
   Search, Brain, Settings, Target, Database, Activity, CheckCircle, XCircle, X, 
   Eye, EyeOff, Save, Globe, AlertTriangle, Loader2, RefreshCw, Copy, Clock, 
-  ChevronRight, Info, Package, BarChart3, Zap, Shield, Code, Network, Server, MessageSquare // Added MessageSquare
+  ChevronRight, Info, Package, BarChart3, Zap, Shield, Code, Network, Server, MessageSquare, UploadCloud // Added MessageSquare and UploadCloud
 } from 'lucide-react';
 import { CONSTANTS, COLORS } from './utils/constants';
 import { utils } from './utils/helpers';
@@ -14,11 +14,13 @@ import LoadingComponent from './components/LoadingComponent';
 import CVEDetailView from './components/CVEDetailView';
 import EmptyState from './components/EmptyState';
 import ChatInterface from './components/ChatInterface';
+import BulkUploadComponent from './components/BulkUploadComponent'; // Added
 // import { AppContext } from './contexts/AppContext'; // Will be imported from AppContext.ts
 import { useNotifications } from './hooks/useNotifications';
 import { useSettings } from './hooks/useSettings';
 import { ragDatabase } from './db/EnhancedVectorDatabase';
 import { AppContext } from './contexts/AppContext'; // Corrected import
+import { APIService } from './services/APIService'; // Added for bulk analysis
 
 // Main Application Component - Renamed from VulnerabilityIntelligence to App for main.jsx
 const App = () => {
@@ -27,7 +29,13 @@ const App = () => {
   const [loadingSteps, setLoadingSteps] = useState([]);
   const [showSettings, setShowSettings] = useState(false);
   const [showChat, setShowChat] = useState(false); // Added state for chat visibility
+  const [showBulkUploadView, setShowBulkUploadView] = useState(false); // State for bulk upload UI
   
+  // State for bulk analysis
+  const [bulkAnalysisResults, setBulkAnalysisResults] = useState<Array<{cveId: string, data?: any, error?: string}>>([]);
+  const [isBulkLoading, setIsBulkLoading] = useState<boolean>(false);
+  const [bulkProgress, setBulkProgress] = useState<{ current: number, total: number } | null>(null);
+
   const { notifications, addNotification } = useNotifications();
   const { settings, setSettings } = useSettings();
   const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
@@ -64,6 +72,37 @@ const App = () => {
     settings,
     setSettings
   ]);
+
+  const startBulkAnalysis = async (cveIds: string[]) => {
+    if (isBulkLoading) return;
+
+    setIsBulkLoading(true);
+    setBulkAnalysisResults([]);
+    setBulkProgress({ current: 0, total: cveIds.length });
+    addNotification({ type: 'info', title: 'Bulk Analysis Started', message: `Analyzing ${cveIds.length} CVEs...` });
+
+    const results: Array<{cveId: string, data?: any, error?: string}> = [];
+    for (let i = 0; i < cveIds.length; i++) {
+      const cveId = cveIds[i];
+      setBulkProgress({ current: i + 1, total: cveIds.length });
+      try {
+        // Pass necessary API keys from settings; APIService.fetchVulnerabilityDataWithAI expects them.
+        // The setLoadingSteps can be a dummy function for bulk mode or could update a more detailed log.
+        const result = await APIService.fetchVulnerabilityDataWithAI(cveId, () => {}, { nvd: settings.nvdApiKey }, settings);
+        results.push({ cveId, data: result });
+      } catch (error: any) {
+        console.error(`Error analyzing ${cveId} in bulk:`, error);
+        results.push({ cveId, error: error.message || 'Unknown error during analysis' });
+      }
+      // Update results incrementally or all at once at the end.
+      // For now, updating incrementally to show progress.
+      setBulkAnalysisResults([...results]);
+    }
+
+    setIsBulkLoading(false);
+    setBulkProgress(null);
+    addNotification({ type: 'success', title: 'Bulk Analysis Complete', message: `Finished analyzing ${cveIds.length} CVEs.` });
+  };
 
   return (
     <AppContext.Provider value={contextValue}>
@@ -151,6 +190,17 @@ const App = () => {
                 <Settings size={18} />
                 Configure AI
               </button>
+              <button
+                onClick={() => {
+                  setShowBulkUploadView(prev => !prev);
+                  if (showChat) setShowChat(false); // Close chat if open
+                }}
+                style={{ ...styles.button, ...styles.buttonSecondary }}
+                title="Bulk CVE Analysis"
+              >
+                <UploadCloud size={18} />
+                Bulk Analyze
+              </button>
             </div>
           </div>
         </header>
@@ -202,7 +252,7 @@ const App = () => {
 
         {/* Conditionally Render ChatInterface */}
         {showChat && (
-          <div style={{
+          <div style={{ // This outer div is the modal container for ChatInterface
             position: 'fixed',
             bottom: '112px', // Above the toggle button
             right: '32px',
@@ -215,8 +265,19 @@ const App = () => {
             overflow: 'hidden', // To ensure ChatInterface respects border radius
             // Background will be handled by ChatInterface itself via styles.card.background
           }}>
-            <ChatInterface />
+            <ChatInterface initialCveId={vulnerabilities[0]?.cve?.id || null} />
           </div>
+        )}
+
+        {/* Conditionally Render BulkUploadComponent */}
+        {showBulkUploadView && (
+          <BulkUploadComponent
+            onClose={() => setShowBulkUploadView(false)}
+            startBulkAnalysis={startBulkAnalysis}
+            bulkAnalysisResults={bulkAnalysisResults}
+            isBulkLoading={isBulkLoading}
+            bulkProgress={bulkProgress}
+          />
         )}
       </div>
     </AppContext.Provider>

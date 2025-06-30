@@ -14,7 +14,11 @@ interface Message {
   error?: boolean;
 }
 
-const ChatInterface: React.FC = () => {
+interface ChatInterfaceProps {
+  initialCveId?: string | null;
+}
+
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId }) => {
   const { settings, addNotification } = useContext(AppContext);
   const styles = createStyles(settings.darkMode); // Assuming createStyles is memoized or lightweight
 
@@ -40,6 +44,24 @@ const ChatInterface: React.FC = () => {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [chatHistory]);
+
+  useEffect(() => {
+    if (agent && initialCveId) {
+      const systemMessage = agent.setContextualCVE(initialCveId);
+      if (systemMessage) {
+        // Check if the last message is already this system message to avoid duplicates if prop doesn't change but effect re-runs
+        setChatHistory(prev => {
+          if (prev.length > 0 && prev[prev.length -1].text === systemMessage.text && prev[prev.length-1].sender === 'system') {
+            return prev;
+          }
+          return [...prev, systemMessage];
+        });
+      }
+    }
+    // Intentionally not adding chatHistory to dependencies to avoid loop with setChatHistory
+    // This effect should primarily react to initialCveId or agent availability.
+  }, [initialCveId, agent]);
+
 
   // const handleSetCveContext = () => { // Removed: Agent handles CVE context
   //   if (!utils.validateCVE(cveId)) {

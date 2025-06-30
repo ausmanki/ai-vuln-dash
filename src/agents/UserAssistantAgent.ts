@@ -22,6 +22,18 @@ export class UserAssistantAgent {
     // For now, APIService uses static methods, so no instantiation needed here.
   }
 
+  public setContextualCVE(cveId: string): ChatResponse | null {
+    if (cveId && CVE_REGEX.test(cveId) && cveId !== this.currentCveIdForSession) {
+      this.currentCveIdForSession = cveId.toUpperCase();
+      return {
+        text: `Okay, I'm now focused on ${this.currentCveIdForSession} from your main view. How can I help with it?`,
+        sender: 'system',
+        id: Date.now().toString(),
+      };
+    }
+    return null; // No change or invalid CVE
+  }
+
   public async handleQuery(query: string): Promise<ChatResponse> {
     const lowerQuery = query.toLowerCase();
     const cveMatch = query.match(CVE_REGEX);
