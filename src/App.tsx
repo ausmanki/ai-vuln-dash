@@ -15,6 +15,7 @@ import CVEDetailView from './components/CVEDetailView';
 import EmptyState from './components/EmptyState';
 import ChatInterface from './components/ChatInterface';
 import BulkUploadComponent from './components/BulkUploadComponent'; // Added
+import ErrorBoundary from './components/ErrorBoundary'; // Added ErrorBoundary
 // import { AppContext } from './contexts/AppContext'; // Will be imported from AppContext.ts
 import { useNotifications } from './hooks/useNotifications';
 import { useSettings } from './hooks/useSettings';
@@ -106,9 +107,10 @@ const App = () => {
 
   return (
     <AppContext.Provider value={contextValue}>
-      <div style={styles.app}>
-        <style>
-          {`
+      <ErrorBoundary>
+        <div style={styles.app}>
+          <style>
+            {`
             @keyframes spin {
               0% { transform: rotate(0deg); }
               100% { transform: rotate(360deg); }
@@ -280,6 +282,7 @@ const App = () => {
           />
         )}
       </div>
+    </ErrorBoundary>
     </AppContext.Provider>
   );
 };

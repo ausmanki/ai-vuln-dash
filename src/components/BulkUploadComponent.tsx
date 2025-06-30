@@ -1,8 +1,10 @@
 import React, { useState, useCallback, useContext } from 'react';
-import { UploadCloud, FileText, XCircle, Loader2, AlertTriangle } from 'lucide-react';
+import { UploadCloud, FileText, XCircle, Loader2, AlertTriangle, Zap, ExternalLink, Eye } from 'lucide-react'; // Added ExternalLink, Eye
 import { AppContext } from '../contexts/AppContext';
 import { createStyles } from '../utils/styles';
-import { extractCVEsFromCSV } from '../services/FileParserService'; // Updated import
+import { extractCVEsFromCSV, extractCVEsFromPDF, extractCVEsFromXLSX } from '../services/FileParserService';
+import { utils } from '../utils/helpers'; // For severity color and level
+import { COLORS } from '../utils/constants'; // For direct color usage if needed
 
 interface BulkUploadComponentProps {
   onClose: () => void;
@@ -55,11 +57,9 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
       if (selectedFile.name.endsWith('.csv')) {
         cves = await extractCVEsFromCSV(selectedFile);
       } else if (selectedFile.name.endsWith('.pdf')) {
-        // cves = await extractCVEsFromPDF(selectedFile); // Placeholder for when PDF parsing is implemented
-        setError("PDF parsing is not yet implemented. Please use CSV for now.");
-      } else if (selectedFile.name.endsWith('.xlsx')) {
-        // cves = await extractCVEsFromXLSX(selectedFile); // Placeholder for when XLSX parsing is implemented
-        setError("XLSX parsing is not yet implemented. Please use CSV for now.");
+        cves = await extractCVEsFromPDF(selectedFile);
+      } else if (selectedFile.name.endsWith('.xlsx') || selectedFile.name.endsWith('.xls')) {
+        cves = await extractCVEsFromXLSX(selectedFile);
       } else {
         setError("Unsupported file type. Please upload a CSV, PDF, or XLSX file.");
         setIsParsing(false);
@@ -200,17 +200,80 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
         )}
 
         {bulkAnalysisResults.length > 0 && !isBulkLoading && (
-          <div style={{ marginTop: '20px', flexGrow: 1, overflowY: 'auto' }}>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '10px' }}>Analysis Results:</h3>
-            <div style={{ background: settings.darkMode ? COLORS.dark.background : COLORS.light.background, padding: '10px', borderRadius: '8px', border: styles.border }}>
-              {bulkAnalysisResults.map(result => (
-                <div key={result.cveId} style={{ padding: '8px 0', borderBottom: styles.border, marginBottom: '5px' }}>
-                  <strong>{result.cveId}</strong>:
-                  {result.error ? <span style={{color: COLORS.red}}> Error: {result.error}</span> :
-                                   ` CVSS: ${result.data?.cve?.cvssV3?.baseScore || result.data?.cve?.cvssV2?.baseScore || 'N/A'} (${result.data?.cve?.cvssV3?.baseSeverity || result.data?.cve?.cvssV2?.severity || 'N/A'}), Threat: ${result.data?.threatLevel || 'N/A'}`}
-                  {/* TODO: Add a button to view more details for each CVE, possibly opening CVEDetailView in a modal or separate context */}
-                </div>
-              ))}
+          <div style={{ marginTop: '20px', flexGrow: 1, overflowY: 'auto', paddingRight: '10px' /* For scrollbar */ }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '12px', color: styles.app.color }}>Analysis Results:</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {bulkAnalysisResults.map(resultItem => {
+                const cveId = resultItem.cveId;
+                const resultData = resultItem.data; // This is EnhancedVulnerabilityData
+                const error = resultItem.error;
+
+                let cvssScore: number | string = 'N/A';
+                let cvssSeverity: string = 'N/A';
+                let cvssVersion: string = '';
+
+                if (resultData?.cve?.cvssV3) {
+                  cvssScore = resultData.cve.cvssV3.baseScore;
+                  cvssSeverity = resultData.cve.cvssV3.baseSeverity;
+                  cvssVersion = 'v3';
+                } else if (resultData?.cve?.cvssV2) {
+                  cvssScore = resultData.cve.cvssV2.baseScore;
+                  cvssSeverity = resultData.cve.cvssV2.severity;
+                  cvssVersion = 'v2';
+                }
+                const severityColor = utils.getSeverityColor(cvssSeverity);
+
+                return (
+                  <div
+                    key={cveId}
+                    style={{
+                      ...styles.card,
+                      padding: '16px',
+                      background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
+                      borderLeft: `5px solid ${error ? COLORS.red : severityColor}`
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                      <a
+                        href={`https://nvd.nist.gov/vuln/detail/${cveId}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontWeight: 'bold', fontSize: '1.1rem', color: styles.app.color, textDecoration: 'none' }}
+                        title={`View ${cveId} on NVD`}
+                      >
+                        {cveId} <ExternalLink size={14} style={{ display:'inline-block', marginLeft:'4px', opacity:0.7 }} />
+                      </a>
+                      {/* Placeholder for "View Full Details" button */}
+                       <button
+                          onClick={() => alert(`TODO: Show full details for ${cveId}`)}
+                          style={{...styles.button, ...styles.buttonSecondary, padding: '6px 12px', fontSize: '0.8rem'}}
+                          title="View Full Details"
+                        >
+                          <Eye size={14} /> Details
+                       </button>
+                    </div>
+
+                    {error ? (
+                      <div style={{ color: COLORS.red, fontWeight: 'bold' }}><AlertTriangle size={16} style={{marginRight: '5px'}}/> Error: {error}</div>
+                    ) : resultData ? (
+                      <div style={{ fontSize: '0.9rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
+                        <div>
+                          <strong>CVSS {cvssVersion}:</strong>
+                          <span style={{ color: severityColor, fontWeight: 'bold' }}> {cvssScore} ({cvssSeverity})</span>
+                        </div>
+                        <div><strong>EPSS:</strong> {resultData.epss?.epssPercentage || 'N/A'}%</div>
+                        <div><strong>KEV:</strong> {resultData.kev?.listed ? <span style={{color: COLORS.red, fontWeight:'bold'}}>LISTED</span> : 'Not Listed'}</div>
+                        <div><strong>Threat Level:</strong> {resultData.threatLevel || 'N/A'}</div>
+                        <div style={{ gridColumn: '1 / -1', marginTop: '8px', whiteSpace: 'pre-wrap', maxHeight: '60px', overflowY: 'auto', fontSize: '0.85rem', color: styles.subtitle.color, borderTop: `1px dashed ${styles.border}`, paddingTop: '8px' }}>
+                          <strong>Summary:</strong> {resultData.summary || resultData.cve?.description?.substring(0,150) + '...' || 'No summary available.'}
+                        </div>
+                      </div>
+                    ) : (
+                      <div>No analysis data available.</div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
