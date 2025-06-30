@@ -109,7 +109,7 @@ export class ResearchAgent {
         sources.push({
           name: 'CISA KEV',
           url: 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog',
-          aiDiscovered: aiThreatIntel.cisaKev.aiDiscovered || true,
+          aiDiscovered: aiThreatIntel.cisaKev?.aiDiscovered ?? true,
           verified: validation.cisaKev?.verified || false
         });
       }
