@@ -2,37 +2,20 @@
 import {
   CVEValidationData,
   BaseCVEInfo,
-  PatchInfo, // Ensure this is correctly imported if defined in cveData.ts
-  AdvisoryInfo, // Ensure this is correctly imported
-  // Import other necessary types like AIThreatIntelData (actual name may vary), PatchData
-  // For now, using 'any' for undefined complex types from other services.
+  PatchInfo,
+  AdvisoryInfo,
+  PatchData,
 } from '../types/cveData';
+import { AIThreatIntelData } from '../types/aiThreatIntel';
 import { APIService } from './APIService'; // Assuming APIService might be needed for some sub-fetches, though ideally data is passed in.
-
-// Placeholder for actual AI Intel and PatchData types
-// These should be replaced with their actual definitions from other parts of the application
-interface AIThreatIntelDataPlaceholder {
-  summary?: string;
-  technicalAnalysis?: { text?: string };
-  searchResults?: Array<{ snippet?: string; title?: string; url?: string }>; // Example structure
-  // Add other fields that might contain relevant text or structured info from AI
-  vendorDisputes?: Array<{ source: string; detail: string }>; // Example if AI can structure this
-  researcherOpinions?: Array<{ source: string; opinion: string; url: string }>; // Example
-}
-
-interface PatchDataPlaceholder {
-  patches?: Array<PatchInfo & { vendor: string; product?: string; downloadUrl?: string; advisoryUrl?: string; description?: string }>;
-  advisories?: Array<AdvisoryInfo & { source: string; url?: string; title?: string }>;
-  searchSummary?: any;
-}
 
 
 export class ValidationService {
   public static async validateAIFindings(
     cveId: string,
     nvdData: BaseCVEInfo | null,
-    aiIntel: AIThreatIntelDataPlaceholder | null, // Using placeholder
-    patchAdvisoryData: PatchDataPlaceholder | null, // Using placeholder
+    aiIntel: AIThreatIntelData | null,
+    patchAdvisoryData: PatchData | null,
   ): Promise<CVEValidationData> {
 
     const validationOutput: CVEValidationData = {
@@ -228,7 +211,7 @@ export class ValidationService {
     return validationOutput;
   }
 
-  private static extractTextFromAIIntel(aiIntel: AIThreatIntelDataPlaceholder): string {
+  private static extractTextFromAIIntel(aiIntel: AIThreatIntelData): string {
     let text = '';
     if (aiIntel?.summary) text += aiIntel.summary.toLowerCase() + ' ';
     if (aiIntel?.technicalAnalysis?.text) text += aiIntel.technicalAnalysis.text.toLowerCase() + ' ';

@@ -19,17 +19,12 @@ import {
   AISummaryData,
   BulkAnalysisResult // Added for bulk analysis
 } from '../types/cveData';
+import { AIThreatIntelData } from '../types/aiThreatIntel';
 
 const CVE_REGEX = /CVE-\d{4}-\d{4,7}/i;
 
 // Helper type for the expected structure from APIService.fetchAIThreatIntelligence
 // This should ideally be replaced by a strong type returned by APIService itself.
-interface InternalAIThreatIntelData {
-  cisaKev?: Partial<CisaKevDetails>;
-  activeExploitation?: Partial<ActiveExploitationData>;
-  exploitDiscovery?: Partial<ExploitDiscoveryData>;
-  // Potentially other fields like cveValidation, technicalAnalysis, etc.
-}
 
 export class UserAssistantAgent {
   private settings: AgentSettings;
@@ -174,7 +169,7 @@ export class UserAssistantAgent {
     }
   }
 
-  private async getExploitInfo(cveId: string): Promise<ChatResponse<InternalAIThreatIntelData | null>> {
+  private async getExploitInfo(cveId: string): Promise<ChatResponse<AIThreatIntelData | null>> {
     try {
       const cveData = await APIService.fetchCVEData(cveId, this.settings?.nvdApiKey, () => {}) as BaseCVEInfo | null;
       if (!cveData) {
@@ -187,7 +182,13 @@ export class UserAssistantAgent {
         };
       }
       const epssData = await APIService.fetchEPSSData(cveId, () => {}) as EPSSData | null;
-      const aiThreatIntel = await APIService.fetchAIThreatIntelligence(cveId, cveData, epssData, this.settings, () => {}) as InternalAIThreatIntelData | null;
+      const aiThreatIntel = await APIService.fetchAIThreatIntelligence(
+        cveId,
+        cveData,
+        epssData,
+        this.settings,
+        () => {}
+      ) as AIThreatIntelData | null;
 
       if (!aiThreatIntel || (!aiThreatIntel.cisaKev && !aiThreatIntel.activeExploitation && !aiThreatIntel.exploitDiscovery)) {
         return {
@@ -199,7 +200,7 @@ export class UserAssistantAgent {
       }
 
       let responseText = `For ${cveId}, my focus is on providing vendor advisories and patch information to help you mitigate risks.\n`;
-      const returnedData: InternalAIThreatIntelData = {}; // Initialize as potentially empty
+      const returnedData: AIThreatIntelData = {}; // Initialize as potentially empty
       let keyInfoFound = false;
 
       if (aiThreatIntel.cisaKev?.listed) {

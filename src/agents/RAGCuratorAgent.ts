@@ -2,6 +2,7 @@
 import { ragDatabase } from '../db/EnhancedVectorDatabase';
 import { ResearchAgent } from './ResearchAgent'; // To trigger re-analysis
 import { APIService } from '../services/APIService'; // Or use APIService to trigger ResearchAgent indirectly
+import { AgentSettings, ConflictingInfo } from '../types/cveData';
 
 export class RAGCuratorAgent {
   private researchAgent: ResearchAgent; // For triggering re-analysis
@@ -59,7 +60,11 @@ export class RAGCuratorAgent {
    * @param apiKeys API keys needed for the ResearchAgent.
    * @param settings Settings needed for the ResearchAgent.
    */
-  async triggerReanalysis(cveId: string, apiKeys: { nvd?: string; geminiApiKey?: string }, settings: any): Promise<boolean> {
+  async triggerReanalysis(
+    cveId: string,
+    apiKeys: { nvd?: string; geminiApiKey?: string },
+    settings: AgentSettings
+  ): Promise<boolean> {
     console.log(`RAG Curator: Triggering re-analysis for ${cveId}...`);
     try {
       // Option 1: Directly use the researchAgent instance
@@ -80,7 +85,7 @@ export class RAGCuratorAgent {
   }
 
   // Placeholder for future task: Identify conflicting information
-  async identifyConflictingInfo(cveId: string): Promise<any[]> {
+  async identifyConflictingInfo(cveId: string): Promise<ConflictingInfo[]> {
     console.log(`RAG Curator: Identifying conflicting info for ${cveId} (Not Implemented Yet)...`);
     // 1. Search RAG for all documents related to cveId.
     // 2. Analyze content of these documents (e.g., looking for contradictory statements on severity, KEV status, patch availability).
@@ -90,7 +95,11 @@ export class RAGCuratorAgent {
   }
 
   // Main method to run curation tasks (can be expanded)
-  async runCurationCycle(apiKeys: { nvd?: string; geminiApiKey?: string }, settings: any, maxAgeDays: number = 30) {
+  async runCurationCycle(
+    apiKeys: { nvd?: string; geminiApiKey?: string },
+    settings: AgentSettings,
+    maxAgeDays: number = 30
+  ) {
     console.log("RAG Curator: Starting curation cycle...");
     const outdated = await this.identifyOutdatedSummaries(maxAgeDays);
     for (const cveId of outdated) {
