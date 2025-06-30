@@ -235,11 +235,11 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                       <a
-                        href={`https://nvd.nist.gov/vuln/detail/${cveId}`}
+                        href={utils.getVulnerabilityUrl(cveId)}
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{ fontWeight: 'bold', fontSize: '1.1rem', color: styles.app.color, textDecoration: 'none' }}
-                        title={`View ${cveId} on NVD`}
+                        title={`View ${cveId} details`}
                       >
                         {cveId} <ExternalLink size={14} style={{ display:'inline-block', marginLeft:'4px', opacity:0.7 }} />
                       </a>
@@ -271,7 +271,7 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
                           <strong>CVSS {cvssVersion}:</strong>
                           <span style={{ color: severityColor, fontWeight: 'bold' }}> {cvssScore} ({cvssSeverity})</span>
                         </div>
-                        <div><strong>EPSS:</strong> {resultData.epss?.epssPercentage || 'N/A'}%</div>
+                        <div><strong>EPSS:</strong> {resultData.epss?.epssPercentage || 'N/A'}</div>
                         <div><strong>KEV:</strong> {resultData.kev?.listed ? <span style={{color: COLORS.red, fontWeight:'bold'}}>LISTED</span> : 'Not Listed'}</div>
                         <div><strong>Threat Level:</strong> {resultData.threatLevel || 'N/A'}</div>
                         <div style={{ gridColumn: '1 / -1', marginTop: '8px', whiteSpace: 'pre-wrap', maxHeight: '60px', overflowY: 'auto', fontSize: '0.85rem', color: styles.subtitle.color, borderTop: `1px dashed ${styles.border}`, paddingTop: '8px' }}>
