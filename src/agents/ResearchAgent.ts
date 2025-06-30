@@ -8,9 +8,9 @@ import {
   fetchEPSSDataInternal,
 } from '../services/DataFetchingService';
 import {
-  fetchPatchesAndAdvisoriesInternal,
-  fetchAIThreatIntelligenceInternal,
-  // generateAIAnalysisInternal, // generateAIAnalysis is typically user-triggered, might not be part of this agent's primary flow initially
+  fetchPatchesAndAdvisories,
+  fetchAIThreatIntelligence,
+  // generateAIAnalysis, // generateAIAnalysis is typically user-triggered, might not be part of this agent's primary flow initially
 } from '../services/AIEnhancementService';
 import {
     fetchWithFallback,
@@ -58,13 +58,13 @@ export class ResearchAgent {
     }
 
     this.updateSteps(`🤖 Agent fetching AI threat intelligence for ${cveId}...`);
-    const aiThreatIntel = await fetchAIThreatIntelligenceInternal(
+    const aiThreatIntel = await fetchAIThreatIntelligence(
         cveId, cve, epss, settings, this.setLoadingSteps,
         ragDatabase, fetchWithFallback, parseAIThreatIntelligence, performHeuristicAnalysis
     );
 
     this.updateSteps(`🔧 Agent fetching patches and advisories for ${cveId}...`);
-    const patchAdvisoryData = await fetchPatchesAndAdvisoriesInternal(
+    const patchAdvisoryData = await fetchPatchesAndAdvisories(
         cveId, cve, settings, this.setLoadingSteps,
         fetchWithFallback, parsePatchAndAdvisoryResponse, getHeuristicPatchesAndAdvisories
     );
