@@ -176,4 +176,4 @@ const App = () => {
   );
 };
 
-export default VulnerabilityIntelligence;
+export default App;
