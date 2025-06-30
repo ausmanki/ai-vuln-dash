@@ -77,6 +77,8 @@ const App = () => {
   const startBulkAnalysis = async (cveIds: string[]) => {
     if (isBulkLoading) return;
 
+    const delayMs = 1500; // throttle to avoid hitting API rate limits
+
     setIsBulkLoading(true);
     setBulkAnalysisResults([]);
     setBulkProgress({ current: 0, total: cveIds.length });
@@ -98,6 +100,8 @@ const App = () => {
       // Update results incrementally or all at once at the end.
       // For now, updating incrementally to show progress.
       setBulkAnalysisResults([...results]);
+
+      await utils.sleep(delayMs);
     }
 
     setIsBulkLoading(false);

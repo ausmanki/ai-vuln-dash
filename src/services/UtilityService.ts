@@ -669,7 +669,7 @@ export async function performHeuristicAnalysis(cveId, cveData, epssData, setLoad
 export function buildEnhancedAnalysisPrompt(vulnerability, ragContext, ragDocCount = 0) {
   const cveId = vulnerability.cve.id;
   const cvssScore = vulnerability.cve.cvssV3?.baseScore || vulnerability.cve.cvssV2?.baseScore || 'N/A';
-  const epssScore = vulnerability.epss ? vulnerability.epss.epssPercentage + '%' : 'N/A';
+  const epssScore = vulnerability.epss ? vulnerability.epss.epssPercentage : 'N/A';
   const kevStatus = vulnerability.kev?.listed ? 'Yes - ACTIVE EXPLOITATION CONFIRMED' : 'No';
   const kevValidated = vulnerability.kev?.validated ? ' (VALIDATED)' : ' (UNVALIDATED)';
   const confidenceLevel = vulnerability.confidence?.overall || 'UNKNOWN';
@@ -753,7 +753,7 @@ ${vulnerability.exploits?.found && vulnerability.exploits.confidence === 'HIGH' 
 export function generateEnhancedFallbackAnalysis(vulnerability, error) {
   const cveId = vulnerability.cve.id;
   const cvssScore = vulnerability.cve.cvssV3?.baseScore || vulnerability.cve.cvssV2?.baseScore || 'N/A';
-  const epssScore = vulnerability.epss ? vulnerability.epss.epssPercentage + '%' : 'N/A';
+  const epssScore = vulnerability.epss ? vulnerability.epss.epssPercentage : 'N/A';
   const kevStatus = vulnerability.kev?.listed ? 'Yes - ACTIVE EXPLOITATION CONFIRMED' : 'No';
   const kevValidated = vulnerability.kev?.validated ? ' (VALIDATED)' : ' (UNVALIDATED)';
   const confidenceLevel = vulnerability.confidence?.overall || 'UNKNOWN';
