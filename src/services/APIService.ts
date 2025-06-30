@@ -1,7 +1,7 @@
 import { CONSTANTS } from '../utils/constants';
 import { utils } from '../utils/helpers';
 import { ragDatabase } from '../db/EnhancedVectorDatabase';
-
+import { ResearchAgent } from '../agents/ResearchAgent';
 import { ValidationService } from './ValidationService';
 import { ConfidenceScorer } from './ConfidenceScorer';
 import {
@@ -62,7 +62,7 @@ export class APIService {
   }
 
 
-import { ResearchAgent } from '../agents/ResearchAgent';
+
 
 // Enhanced main function with validation
   static async fetchVulnerabilityDataWithAI(cveId, setLoadingSteps, apiKeys, settings) {
