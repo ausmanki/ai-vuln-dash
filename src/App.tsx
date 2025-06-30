@@ -9,10 +9,11 @@ import { utils } from './utils/helpers';
 import { createStyles } from './utils/styles';
 import NotificationManager from './components/NotificationManager';
 import SettingsModal from './components/SettingsModal';
-import SearchComponent from './components/SearchComponent';
-import LoadingComponent from './components/LoadingComponent';
-import CVEDetailView from './components/CVEDetailView';
-import EmptyState from './components/EmptyState';
+import SearchComponent from './components/SearchComponent'; // Will be removed
+import LoadingComponent from './components/LoadingComponent'; // May not be needed directly if chat has its own
+import CVEDetailView from './components/CVEDetailView'; // Will be removed
+import EmptyState from './components/EmptyState'; // May not be needed if chat is primary
+import ChatInterface from './components/ChatInterface'; // Added
 // import { AppContext } from './contexts/AppContext'; // Will be imported from AppContext.ts
 import { useNotifications } from './hooks/useNotifications';
 import { useSettings } from './hooks/useSettings';
@@ -153,18 +154,10 @@ const App = () => {
           </div>
         </header>
 
-        <main>
-          <SearchComponent />
-          
-          <div style={{ maxWidth: '1536px', margin: '0 auto', padding: '24px 32px' }}>
-            {loading && <LoadingComponent />}
-            
-            {!loading && vulnerabilities.length === 0 && <EmptyState />}
-            
-            {!loading && vulnerabilities.length > 0 && (
-              <CVEDetailView vulnerability={vulnerabilities[0]} />
-            )}
-          </div>
+        <main style={{ paddingTop: '20px' }}> {/* Added some padding */}
+          {/* The SearchComponent and CVEDetailView are replaced by ChatInterface */}
+          {/* The loading, empty states are now managed within or by ChatInterface itself */}
+          <ChatInterface />
         </main>
 
         <SettingsModal
