@@ -2,18 +2,18 @@ import React, { useState, createContext, useContext, useEffect, useCallback, use
 import { 
   Search, Brain, Settings, Target, Database, Activity, CheckCircle, XCircle, X, 
   Eye, EyeOff, Save, Globe, AlertTriangle, Loader2, RefreshCw, Copy, Clock, 
-  ChevronRight, Info, Package, BarChart3, Zap, Shield, Code, Network, Server 
+  ChevronRight, Info, Package, BarChart3, Zap, Shield, Code, Network, Server, MessageSquare // Added MessageSquare
 } from 'lucide-react';
 import { CONSTANTS, COLORS } from './utils/constants';
 import { utils } from './utils/helpers';
 import { createStyles } from './utils/styles';
 import NotificationManager from './components/NotificationManager';
 import SettingsModal from './components/SettingsModal';
-import SearchComponent from './components/SearchComponent'; // Will be removed
-import LoadingComponent from './components/LoadingComponent'; // May not be needed directly if chat has its own
-import CVEDetailView from './components/CVEDetailView'; // Will be removed
-import EmptyState from './components/EmptyState'; // May not be needed if chat is primary
-import ChatInterface from './components/ChatInterface'; // Added
+import SearchComponent from './components/SearchComponent';
+import LoadingComponent from './components/LoadingComponent';
+import CVEDetailView from './components/CVEDetailView';
+import EmptyState from './components/EmptyState';
+import ChatInterface from './components/ChatInterface';
 // import { AppContext } from './contexts/AppContext'; // Will be imported from AppContext.ts
 import { useNotifications } from './hooks/useNotifications';
 import { useSettings } from './hooks/useSettings';
@@ -26,6 +26,7 @@ const App = () => {
   const [loading, setLoading] = useState(false);
   const [loadingSteps, setLoadingSteps] = useState([]);
   const [showSettings, setShowSettings] = useState(false);
+  const [showChat, setShowChat] = useState(false); // Added state for chat visibility
   
   const { notifications, addNotification } = useNotifications();
   const { settings, setSettings } = useSettings();
@@ -154,16 +155,69 @@ const App = () => {
           </div>
         </header>
 
-        <main style={{ paddingTop: '20px' }}> {/* Added some padding */}
-          {/* The SearchComponent and CVEDetailView are replaced by ChatInterface */}
-          {/* The loading, empty states are now managed within or by ChatInterface itself */}
-          <ChatInterface />
+        <main>
+          <SearchComponent />
+
+          <div style={{ maxWidth: '1536px', margin: '0 auto', padding: '24px 32px' }}>
+            {loading && <LoadingComponent />}
+
+            {!loading && vulnerabilities.length === 0 && <EmptyState />}
+
+            {!loading && vulnerabilities.length > 0 && (
+              <CVEDetailView vulnerability={vulnerabilities[0]} />
+            )}
+          </div>
+          {/* ChatInterface will be rendered conditionally elsewhere */}
         </main>
 
         <SettingsModal
           isOpen={showSettings}
           onClose={() => setShowSettings(false)}
         />
+
+        {/* Chat Toggle Button */}
+        <button
+          onClick={() => setShowChat(prev => !prev)}
+          style={{ // Ensure this button itself is styled by styles.button if possible or has consistent styling
+            position: 'fixed',
+            bottom: '32px',
+            right: '32px',
+            background: `linear-gradient(135deg, ${COLORS.blue} 0%, #1d4ed8 100%)`,
+            color: 'white',
+            border: 'none',
+            borderRadius: '50%',
+            width: '64px',
+            height: '64px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: `0 4px 12px rgba(${utils.hexToRgb(COLORS.blue)}, 0.4)`,
+            cursor: 'pointer',
+            zIndex: 1000, // Ensure it's above other content
+          }}
+          aria-label={showChat ? "Close Chat" : "Open Chat"}
+        >
+          {showChat ? <X size={32} /> : <MessageSquare size={32} />}
+        </button>
+
+        {/* Conditionally Render ChatInterface */}
+        {showChat && (
+          <div style={{
+            position: 'fixed',
+            bottom: '112px', // Above the toggle button
+            right: '32px',
+            width: '400px', // Adjust as needed
+            height: '60vh', // Adjust as needed
+            maxHeight: '700px',
+            zIndex: 999, // Below the toggle button if it needs to overlap, or manage carefully
+            boxShadow: `0 8px 24px rgba(${utils.hexToRgb(COLORS.dark.shadow)}, 0.3)`, // Consistent shadow
+            borderRadius: '12px', // Consistent with cards
+            overflow: 'hidden', // To ensure ChatInterface respects border radius
+            // Background will be handled by ChatInterface itself via styles.card.background
+          }}>
+            <ChatInterface />
+          </div>
+        )}
       </div>
     </AppContext.Provider>
   );
