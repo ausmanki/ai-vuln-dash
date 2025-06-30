@@ -691,7 +691,7 @@ VALIDATION STATUS:
 
 REAL-TIME THREAT INTELLIGENCE:
 ${vulnerability.kev?.listed ? `⚠️ CRITICAL: This vulnerability is actively exploited according to CISA KEV catalog${kevValidated}.` : ''}
-${vulnerability.exploits?.found ? `💣 PUBLIC EXPLOITS: ${vulnerability.exploits.count} exploit(s) found with ${vulnerability.exploits.confidence || 'MEDIUM'} confidence${vulnerability.exploits?.validated ? ' (VALIDATED)' : ' (UNVALIDATED)'}.` : ''}
+${vulnerability.exploits?.found ? `💣 PUBLIC EXPLOITS: ${vulnerability.exploits.totalCount} exploit(s) found with ${vulnerability.exploits.confidence || 'MEDIUM'} confidence${vulnerability.exploits?.validated ? ' (VALIDATED)' : ' (UNVALIDATED)'}.` : ''}
 ${vulnerability.github?.found ? `🔍 GITHUB REFS: ${vulnerability.github.count} security-related repositories found.` : ''}
 ${vulnerability.activeExploitation?.confirmed ? `🚨 ACTIVE EXPLOITATION: Confirmed exploitation in the wild.` : ''}
 
@@ -763,13 +763,13 @@ export function generateEnhancedFallbackAnalysis(vulnerability, error) {
 
 ## Executive Summary
 ${kevStatus.includes('Yes') ? `🚨 **CRITICAL PRIORITY** - This vulnerability is actively exploited according to CISA KEV catalog${kevValidated}. ${vulnerability.kev?.validated ? 'This has been verified against official CISA data.' : 'This claim requires manual verification.'}` :
-  vulnerability.exploits?.found ? `💣 **HIGH RISK** - ${vulnerability.exploits.count} exploit(s) detected with ${vulnerability.exploits.confidence} confidence level${vulnerability.exploits?.validated ? ' (VALIDATED)' : ' (UNVALIDATED)'}.` :
+  vulnerability.exploits?.found ? `💣 **HIGH RISK** - ${vulnerability.exploits.totalCount} exploit(s) detected with ${vulnerability.exploits.confidence} confidence level${vulnerability.exploits?.validated ? ' (VALIDATED)' : ' (UNVALIDATED)'}.` :
   `This vulnerability has a CVSS score of ${cvssScore} with an EPSS exploitation probability of ${epssScore}.`}
 
 **Overall Confidence Level:** ${confidenceLevel}
 ${vulnerability.confidence?.recommendation ? `**Recommendation:** ${vulnerability.confidence.recommendation}` : ''}
 
-${vulnerability.exploits?.found ? `💣 **PUBLIC EXPLOITS AVAILABLE** - ${vulnerability.exploits.count} exploit(s) detected with ${vulnerability.exploits.confidence} confidence level${vulnerability.exploits?.validated ? ' (URL patterns verified)' : ' (requires manual verification)'}.` : ''}
+${vulnerability.exploits?.found ? `💣 **PUBLIC EXPLOITS AVAILABLE** - ${vulnerability.exploits.totalCount} exploit(s) detected with ${vulnerability.exploits.confidence} confidence level${vulnerability.exploits?.validated ? ' (URL patterns verified)' : ' (requires manual verification)'}.` : ''}
 
 ## Vulnerability Details
 **CVE ID:** ${cveId}
@@ -800,7 +800,7 @@ ${vulnerability.validation ? `
 
 ## Real-Time Threat Intelligence Summary
 ${vulnerability.kev?.listed ? `- ⚠️ **ACTIVE EXPLOITATION**: ${vulnerability.kev?.validated ? 'VERIFIED' : 'UNVERIFIED'} - ${vulnerability.kev?.validated ? 'Confirmed in CISA Known Exploited Vulnerabilities catalog' : 'Claimed in AI analysis but not validated'}` : '- No confirmed active exploitation in CISA KEV catalog'}
-${vulnerability.exploits?.found ? `- 💣 **PUBLIC EXPLOITS**: ${vulnerability.exploits?.validated ? 'VERIFIED' : 'UNVERIFIED'} - ${vulnerability.exploits.count} exploit(s) with ${vulnerability.exploits.confidence} confidence` : '- No high-confidence public exploits identified'}
+${vulnerability.exploits?.found ? `- 💣 **PUBLIC EXPLOITS**: ${vulnerability.exploits?.validated ? 'VERIFIED' : 'UNVERIFIED'} - ${vulnerability.exploits.totalCount} exploit(s) with ${vulnerability.exploits.confidence} confidence` : '- No high-confidence public exploits identified'}
 ${vulnerability.github?.found ? `- 🔍 **SECURITY COVERAGE**: ${vulnerability.github.count} GitHub security references found` : '- Limited GitHub security advisory coverage'}
 ${vulnerability.activeExploitation?.confirmed ? '- 🚨 **ACTIVE EXPLOITATION**: Confirmed exploitation detected in threat intelligence' : '- No confirmed active exploitation detected'}
 
@@ -849,7 +849,7 @@ ${vulnerability.validation?.cisaKev && !vulnerability.validation.cisaKev.verifie
 
 ${vulnerability.validation?.exploits && !vulnerability.validation.exploits.verified ? `
 **❌ EXPLOIT VALIDATION FAILED**
-- AI claimed ${vulnerability.exploits?.count || 0} exploits but validation failed
+- AI claimed ${vulnerability.exploits?.totalCount || 0} exploits but validation failed
 - Manually verify through security research and trusted sources
 - Do not implement emergency monitoring based on unverified exploit claims
 ` : ''}
@@ -890,7 +890,7 @@ ${vulnerability.confidence?.recommendations ? vulnerability.confidence.recommend
     realTimeData: {
       cisaKev: vulnerability.kev?.listed || false,
       cisaKevValidated: vulnerability.kev?.validated || false,
-      exploitsFound: vulnerability.exploits?.count || 0,
+      exploitsFound: vulnerability.exploits?.totalCount || 0,
       exploitsValidated: vulnerability.exploits?.validated || false,
       exploitConfidence: vulnerability.exploits?.confidence || 'NONE',
       githubRefs: vulnerability.github?.count || 0,

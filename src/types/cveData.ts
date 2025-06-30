@@ -382,6 +382,7 @@ export interface EnhancedVulnerabilityData {
   discoveredSources?: string[]; // Names of sources AI found data in
 
   summary?: string; // Overall AI-generated summary of the CVE
+  analysisSummary?: string; // Alias for summary used by some UI components
   threatLevel?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
   dataFreshness?: string; // e.g., 'Real-time', 'Daily', 'As of YYYY-MM-DD'
   lastUpdated: string; // When this enhanced record was created/updated

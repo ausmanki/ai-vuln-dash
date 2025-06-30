@@ -240,7 +240,7 @@ const CVEDetailView = ({ vulnerability }) => {
                 borderStyle: 'solid',
                 borderColor: `rgba(${utils.hexToRgb(COLORS.red)}, 0.3)`,
               }}>
-                💣 {vulnerability.exploits.count || 'Multiple'} EXPLOITS FOUND
+                💣 {vulnerability.exploits.totalCount || 'Multiple'} EXPLOITS FOUND
               </span>
             )}
 
@@ -435,7 +435,7 @@ const CVEDetailView = ({ vulnerability }) => {
                           fontSize: '0.875rem',
                           color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText
                         }}>
-                          {vulnerability.summary || `AI searched ${vulnerability.discoveredSources?.length || 2} security sources`}
+                          {vulnerability.analysisSummary || vulnerability.summary || `AI searched ${vulnerability.discoveredSources?.length || 2} security sources`}
                         </p>
                       </div>
                     </div>
@@ -457,7 +457,7 @@ const CVEDetailView = ({ vulnerability }) => {
                         )}
                         {vulnerability.exploits?.found && (
                           <div style={{ marginBottom: '8px' }}>
-                            <strong style={{ color: COLORS.red }}>💣 Public Exploits:</strong> Found {vulnerability.exploits.count} exploit(s)
+                          <strong style={{ color: COLORS.red }}>💣 Public Exploits:</strong> Found {vulnerability.exploits.totalCount} exploit(s)
                           </div>
                         )}
                         {vulnerability.activeExploitation?.confirmed && (
@@ -1047,8 +1047,8 @@ const CVEDetailView = ({ vulnerability }) => {
               )}
             </p>
             <div style={{ margin: '0 0 8px 0' }}>
-              <strong>Exploits Found:</strong> {vulnerability.exploits?.count || 0}
-              {vulnerability.exploits?.confidence && vulnerability.exploits.count > 0 && (
+              <strong>Exploits Found:</strong> {vulnerability.exploits?.totalCount || 0}
+              {vulnerability.exploits?.confidence && vulnerability.exploits.totalCount > 0 && (
                 <span style={{
                   color: vulnerability.exploits.confidence === 'HIGH' ? COLORS.red : vulnerability.exploits.confidence === 'MEDIUM' ? COLORS.yellow : COLORS.blue,
                   marginLeft: '4px',

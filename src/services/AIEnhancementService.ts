@@ -536,7 +536,7 @@ export async function generateAIAnalysis(vulnerability, apiKey, model, settings 
       realTimeData: {
         cisaKev: vulnerability.kev?.listed || false,
         cisaKevValidated: vulnerability.kev?.validated || false,
-        exploitsFound: vulnerability.exploits?.count || 0,
+        exploitsFound: vulnerability.exploits?.totalCount || 0,
         exploitsValidated: vulnerability.exploits?.validated || false,
         exploitConfidence: vulnerability.exploits?.confidence || 'NONE',
         githubRefs: vulnerability.github?.count || 0,
