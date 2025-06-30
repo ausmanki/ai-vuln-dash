@@ -115,7 +115,6 @@ export class UserAssistantAgent {
       // fetchAIThreatIntelligence requires settings for Gemini API key and model
       const aiThreatIntel = await APIService.fetchAIThreatIntelligence(cveId, cveData, epssData, this.settings, () => {});
 
-      let responseText = `Regarding exploits for ${cveId}:\n`;
       let responseText = `For ${cveId}, my focus is on providing vendor advisories and patch information to help you mitigate risks.\n`;
       let keyInfoFound = false;
 
