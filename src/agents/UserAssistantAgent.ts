@@ -12,11 +12,12 @@ import {
   ExploitDiscoveryData,
   AISummaryData,
   PatchInfo, // For vendorConfirmation
-  AdvisoryInfo // For vendorConfirmation
+  AdvisoryInfo, // For vendorConfirmation
   CisaKevDetails,
   ActiveExploitationData,
   ExploitDiscoveryData,
-  AISummaryData
+  AISummaryData,
+  BulkAnalysisResult // Added for bulk analysis
 } from '../types/cveData';
 
 const CVE_REGEX = /CVE-\d{4}-\d{4,7}/i;
@@ -33,6 +34,7 @@ interface InternalAIThreatIntelData {
 export class UserAssistantAgent {
   private settings: AgentSettings;
   private currentCveIdForSession: string | null = null;
+  private bulkAnalysisResults: BulkAnalysisResult[] | null = null; // Added for bulk analysis
 
   constructor(settings?: AgentSettings) {
     this.settings = settings || {};
@@ -51,26 +53,43 @@ export class UserAssistantAgent {
   }
 
   public async handleQuery(query: string): Promise<ChatResponse> {
-    const lowerQuery = query.toLowerCase();
+    const lowerQuery = query.toLowerCase().trim();
     const cveMatch = query.match(CVE_REGEX);
     let operationalCveId: string | null = null;
 
+    // Prioritize /bulk_summary command
+    if (lowerQuery === '/bulk_summary') {
+      return this.generateBulkAnalysisSummary();
+    }
+
+    // Determine operational CVE ID
     if (cveMatch) {
       operationalCveId = cveMatch[0].toUpperCase();
+      // If the query *only* contains a CVE ID, set it as context and respond.
+      if (operationalCveId === query.trim().toUpperCase()) {
+        this.currentCveIdForSession = operationalCveId;
+        return {
+          text: `Okay, I'm now focused on ${operationalCveId}. What would you like to know about it? (e.g., summary, EPSS score, patches, or type /bulk_summary for an overview of all analyzed CVEs).`,
+          sender: 'bot',
+          id: Date.now().toString(),
+        };
+      }
+      // If CVE is part of a larger query, use it for this query and also update session context.
       this.currentCveIdForSession = operationalCveId;
     } else {
       operationalCveId = this.currentCveIdForSession;
     }
 
+    // If no operational CVE ID is active (neither in query nor in session), guide the user.
     if (!operationalCveId) {
-      return { text: "Please specify a CVE ID in your query (e.g., 'What about CVE-2023-1234?') or ask me to focus on one first." };
+      return {
+        text: "I don't have a specific CVE in context. Please specify a CVE ID (e.g., 'What about CVE-2023-1234?'), ask me to focus on one, or type `/bulk_summary` for an overview of analyzed CVEs.",
+        sender: 'bot',
+        id: Date.now().toString(),
+      };
     }
 
-    if (cveMatch && query.trim().toUpperCase() === operationalCveId) {
-        return { text: `Okay, I'm now focused on ${operationalCveId}. What would you like to know about it? (e.g., summary, EPSS score, patches)` };
-    }
-
-    // Define intents
+    // Define intents - these are processed ONLY if an operationalCveId is active.
     const intents = [
       {
         name: 'getEPSSScore',
@@ -79,7 +98,7 @@ export class UserAssistantAgent {
       },
       {
         name: 'getExploitInfo',
-        keywords: ['exploit', 'exploited', 'exploitation details'], // "exploit" is broad, ensure it's desired
+        keywords: ['exploit', 'exploited', 'exploitation details'],
         handler: this.getExploitInfo
       },
       {
@@ -93,26 +112,35 @@ export class UserAssistantAgent {
         handler: this.getPatchAndAdvisoryInfo
       },
       {
-        name: 'getSummary', // Should generally be less specific or a fallback if other keywords for summary are used
+        name: 'getSummary',
         keywords: ['summarize', 'summary', 'overview', 'tell me about', 'details for'],
         handler: this.getSummary
       },
-      // Add more intents here. Order might matter if keywords overlap.
-      // More specific intents should generally come before broader ones.
+      // Add more intents here.
     ];
 
     try {
       for (const intent of intents) {
         if (intent.keywords.some(keyword => lowerQuery.includes(keyword))) {
-          return await intent.handler.call(this, operationalCveId);
+          // Pass the operationalCveId, which is confirmed to be non-null here.
+          return await intent.handler.call(this, operationalCveId as string);
         }
       }
       // Fallback if no intent is matched but a CVE context exists
-      return { text: `I have context for ${operationalCveId}, but I'm not sure what you're asking. You can ask for EPSS score, summary, patches, validation, etc.` };
+      return {
+        text: `I'm focused on ${operationalCveId}, but I'm not sure what you're asking. You can ask for its EPSS score, summary, patches, validation, etc. Type '/bulk_summary' for an overview of all analyzed CVEs.`,
+        sender: 'bot',
+        id: Date.now().toString(),
+      };
 
     } catch (error: any) {
       console.error(`Error handling query for CVE ${operationalCveId}:`, error);
-      return { text: `Sorry, I encountered an error trying to answer that: ${error.message}`, error: error.message };
+      return {
+        text: `Sorry, I encountered an error trying to process your request for ${operationalCveId}: ${error.message}`,
+        sender: 'bot',
+        id: Date.now().toString(),
+        error: error.message
+      };
     }
   }
 
@@ -122,29 +150,57 @@ export class UserAssistantAgent {
       if (epssData && epssData.epss) {
         return {
           text: `The EPSS score for ${cveId} is ${epssData.epssPercentage}% (Percentile: ${epssData.percentile}). This data was last updated on ${epssData.date}.`,
+          sender: 'bot',
+          id: Date.now().toString(),
           data: epssData
         };
       } else {
-        return { text: `I couldn't find EPSS data for ${cveId}. It might not be available.`, data: null };
+        return {
+          text: `I couldn't find EPSS data for ${cveId}. It might not be available.`,
+          sender: 'bot',
+          id: Date.now().toString(),
+          data: null
+        };
       }
     } catch (error: any) {
       console.error(`Error fetching EPSS for ${cveId}:`, error);
-      return { text: `Sorry, I couldn't fetch the EPSS score for ${cveId}. Error: ${error.message}`, error: error.message, data: null };
+      return {
+        text: `Sorry, I couldn't fetch the EPSS score for ${cveId}. Error: ${error.message}`,
+        sender: 'bot',
+        id: Date.now().toString(),
+        error: error.message,
+        data: null
+      };
     }
   }
 
-  private async getExploitInfo(cveId: string): Promise<ChatResponse<Partial<InternalAIThreatIntelData>>> {
+  private async getExploitInfo(cveId: string): Promise<ChatResponse<InternalAIThreatIntelData | null>> {
     try {
       const cveData = await APIService.fetchCVEData(cveId, this.settings?.nvdApiKey, () => {}) as BaseCVEInfo | null;
       if (!cveData) {
-        return { text: `Could not retrieve basic data for ${cveId} to check for exploits.`, error: "CVE data fetch failed" };
+        return {
+          text: `Could not retrieve basic data for ${cveId} to check for exploits.`,
+          sender: 'bot',
+          id: Date.now().toString(),
+          error: "CVE data fetch failed",
+          data: null
+        };
       }
       const epssData = await APIService.fetchEPSSData(cveId, () => {}) as EPSSData | null;
-      const aiThreatIntel = await APIService.fetchAIThreatIntelligence(cveId, cveData, epssData, this.settings, () => {}) as InternalAIThreatIntelData;
+      const aiThreatIntel = await APIService.fetchAIThreatIntelligence(cveId, cveData, epssData, this.settings, () => {}) as InternalAIThreatIntelData | null;
+
+      if (!aiThreatIntel || (!aiThreatIntel.cisaKev && !aiThreatIntel.activeExploitation && !aiThreatIntel.exploitDiscovery)) {
+        return {
+          text: `I've checked for high-level exploit information for ${cveId}. It's not listed in CISA KEV, and AI threat intelligence didn't confirm widespread active exploitation or readily available public PoCs. For security details, please refer to vendor advisories. You can ask 'patches for ${cveId}'.`,
+          sender: 'bot',
+          id: Date.now().toString(),
+          data: null
+        };
+      }
 
       let responseText = `For ${cveId}, my focus is on providing vendor advisories and patch information to help you mitigate risks.\n`;
+      const returnedData: InternalAIThreatIntelData = {}; // Initialize as potentially empty
       let keyInfoFound = false;
-      const returnedData: Partial<InternalAIThreatIntelData> = {};
 
       if (aiThreatIntel.cisaKev?.listed) {
         responseText += `- **CISA KEV:** This CVE IS LISTED in the CISA Known Exploited Vulnerabilities (KEV) catalog, indicating active exploitation. Details: ${aiThreatIntel.cisaKev.details || 'Refer to CISA for specifics.'}\n`;
@@ -165,21 +221,35 @@ export class UserAssistantAgent {
       if (aiThreatIntel.exploitDiscovery?.found) {
         responseText += `- **Public Exploit Code:** Publicly available exploit information or PoCs may exist for this vulnerability (AI found ${aiThreatIntel.exploitDiscovery.totalCount} potential indicators).\n`;
         keyInfoFound = true;
-        returnedData.exploitDiscovery = { found: true, totalCount: aiThreatIntel.exploitDiscovery.totalCount };
+        returnedData.exploitDiscovery = aiThreatIntel.exploitDiscovery;
       } else {
          responseText += `- **Public Exploit Code:** AI threat intelligence did not immediately find specific public exploit PoCs.\n`;
       }
 
       responseText += "\nFor remediation, please check for vendor patches and advisories. You can ask me 'tell me about patches for this CVE'.";
 
-      if (!keyInfoFound && !aiThreatIntel.cisaKev?.listed && !aiThreatIntel.activeExploitation?.confirmed && !aiThreatIntel.exploitDiscovery?.found) {
+      if (!keyInfoFound) {
+         // This case should ideally be caught by the check at the beginning of the function if aiThreatIntel is effectively empty.
+         // However, if some fields exist but are all negative (e.g. cisaKev: {listed: false}), this text might still be relevant.
          responseText = `I've checked for high-level exploit information for ${cveId}. It's not listed in CISA KEV, and AI threat intelligence didn't confirm widespread active exploitation or readily available public PoCs. For security details, please refer to vendor advisories. You can ask 'patches for ${cveId}'.`;
+         return { text: responseText, sender: 'bot', id: Date.now().toString(), data: null };
       }
 
-      return { text: responseText, data: returnedData };
+      return {
+        text: responseText,
+        sender: 'bot',
+        id: Date.now().toString(),
+        data: Object.keys(returnedData).length > 0 ? returnedData : null
+      };
     } catch (error: any) {
       console.error(`Error fetching exploit info for ${cveId}:`, error);
-      return { text: `Sorry, I couldn't fetch exploit information for ${cveId}. Error: ${error.message}`, error: error.message };
+      return {
+        text: `Sorry, I couldn't fetch exploit information for ${cveId}. Error: ${error.message}`,
+        sender: 'bot',
+        id: Date.now().toString(),
+        error: error.message,
+        data: null
+      };
     }
   }
 
@@ -187,13 +257,28 @@ export class UserAssistantAgent {
     try {
       const cveData = await APIService.fetchCVEData(cveId, this.settings?.nvdApiKey, () => {}) as BaseCVEInfo | null;
       if (!cveData) {
-        return { text: `Could not retrieve basic data for ${cveId} to check for patches/advisories.`, error: "CVE data fetch failed", data: null };
+        return {
+          text: `Could not retrieve basic data for ${cveId} to check for patches/advisories.`,
+          sender: 'bot',
+          id: Date.now().toString(),
+          error: "CVE data fetch failed",
+          data: null
+        };
       }
 
       const patchAdvisoryData = await APIService.fetchPatchesAndAdvisories(cveId, cveData, this.settings, () => {}) as PatchData | null;
 
-      if (!patchAdvisoryData) {
-        return { text: `Could not retrieve patch and advisory data for ${cveId}.`, error: "Patch/Advisory data fetch failed", data: null };
+      if (!patchAdvisoryData || ((!patchAdvisoryData.patches || patchAdvisoryData.patches.length === 0) && (!patchAdvisoryData.advisories || patchAdvisoryData.advisories.length === 0))) {
+        let responseText = `I searched for patches and advisories for ${cveId} but did not immediately find specific download links or advisories through the AI search. It's recommended to check vendor websites directly.`;
+        if (patchAdvisoryData?.searchSummary) {
+             responseText += `\n(AI search summary: ${patchAdvisoryData.searchSummary.patchesFound} patches, ${patchAdvisoryData.searchSummary.advisoriesFound} advisories from searched vendors).`;
+        }
+        return {
+          text: responseText,
+          sender: 'bot',
+          id: Date.now().toString(),
+          data: patchAdvisoryData // can still return searchSummary even if no patches/advisories found
+        };
       }
 
       let responseText = `For patches and advisories regarding ${cveId}:\n`;
@@ -227,10 +312,21 @@ export class UserAssistantAgent {
           responseText += `\n(AI search summary: ${patchAdvisoryData.searchSummary.patchesFound} patches, ${patchAdvisoryData.searchSummary.advisoriesFound} advisories from searched vendors).`;
       }
 
-      return { text: responseText, data: patchAdvisoryData };
+      return {
+        text: responseText,
+        sender: 'bot',
+        id: Date.now().toString(),
+        data: patchAdvisoryData
+      };
     } catch (error: any) {
       console.error(`Error fetching patch/advisory info for ${cveId}:`, error);
-      return { text: `Sorry, I couldn't fetch patch and advisory information for ${cveId}. Error: ${error.message}`, error: error.message, data: null };
+      return {
+        text: `Sorry, I couldn't fetch patch and advisory information for ${cveId}. Error: ${error.message}`,
+        sender: 'bot',
+        id: Date.now().toString(),
+        error: error.message,
+        data: null
+      };
     }
   }
 
@@ -239,7 +335,13 @@ export class UserAssistantAgent {
       const vulnerabilityDataForAISummary = await APIService.fetchVulnerabilityDataWithAI(cveId, () => {}, { nvd: this.settings?.nvdApiKey }, this.settings) as EnhancedVulnerabilityData | null;
 
       if (!vulnerabilityDataForAISummary || !vulnerabilityDataForAISummary.cve) {
-        return { text: `I couldn't retrieve enough information for ${cveId} to generate an AI summary.`, error: "Comprehensive CVE data fetch failed", data: null };
+        return {
+          text: `I couldn't retrieve enough information for ${cveId} to generate an AI summary.`,
+          sender: 'bot',
+          id: Date.now().toString(),
+          error: "Comprehensive CVE data fetch failed",
+          data: null
+        };
       }
 
       const aiAnalysis = await APIService.generateAIAnalysis(
@@ -264,7 +366,12 @@ export class UserAssistantAgent {
         }
         responseText += "-----------------------------------\n";
         responseText += aiAnalysis.analysis;
-        return { text: responseText, data: aiAnalysis };
+        return {
+          text: responseText,
+          sender: 'bot',
+          id: Date.now().toString(),
+          data: aiAnalysis
+        };
       } else {
         let fallbackText = `I retrieved some information for ${cveId}, but couldn't generate a full AI summary.\n`;
         fallbackText += `- Description: ${vulnerabilityDataForAISummary.cve.description?.substring(0, 200) + "..." || 'Not available.'}\n`;
@@ -274,11 +381,22 @@ export class UserAssistantAgent {
         if (vulnerabilityDataForAISummary.epss) {
             fallbackText += `- EPSS Score: ${vulnerabilityDataForAISummary.epss.epssPercentage}%\n`;
         }
-        return { text: fallbackText, data: vulnerabilityDataForAISummary };
+        return {
+          text: fallbackText,
+          sender: 'bot',
+          id: Date.now().toString(),
+          data: vulnerabilityDataForAISummary // Return the partial data if AI summary failed
+        };
       }
     } catch (error: any) {
       console.error(`Error fetching summary for ${cveId}:`, error);
-      return { text: `Sorry, I couldn't generate a summary for ${cveId}. Error: ${error.message}`, error: error.message, data: null };
+      return {
+        text: `Sorry, I couldn't generate a summary for ${cveId}. Error: ${error.message}`,
+        sender: 'bot',
+        id: Date.now().toString(),
+        error: error.message,
+        data: null
+      };
     }
   }
 
@@ -290,6 +408,8 @@ export class UserAssistantAgent {
       if (!vulnerabilityData || !vulnerabilityData.cveValidation) {
         return {
           text: `I couldn't retrieve detailed validation and legitimacy information for ${cveId}. Basic CVE data might be missing or validation could not be performed.`,
+          sender: 'bot',
+          id: Date.now().toString(),
           error: "Validation data fetch failed or incomplete",
           data: null
         };
@@ -383,11 +503,18 @@ export class UserAssistantAgent {
       }
 
 
-      return { text: responseText, data: validation };
+      return {
+        text: responseText,
+        sender: 'bot',
+        id: Date.now().toString(),
+        data: validation
+      };
     } catch (error: any) {
       console.error(`Error fetching validation info for ${cveId}:`, error);
       return {
         text: `Sorry, I couldn't fetch or process legitimacy and validation information for ${cveId}. Error: ${error.message}`,
+        sender: 'bot',
+        id: Date.now().toString(),
         error: error.message,
         data: null
       };
@@ -396,4 +523,68 @@ export class UserAssistantAgent {
 
   // getValidationRecommendationMeaning is no longer needed as the new structure provides more direct info.
   // If any part of the old logic for meaning is required, it should be integrated into the response generation above.
+
+  public setBulkAnalysisResults(results: BulkAnalysisResult[]): void {
+    this.bulkAnalysisResults = results;
+  }
+
+  public generateBulkAnalysisSummary(): ChatResponse {
+    if (!this.bulkAnalysisResults || this.bulkAnalysisResults.length === 0) {
+      return {
+        text: "No bulk analysis results available to summarize. Please upload and process a file first.",
+        sender: 'system',
+        id: Date.now().toString(),
+      };
+    }
+
+    const totalCVEs = this.bulkAnalysisResults.length;
+    const successfulAnalyses = this.bulkAnalysisResults.filter(r => r.status === 'Complete' && r.data).length;
+    const errors = this.bulkAnalysisResults.filter(r => r.status === 'Error').length;
+    const pending = this.bulkAnalysisResults.filter(r => r.status === 'Pending').length;
+    const processing = this.bulkAnalysisResults.filter(r => r.status === 'Processing').length;
+
+    let summaryText = `**Bulk Analysis Summary:**\n\n`;
+    summaryText += `- Total CVEs Processed: ${totalCVEs}\n`;
+    summaryText += `- Successful Analyses: ${successfulAnalyses}\n`;
+    summaryText += `- Analyses with Errors: ${errors}\n`;
+    if (pending > 0) summaryText += `- Analyses Pending: ${pending}\n`;
+    if (processing > 0) summaryText += `- Analyses Still Processing: ${processing}\n\n`;
+
+    // Highlight critical vulnerabilities (example: CVSS > 9 or KEV listed)
+    const criticalCVEs: string[] = [];
+    this.bulkAnalysisResults.forEach(result => {
+      if (result.data) {
+        const cveData = result.data.cve?.cve;
+        const kevListed = result.data.kev?.listed;
+        let isCritical = false;
+
+        if (kevListed) {
+          isCritical = true;
+        } else if (cveData?.metrics?.cvssMetricV31?.[0]?.cvssData?.baseScore >= 9.0) {
+          isCritical = true;
+        } else if (cveData?.metrics?.cvssMetricV30?.[0]?.cvssData?.baseScore >= 9.0) {
+          isCritical = true;
+        } else if (!cveData?.metrics?.cvssMetricV31 && !cveData?.metrics?.cvssMetricV30 && cveData?.metrics?.cvssMetricV2?.[0]?.cvssData?.baseScore >= 9.0) {
+          isCritical = true; // Fallback to CVSS v2 if v3 is not available
+        }
+        if (isCritical) {
+          criticalCVEs.push(result.cveId);
+        }
+      }
+    });
+
+    if (criticalCVEs.length > 0) {
+      summaryText += `**Potentially Critical CVEs Identified (${criticalCVEs.length}):**\n${criticalCVEs.join(', ')}\n (Based on KEV listing or CVSS score >= 9.0)\n\n`;
+    } else if (successfulAnalyses > 0) {
+      summaryText += `No CVEs found in CISA KEV or with CVSS score >= 9.0 among the successfully analyzed items.\n\n`;
+    }
+
+    summaryText += "You can ask for details on any specific CVE by typing its ID (e.g., 'CVE-2023-1234').";
+
+    return {
+      text: summaryText,
+      sender: 'bot',
+      id: Date.now().toString(),
+    };
+  }
 }
