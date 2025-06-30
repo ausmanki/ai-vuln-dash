@@ -11,17 +11,24 @@ import {
   ActiveExploitationData,
   ExploitDiscoveryData,
   AISummaryData
-} from '../types/cveData'; // Keep these type imports
+} from '../types/cveData';
 
 const CVE_REGEX = /CVE-\d{4}-\d{4,7}/i;
 
-// InternalAIThreatIntelData removed as it's a helper and APIService calls should be typed if possible or use optional chaining
+// Helper type for the expected structure from APIService.fetchAIThreatIntelligence
+// This should ideally be replaced by a strong type returned by APIService itself.
+interface InternalAIThreatIntelData {
+  cisaKev?: Partial<CisaKevDetails>;
+  activeExploitation?: Partial<ActiveExploitationData>;
+  exploitDiscovery?: Partial<ExploitDiscoveryData>;
+  // Potentially other fields like cveValidation, technicalAnalysis, etc.
+}
 
 export class UserAssistantAgent {
-  private settings: AgentSettings; // Use imported AgentSettings type
+  private settings: AgentSettings;
   private currentCveIdForSession: string | null = null;
 
-  constructor(settings?: AgentSettings) { // Use imported AgentSettings type
+  constructor(settings?: AgentSettings) {
     this.settings = settings || {};
   }
 
@@ -38,7 +45,7 @@ export class UserAssistantAgent {
   }
 
   public async generateBulkAnalysisSummary(
-    bulkResults: Array<{cveId: string, data?: EnhancedVulnerabilityData, error?: string}> // Stronger type for data
+    bulkResults: Array<{cveId: string, data?: EnhancedVulnerabilityData, error?: string}>
   ): Promise<ChatResponse> {
     if (!bulkResults || bulkResults.length === 0) {
       return { text: "There are no bulk analysis results to summarize. Please perform a bulk analysis first." };
@@ -48,7 +55,7 @@ export class UserAssistantAgent {
     let successfullyAnalyzed = 0;
     let failedAnalysis = 0;
 
-    const severityCounts: Record<string, number> = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, UNKNOWN: 0 }; // Explicit Record type
+    const severityCounts: Record<string, number> = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, UNKNOWN: 0 };
     const kevListedCVEs: string[] = [];
     const highEpssCVEs: { cveId: string, score: string }[] = [];
 
@@ -58,32 +65,26 @@ export class UserAssistantAgent {
         continue;
       }
       successfullyAnalyzed++;
-      // Assuming result.data is EnhancedVulnerabilityData
-      const cveData = result.data.cve; // BaseCVEInfo
-      const epssData = result.data.epss; // EPSSData
-      const kevData = result.data.kev; // CisaKevDetails
+      const cveData = result.data.cve;
+      const epssData = result.data.epss;
+      const kevData = result.data.kev;
 
-      // Severity
       let severity = "UNKNOWN";
       if (cveData?.cvssV3?.baseSeverity) {
         severity = cveData.cvssV3.baseSeverity.toUpperCase();
       } else if (cveData?.cvssV2?.severity) {
         severity = cveData.cvssV2.severity.toUpperCase();
       }
-      // Ensure severity is a valid key for severityCounts
       if (severityCounts.hasOwnProperty(severity)) {
         severityCounts[severity]++;
       } else {
         severityCounts["UNKNOWN"]++;
       }
 
-
-      // KEV
       if (kevData?.listed) {
         kevListedCVEs.push(result.cveId);
       }
 
-      // EPSS
       if (epssData?.epssFloat && epssData.epssFloat > 0.75) {
         highEpssCVEs.push({ cveId: result.cveId, score: epssData.epssPercentage || "N/A" });
       }
@@ -111,7 +112,7 @@ export class UserAssistantAgent {
     if (highEpssCVEs.length > 0) {
       summaryText += `**High EPSS Scores (Predicted Exploitable > 75%):**\n`;
       highEpssCVEs.forEach(item => {
-        summaryText += `- ${item.cveId} (EPSS: ${item.score}%)\n`;
+        summaryText += `- ${item.cveId} (EPSS: ${item.score}%)\n`; // Note: score is already a string with '%'
       });
       summaryText += `\n`;
     } else {
@@ -122,7 +123,7 @@ export class UserAssistantAgent {
 
     return {
       text: summaryText,
-      data: { // This data object could also be typed
+      data: {
         totalCVEs,
         successfullyAnalyzed,
         failedAnalysis,
@@ -164,7 +165,7 @@ export class UserAssistantAgent {
       },
       {
         name: 'getExploitInfo',
-        keywords: ['exploit', 'exploited', 'exploitation details'], // "exploit" is broad, ensure it's desired
+        keywords: ['exploit', 'exploited', 'exploitation details'],
         handler: this.getExploitInfo
       },
       {
@@ -178,16 +179,12 @@ export class UserAssistantAgent {
         handler: this.getPatchAndAdvisoryInfo
       },
       {
-        name: 'getSummary', // Should generally be less specific or a fallback if other keywords for summary are used
+        name: 'getSummary',
         keywords: ['summarize', 'summary', 'overview', 'tell me about', 'details for'],
         handler: this.getSummary
       },
-      // Add more intents here. Order might matter if keywords overlap.
-      // More specific intents should generally come before broader ones.
     ];
 
-    // If no operationalCveId is set (neither from query nor session) at this point,
-    // and it wasn't a bulk command, then it's an ambiguous query for CVE-specific info.
     if (!operationalCveId) {
       const matchesIntentKeywords = intents.some(intent => intent.keywords.some(keyword => lowerQuery.includes(keyword)));
       if (matchesIntentKeywords) {
@@ -196,7 +193,6 @@ export class UserAssistantAgent {
       return { text: "Please specify a CVE ID in your query (e.g., 'What about CVE-2023-1234?'), ask me to focus on one, or use '/bulk_summary' for the latest bulk report." };
     }
 
-    // If CVE was just set by the query, and the query is *only* the CVE ID, ask for more details.
     if (cveMatch && query.trim().toUpperCase() === operationalCveId) {
         return { text: `Okay, I'm now focused on ${operationalCveId}. What would you like to know about it? (e.g., summary, EPSS score, patches)` };
     }
@@ -207,7 +203,6 @@ export class UserAssistantAgent {
           return await intent.handler.call(this, operationalCveId);
         }
       }
-      // Fallback if no intent is matched but a CVE context exists
       return { text: `I have context for ${operationalCveId}, but I'm not sure what you're asking about it. You can ask for EPSS score, summary, patches, validation, etc., or use '/bulk_summary' for the bulk report.` };
 
     } catch (error: any) {
@@ -216,7 +211,7 @@ export class UserAssistantAgent {
     }
   }
 
-  private async getEPSSScore(cveId: string): Promise<ChatResponse> {
+  private async getEPSSScore(cveId: string): Promise<ChatResponse<EPSSData | null>> {
     try {
       // Assuming APIService.fetchEPSSData might need setLoadingSteps, but for agent, we might omit or use a dummy.
       // Also, it interacts with ragDatabase, which APIService handles.
