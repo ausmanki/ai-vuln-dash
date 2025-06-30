@@ -15,13 +15,10 @@ import {
 
 const CVE_REGEX = /CVE-\d{4}-\d{4,7}/i;
 
-// Helper type for the expected structure from APIService.fetchAIThreatIntelligence
-// This should ideally be replaced by a strong type returned by APIService itself.
 interface InternalAIThreatIntelData {
   cisaKev?: Partial<CisaKevDetails>;
   activeExploitation?: Partial<ActiveExploitationData>;
   exploitDiscovery?: Partial<ExploitDiscoveryData>;
-  // Potentially other fields like cveValidation, technicalAnalysis, etc.
 }
 
 export class UserAssistantAgent {
@@ -112,7 +109,7 @@ export class UserAssistantAgent {
     if (highEpssCVEs.length > 0) {
       summaryText += `**High EPSS Scores (Predicted Exploitable > 75%):**\n`;
       highEpssCVEs.forEach(item => {
-        summaryText += `- ${item.cveId} (EPSS: ${item.score}%)\n`; // Note: score is already a string with '%'
+        summaryText += `- ${item.cveId} (EPSS: ${item.score}%)\n`;
       });
       summaryText += `\n`;
     } else {
@@ -137,7 +134,6 @@ export class UserAssistantAgent {
   public async handleQuery(query: string, bulkResults?: Array<{cveId: string, data?: EnhancedVulnerabilityData, error?: string}> ): Promise<ChatResponse> {
     const lowerQuery = query.toLowerCase();
 
-    // Check for bulk summary command first
     if (lowerQuery.includes("/summarize_bulk") || lowerQuery.includes("/bulksummary") || lowerQuery.includes("/bulk_summary")) {
       if (bulkResults && bulkResults.length > 0) {
         return this.generateBulkAnalysisSummary(bulkResults);
@@ -156,33 +152,12 @@ export class UserAssistantAgent {
       operationalCveId = this.currentCveIdForSession;
     }
 
-    // Define intents (handlers are methods of this class)
     const intents = [
-      {
-        name: 'getEPSSScore',
-        keywords: ['epss score', 'epss value', 'exploit prediction'],
-        handler: this.getEPSSScore
-      },
-      {
-        name: 'getExploitInfo',
-        keywords: ['exploit', 'exploited', 'exploitation details'],
-        handler: this.getExploitInfo
-      },
-      {
-        name: 'getValidationInfo',
-        keywords: ['validate', 'validity', 'legitimacy', 'is valid', 'is it real'],
-        handler: this.getValidationInfo
-      },
-      {
-        name: 'getPatchAndAdvisoryInfo',
-        keywords: ['patch', 'patches', 'advisory', 'advisories', 'fix', 'remediation', 'mitigation'],
-        handler: this.getPatchAndAdvisoryInfo
-      },
-      {
-        name: 'getSummary',
-        keywords: ['summarize', 'summary', 'overview', 'tell me about', 'details for'],
-        handler: this.getSummary
-      },
+      { name: 'getEPSSScore', keywords: ['epss score', 'epss value', 'exploit prediction'], handler: this.getEPSSScore },
+      { name: 'getExploitInfo', keywords: ['exploit', 'exploited', 'exploitation details'], handler: this.getExploitInfo },
+      { name: 'getValidationInfo', keywords: ['validate', 'validity', 'legitimacy', 'is valid', 'is it real'], handler: this.getValidationInfo },
+      { name: 'getPatchAndAdvisoryInfo', keywords: ['patch', 'patches', 'advisory', 'advisories', 'fix', 'remediation', 'mitigation'], handler: this.getPatchAndAdvisoryInfo },
+      { name: 'getSummary', keywords: ['summarize', 'summary', 'overview', 'tell me about', 'details for'], handler: this.getSummary },
     ];
 
     if (!operationalCveId) {
@@ -342,7 +317,7 @@ export class UserAssistantAgent {
         this.settings.geminiApiKey,
         this.settings.geminiModel,
         this.settings
-      ) as AISummaryData | null; // Assuming generateAIAnalysis returns this or similar
+      ) as AISummaryData | null;
 
       if (aiAnalysis && aiAnalysis.analysis) {
         let responseText = `Here's an AI-generated summary for ${cveId}:\n\n`;
@@ -382,7 +357,7 @@ export class UserAssistantAgent {
       const vulnerability = await APIService.fetchVulnerabilityDataWithAI(cveId, () => {}, { nvd: this.settings?.nvdApiKey }, this.settings) as EnhancedVulnerabilityData | null;
 
       if (!vulnerability || !vulnerability.cveValidation) {
-        return { text: `I couldn't retrieve detailed validation information for ${cveId}. Basic CVE data might be missing or validation could not be performed.`, error: "Validation data fetch failed or incomplete" };
+        return { text: `I couldn't retrieve detailed validation information for ${cveId}. Basic CVE data might be missing or validation could not be performed.`, error: "Validation data fetch failed or incomplete", data: null };
       }
 
       const validation = vulnerability.cveValidation;
@@ -425,9 +400,9 @@ export class UserAssistantAgent {
       responseText += `\n*Validation Source(s): ${validation.validationSources?.join(', ') || 'AI analysis based on available data'}*`;
 
       return { text: responseText, data: validation };
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error fetching validation info for ${cveId}:`, error);
-      return { text: `Sorry, I couldn't fetch or process validation information for ${cveId}. Error: ${error.message}`, error: error.message };
+      return { text: `Sorry, I couldn't fetch or process validation information for ${cveId}. Error: ${error.message}`, error: error.message, data: null };
     }
   }
 
