@@ -94,9 +94,16 @@ const ChatInterface: React.FC = () => {
 
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 200px)', // Adjust as needed
-        maxWidth: '800px', margin: '20px auto', border: styles.border, borderRadius: '8px', background: styles.card.background }}>
-      <div style={{ padding: '16px', borderBottom: styles.border, background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface, borderRadius: '8px 8px 0 0' }}>
+    <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100%', // Changed from calc(100vh - 200px)
+        width: '100%', // Ensure it fills its new container
+        border: styles.border, // This might be redundant if App.tsx wrapper has border
+        borderRadius: 'inherit', // Inherit border radius from App.tsx wrapper
+        background: styles.card.background
+      }}>
+      <div style={{ padding: '16px', borderBottom: styles.border, background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface, borderRadius: 'inherit inherit 0 0' /* Adjust to inherit */ }}>
         <h2 style={{ ...styles.title, margin: 0, fontSize: '1.25rem', textAlign: 'center' }}>
           CVE Smart Assistant
         </h2>
@@ -115,7 +122,7 @@ const ChatInterface: React.FC = () => {
             </button>
           </div>
         ) : (
-          <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.9rem', color: styles.secondaryText.color }}>
+          <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.9rem', color: styles.subtitle.color }}>
             Talking about: <strong>{currentCveId}</strong>
             <button
               onClick={() => { setCurrentCveId(''); setCveId(''); setChatHistory([]); }}
@@ -151,7 +158,7 @@ const ChatInterface: React.FC = () => {
                   padding: '10px 14px',
                   borderRadius: '12px',
                   border: msg.error ? `1px solid ${COLORS.red}`: 'none',
-                  color: styles.primaryText.color,
+                  color: styles.app.color, // Changed from styles.primaryText.color
                   whiteSpace: 'pre-wrap', // To respect newlines from bot
                   overflowWrap: 'break-word',
                 }}
@@ -160,7 +167,7 @@ const ChatInterface: React.FC = () => {
               </div>
             </div>
              {msg.sender === 'bot' && msg.data && (
-              <div style={{ fontSize: '0.8rem', color: styles.tertiaryText?.color || '#888', marginLeft: '32px', marginTop: '4px' }}>
+              <div style={{ fontSize: '0.8rem', color: (settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText) || '#888', marginLeft: '32px', marginTop: '4px' }}>
                 {/* Potentially render some structured data here, or offer actions */}
                 {/* Example: <button onClick={() => alert(JSON.stringify(msg.data))}>View Raw Data</button> */}
               </div>
@@ -170,7 +177,7 @@ const ChatInterface: React.FC = () => {
         {isLoading && (
           <div style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Bot size={24} color={COLORS.blue} />
-            <div style={{ background: settings.darkMode ? `rgba(${utils.hexToRgb(COLORS.blue)}, 0.2)` : `rgba(${utils.hexToRgb(COLORS.blue)}, 0.1)`, padding: '10px 14px', borderRadius: '12px', color: styles.primaryText.color }}>
+            <div style={{ background: settings.darkMode ? `rgba(${utils.hexToRgb(COLORS.blue)}, 0.2)` : `rgba(${utils.hexToRgb(COLORS.blue)}, 0.1)`, padding: '10px 14px', borderRadius: '12px', color: styles.app.color }}> {/* Changed from styles.primaryText.color */}
               Thinking...
             </div>
           </div>
