@@ -428,7 +428,7 @@ export class APIService {
     const processedData = this.processCVEData(data.vulnerabilities[0].cve);
 
     // Store in RAG database
-    if (ragDatabase.initialized) {
+    if (ragDatabase?.initialized) {
       await ragDatabase.addDocument(
         `CVE ${cveId} NVD Data: ${processedData.description} CVSS Score: ${processedData.cvssV3?.baseScore || 'N/A'} Severity: ${processedData.cvssV3?.baseSeverity || 'Unknown'}`,
         {
@@ -521,7 +521,7 @@ export class APIService {
     updateSteps(prev => [...prev, `✅ Retrieved EPSS data for ${cveId}: ${epssPercentage}% (Percentile: ${percentileScore.toFixed(3)})`]);
 
     // Store in RAG database
-    if (ragDatabase.initialized) {
+    if (ragDatabase?.initialized) {
       await ragDatabase.addDocument(
         `CVE ${cveId} EPSS Analysis: Exploitation probability ${epssPercentage}% (percentile ${percentileScore.toFixed(3)}). ${epssScore > 0.5 ? 'High exploitation likelihood - immediate attention required.' : epssScore > 0.1 ? 'Moderate exploitation likelihood - monitor closely.' : 'Lower exploitation likelihood but monitoring recommended.'}`,
         {
@@ -545,824 +545,6 @@ export class APIService {
       model_version: data.model_version
     };
   }
-
-  static async fetchAIThreatIntelligence(cveId, cveData, epssData, settings, setLoadingSteps) {
-    const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
-
-    if (!settings.geminiApiKey) {
-      throw new Error('Gemini API key required for AI-powered threat intelligence');
-    }
-
-    const model = settings.geminiModel || 'gemini-2.5-flash';
-    const isWebSearchCapable = model.includes('2.0') || model.includes('2.5');
-
-    if (!isWebSearchCapable) {
-      updateSteps(prev => [...prev, `⚠️ Model ${model} doesn't support web search - using heuristic analysis`]);
-      return await this.performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
-    }
-
-    updateSteps(prev => [...prev, `🤖 AI searching web for real-time ${cveId} threat intelligence...`]);
-
-    // Enhanced extractive prompt with specific CISA KEV verification
-    const searchPrompt = `You are a cybersecurity analyst researching ${cveId}. Use web search to EXTRACT ONLY factual information from verified sources.
-
-CRITICAL: For CISA KEV verification, you MUST search the official CISA Known Exploited Vulnerabilities catalog directly.
-
-EXTRACTION RULES:
-- ONLY extract information that is explicitly stated in search results
-- DO NOT infer, generate, or guess any information
-- DO NOT include URLs unless they appear in actual search results
-- DO NOT make predictions or estimates
-- ONLY report findings with source attribution
-- For CISA KEV: MUST find explicit confirmation in official CISA sources
-
-REQUIRED SEARCHES:
-1. **CISA KEV Verification (MANDATORY)**: 
-   - Search: "site:cisa.gov Known Exploited Vulnerabilities ${cveId}"
-   - Search: "CISA KEV catalog ${cveId}"
-   - Search: "${cveId} CISA emergency directive"
-   - ONLY mark as KEV listed if found in official CISA sources
-   - Extract due date, vendor, product if found
-
-2. **Active Exploitation Evidence**: 
-   - Search: "${cveId} active exploitation in the wild"
-   - Search: "${cveId} ransomware APT campaigns"
-   - ONLY report if confirmed by security firms or government sources
-
-3. **Public Exploit Verification**: 
-   - Search: "${cveId} exploit github poc proof of concept"
-   - Search: "${cveId} exploit-db metasploit modules"
-   - ONLY include actual repository links found in search results
-
-4. **Vendor Security Advisories**: 
-   - Search: "${cveId} security advisory patch vendor"
-   - Search: "${cveId} Microsoft Red Hat Oracle Adobe security bulletin"
-   - ONLY report vendor advisories that are explicitly found
-
-5. **Technical Analysis Sources**:
-   - Search: "${cveId} technical analysis vulnerability details"
-   - Search: "${cveId} security research analysis"
-
-CURRENT CVE DATA:
-- CVE: ${cveId}
-- CVSS: ${cveData?.cvssV3?.baseScore || 'Unknown'} (${cveData?.cvssV3?.baseSeverity || 'Unknown'})
-- EPSS: ${epssData?.epssPercentage || 'Unknown'}%
-- Description: ${cveData?.description?.substring(0, 300) || 'No description'}
-
-Return findings in JSON format with HIGH confidence only for verified sources:
-{
-  "cisaKev": {
-    "listed": boolean (ONLY true if found in official CISA sources),
-    "details": "extracted details from CISA or empty string",
-    "source": "CISA official source name or empty",
-    "dueDate": "extracted due date or empty",
-    "vendorProject": "extracted vendor/project or empty",
-    "confidence": "HIGH only if found in official CISA sources, otherwise LOW",
-    "searchQueries": ["list of search queries used"],
-    "aiDiscovered": true
-  },
-  "activeExploitation": {
-    "confirmed": boolean (ONLY true if confirmed by credible sources),
-    "details": "extracted details with source attribution",
-    "sources": ["list of credible sources that confirm this"],
-    "threatActors": ["extracted threat actor names"],
-    "confidence": "HIGH/MEDIUM/LOW based on source credibility",
-    "aiDiscovered": true
-  },
-  "exploitDiscovery": {
-    "found": boolean (ONLY true if actual exploits found in search),
-    "totalCount": number (count from actual search results only),
-    "exploits": [
-      {
-        "type": "extracted exploit type",
-        "url": "actual URL found in search results or empty",
-        "source": "source name where found",
-        "description": "extracted description",
-        "reliability": "HIGH/MEDIUM/LOW"
-      }
-    ],
-    "githubRepos": number (actual count from search),
-    "exploitDbEntries": number (actual count from search),
-    "confidence": "HIGH/MEDIUM/LOW based on findings",
-    "aiDiscovered": true
-  },
-  "vendorAdvisories": {
-    "found": boolean,
-    "count": number (actual count from search),
-    "advisories": [
-      {
-        "vendor": "extracted vendor name",
-        "title": "extracted advisory title",
-        "patchAvailable": boolean (only if explicitly stated),
-        "severity": "extracted severity rating",
-        "source": "source where found"
-      }
-    ],
-    "confidence": "HIGH/MEDIUM/LOW",
-    "aiDiscovered": true
-  },
-  "extractionSummary": {
-    "sourcesSearched": number,
-    "officialSourcesFound": number,
-    "cisaSourcesChecked": boolean,
-    "extractionMethod": "WEB_SEARCH_EXTRACTION",
-    "confidenceLevel": "HIGH/MEDIUM/LOW",
-    "searchTimestamp": "current timestamp"
-  }
-}
-
-CRITICAL REQUIREMENTS:
-- For CISA KEV: Must find in official CISA government sources
-- All confidence levels must reflect actual source quality found
-- Include search queries used for transparency
-- Only mark as "found" what was actually discovered in search results
-- Provide source attribution for all findings`;
-
-
-
-    try {
-      const requestBody = {
-        contents: [{
-          parts: [{ text: searchPrompt }]
-        }],
-        generationConfig: {
-          temperature: 0.05, // Reduced temperature for more factual responses
-          topK: 1,
-          topP: 0.8,
-          maxOutputTokens: 4096, // Reduced to limit hallucination
-          candidateCount: 1
-        },
-        tools: [{
-          google_search: {}
-        }]
-      };
-
-      const response = await this.fetchWithFallback(
-        `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody)
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`AI Threat Intelligence API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
-      }
-
-      const data = await response.json();
-      const aiResponse = data.candidates[0].content.parts[0].text;
-
-      updateSteps(prev => [...prev, `✅ AI completed web-based CISA KEV and threat intelligence analysis for ${cveId}`]);
-
-      const findings = this.parseAIThreatIntelligence(aiResponse, cveId, setLoadingSteps);
-
-      // Add enhanced extraction metadata for web-based validation
-      findings.extractionMetadata = {
-        extractionMethod: 'WEB_SEARCH_EXTRACTION_WITH_CISA_VERIFICATION',
-        hallucinationMitigation: true,
-        extractiveApproach: true,
-        temperatureUsed: 0.05,
-        maxTokensUsed: 4096,
-        cisaVerificationPerformed: true,
-        webSearchValidation: true
-      };
-
-      if (ragDatabase.initialized) {
-        await ragDatabase.addDocument(
-          `AI Web-Based Threat Intelligence for ${cveId}: CISA KEV: ${findings.cisaKev.listed ? 'LISTED' : 'Not Listed'}, Active Exploitation: ${findings.activeExploitation?.confirmed ? 'CONFIRMED' : 'None'}, Public Exploits: ${findings.exploitDiscovery?.totalCount || 0}, Threat Level: ${findings.overallThreatLevel}. ${findings.summary}`,
-          {
-            title: `AI Web Threat Intelligence - ${cveId}`,
-            category: 'ai-web-intelligence',
-            tags: ['ai-web-search', 'threat-intelligence', cveId.toLowerCase(), 'extraction-based'],
-            source: 'gemini-web-search'
-          }
-        );
-      }
-
-      return findings;
-
-    } catch (error) {
-      console.error('AI Threat Intelligence error:', error);
-      updateSteps(prev => [...prev, `⚠️ AI web search failed: ${error.message} - using fallback analysis`]);
-      return await this.performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
-    }
-  }
-
-  static parseAIThreatIntelligence(aiResponse, cveId, setLoadingSteps) {
-    const updateStepsParse = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
-
-    try {
-      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        const parsed = JSON.parse(jsonMatch[0]);
-        updateStepsParse(prev => [...prev, `📊 Parsed structured threat intelligence for ${cveId}`]);
-        
-        // Add validation flags to parsed data
-        parsed.parsingMethod = 'JSON_EXTRACTION';
-        parsed.hallucinationFlags = this.detectHallucinationFlags(parsed);
-        
-        return this.normalizeAIFindings(parsed, cveId);
-      }
-    } catch (e) {
-      console.log('Failed to parse JSON, analyzing text response...');
-    }
-
-    // Fallback text analysis with conservative interpretation
-    const findings = this.performConservativeTextAnalysis(aiResponse, cveId);
-    updateStepsParse(prev => [...prev, `📈 Used conservative text analysis for ${cveId}`]);
-    
-    return findings;
-  }
-
-  static detectHallucinationFlags(parsed) {
-    const flags = [];
-
-    // Check for unrealistic counts
-    if (parsed.exploitDiscovery?.totalCount > 20) {
-      flags.push('UNREALISTIC_EXPLOIT_COUNT');
-    }
-
-    // Check for inconsistent confidence levels
-    if (parsed.cisaKev?.listed && parsed.cisaKev?.confidence === 'LOW') {
-      flags.push('INCONSISTENT_CONFIDENCE');
-    }
-
-    // Check for missing source attribution
-    if (parsed.cisaKev?.listed && !parsed.cisaKev?.source) {
-      flags.push('MISSING_SOURCE_ATTRIBUTION');
-    }
-
-    return flags;
-  }
-
-  static normalizeAIFindings(parsed, cveId) {
-    // Normalize the parsed findings to standard format
-    return {
-      cisaKev: {
-        listed: parsed.cisaKev?.listed || false,
-        details: parsed.cisaKev?.details || '',
-        source: parsed.cisaKev?.source || '',
-        confidence: parsed.cisaKev?.confidence || 'LOW',
-        aiDiscovered: true
-      },
-      activeExploitation: {
-        confirmed: parsed.activeExploitation?.confirmed || false,
-        details: parsed.activeExploitation?.details || '',
-        sources: parsed.activeExploitation?.sources || [],
-        aiDiscovered: true
-      },
-      exploitDiscovery: {
-        found: parsed.exploitDiscovery?.found || false,
-        totalCount: Math.min(parsed.exploitDiscovery?.totalCount || 0, 10), // Cap at 10
-        exploits: parsed.exploitDiscovery?.exploits || [],
-        confidence: parsed.exploitDiscovery?.confidence || 'LOW',
-        aiDiscovered: true
-      },
-      vendorAdvisories: {
-        found: parsed.vendorAdvisories?.found || false,
-        count: parsed.vendorAdvisories?.count || 0,
-        advisories: parsed.vendorAdvisories?.advisories || [],
-        aiDiscovered: true
-      },
-      intelligenceSummary: {
-        sourcesAnalyzed: parsed.extractionSummary?.sourcesFound || 1,
-        analysisMethod: 'AI_WEB_EXTRACTION',
-        confidenceLevel: parsed.extractionSummary?.confidenceLevel || 'LOW',
-        aiEnhanced: true,
-        extractionBased: true
-      },
-      overallThreatLevel: this.calculateThreatLevel(parsed),
-      lastUpdated: new Date().toISOString(),
-      summary: `Extractive AI analysis: ${parsed.cisaKev?.listed ? 'KEV listed' : 'Not in KEV'}, ${parsed.exploitDiscovery?.found ? parsed.exploitDiscovery.totalCount + ' exploits found' : 'No exploits found'}`,
-      hallucinationFlags: parsed.hallucinationFlags || []
-    };
-  }
-
-  static performConservativeTextAnalysis(aiResponse, cveId) {
-    const response = aiResponse.toLowerCase();
-    
-    // Very conservative text analysis
-    const findings = {
-      cisaKev: { 
-        listed: response.includes('cisa') && response.includes('kev') && response.includes('listed'),
-        details: response.includes('cisa') ? 'Mentioned in search results' : '',
-        source: '',
-        confidence: 'LOW',
-        aiDiscovered: true
-      },
-      activeExploitation: { 
-        confirmed: false, // Conservative - require explicit confirmation
-        details: '', 
-        sources: [], 
-        aiDiscovered: true 
-      },
-      exploitDiscovery: {
-        found: response.includes('exploit') && (response.includes('github') || response.includes('poc')),
-        totalCount: response.includes('exploit') ? 1 : 0, // Conservative count
-        exploits: [],
-        confidence: 'LOW',
-        aiDiscovered: true
-      },
-      vendorAdvisories: {
-        found: response.includes('advisory') || response.includes('patch'),
-        count: response.includes('advisory') ? 1 : 0,
-        advisories: [],
-        aiDiscovered: true
-      },
-      intelligenceSummary: {
-        sourcesAnalyzed: 1,
-        analysisMethod: 'CONSERVATIVE_TEXT_ANALYSIS',
-        confidenceLevel: 'VERY_LOW',
-        aiEnhanced: false
-      },
-      overallThreatLevel: 'MEDIUM',
-      lastUpdated: new Date().toISOString(),
-      summary: 'Conservative text analysis with minimal claims',
-      hallucinationFlags: ['TEXT_ANALYSIS_FALLBACK']
-    };
-
-    return findings;
-  }
-
-  static calculateThreatLevel(findings) {
-    if (findings.cisaKev?.listed) return 'CRITICAL';
-    if (findings.activeExploitation?.confirmed) return 'HIGH';
-    if (findings.exploitDiscovery?.found) return 'HIGH';
-    return 'MEDIUM';
-  }
-
-  static async performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps) {
-    const updateStepsHeuristic = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
-    updateStepsHeuristic(prev => [...prev, `🔍 Performing advanced heuristic analysis for ${cveId}...`]);
-
-    const year = parseInt(cveId.split('-')[1]);
-    const id = parseInt(cveId.split('-')[2]);
-    const cvssScore = cveData?.cvssV3?.baseScore || cveData?.cvssV2?.baseScore || 0;
-    const epssFloat = epssData?.epssFloat || 0;
-    const severity = utils.getSeverityLevel(cvssScore);
-
-    let riskScore = 0;
-    const indicators = [];
-
-    if (cvssScore >= 9) { riskScore += 4; indicators.push('Critical CVSS score'); }
-    else if (cvssScore >= 7) { riskScore += 3; indicators.push('High CVSS score'); }
-
-    if (epssFloat > 0.7) { riskScore += 4; indicators.push('Very high EPSS score'); }
-    else if (epssFloat > 0.3) { riskScore += 2; indicators.push('Elevated EPSS score'); }
-
-    if (year >= 2024) { riskScore += 2; indicators.push('Recent vulnerability'); }
-    if (id < 1000) { riskScore += 2; indicators.push('Early discovery in year'); }
-
-    const highRiskPatterns = ['21413', '44487', '38030', '26923', '1675'];
-    if (highRiskPatterns.some(pattern => cveId.includes(pattern))) {
-      riskScore += 5;
-      indicators.push('Matches known high-risk pattern');
-    }
-
-    const description = cveData?.description?.toLowerCase() || '';
-    const highValueTargets = ['microsoft', 'apache', 'oracle', 'vmware', 'cisco', 'windows', 'exchange', 'linux'];
-    if (highValueTargets.some(target => description.includes(target))) {
-      riskScore += 2;
-      indicators.push('Affects high-value target software');
-    }
-
-    const threatLevel = riskScore >= 8 ? 'CRITICAL' : riskScore >= 6 ? 'HIGH' : riskScore >= 4 ? 'MEDIUM' : 'LOW';
-    const likelyInKEV = riskScore >= 7;
-    const likelyExploited = riskScore >= 5;
-    const exploitCount = Math.min(Math.floor(riskScore / 2), 5);
-
-    updateStepsHeuristic(prev => [...prev, `📊 Heuristic analysis complete: ${threatLevel} threat level (score: ${riskScore})`]);
-
-    return {
-      cisaKev: {
-        listed: likelyInKEV,
-        details: likelyInKEV ? 'High probability of KEV listing based on risk factors' : 'Low probability of KEV listing',
-        confidence: 'HEURISTIC',
-        source: 'Advanced pattern analysis',
-        aiDiscovered: false
-      },
-      activeExploitation: {
-        confirmed: likelyExploited,
-        details: likelyExploited ? 'High exploitation likelihood based on multiple risk factors' : 'Lower exploitation probability',
-        sources: [`Risk indicators: ${indicators.join(', ')}`],
-        aiDiscovered: false
-      },
-      exploitDiscovery: {
-        found: exploitCount > 0,
-        totalCount: exploitCount,
-        exploits: exploitCount > 0 ? [{
-          type: exploitCount > 2 ? 'Working Exploit' : 'POC',
-          url: `https://www.exploit-db.com/search?cve=${cveId}`,
-          source: 'Exploit-DB (Predicted)',
-          description: 'Heuristic prediction based on vulnerability characteristics',
-          reliability: riskScore >= 6 ? 'HIGH' : 'MEDIUM',
-          dateFound: new Date().toISOString()
-        }] : [],
-        githubRepos: Math.max(0, exploitCount - 1),
-        exploitDbEntries: exploitCount > 0 ? 1 : 0,
-        metasploitModules: exploitCount > 3 ? 1 : 0,
-        confidence: riskScore >= 6 ? 'HIGH' : 'MEDIUM',
-        aiDiscovered: false
-      },
-      vendorAdvisories: {
-        found: Math.floor(riskScore / 3) > 0,
-        count: Math.floor(riskScore / 3),
-        advisories: [],
-        patchStatus: cvssScore >= 7 ? 'likely available' : 'pending',
-        aiDiscovered: false
-      },
-      cveValidation: {
-        isValid: true,
-        confidence: 'MEDIUM',
-        validationSources: ['NVD', 'EPSS'],
-        disputes: [],
-        falsePositiveIndicators: [],
-        legitimacyEvidence: indicators,
-        recommendation: 'VALID',
-        aiDiscovered: false
-      },
-      technicalAnalysis: {
-        rootCause: 'Analysis based on CVE description and scoring',
-        exploitMethod: cvssScore >= 7 ? 'Remote exploitation likely' : 'Local access may be required',
-        impactAnalysis: `${severity} impact vulnerability with ${cvssScore} CVSS score`,
-        mitigations: ['Apply vendor patches', 'Monitor for exploitation attempts', 'Implement network controls'],
-        sources: [],
-        aiDiscovered: false
-      },
-      threatIntelligence: {
-        iocs: [],
-        threatActors: [],
-        campaignDetails: riskScore >= 8 ? 'Possible APT interest due to high impact' : '',
-        ransomwareUsage: riskScore >= 7,
-        aptGroups: [],
-        aiDiscovered: false
-      },
-      intelligenceSummary: {
-        sourcesAnalyzed: 2,
-        exploitsFound: exploitCount,
-        vendorAdvisoriesFound: Math.floor(riskScore / 3),
-        activeExploitation: likelyExploited,
-        cisaKevListed: likelyInKEV,
-        cveValid: true,
-        threatLevel: threatLevel,
-        dataFreshness: new Date().toISOString(),
-        analysisMethod: 'ADVANCED_HEURISTICS',
-        confidenceLevel: riskScore >= 6 ? 'HIGH' : 'MEDIUM',
-        aiEnhanced: false
-      },
-      overallThreatLevel: threatLevel,
-      lastUpdated: new Date().toISOString(),
-      summary: `Heuristic analysis: ${indicators.length} risk indicators detected, ${threatLevel} threat level assigned`,
-      analysisMethod: 'ADVANCED_HEURISTICS',
-      riskScore: riskScore,
-      indicators: indicators,
-      hallucinationFlags: ['HEURISTIC_BASED']
-    };
-  }
-
-  // Enhanced main function with validation
-  static async fetchVulnerabilityDataWithAI(cveId, setLoadingSteps, apiKeys, settings) {
-    try {
-      setLoadingSteps(prev => [...prev, `🚀 Starting AI-powered real-time analysis for ${cveId}...`]);
-
-      if (!ragDatabase.initialized) {
-        setLoadingSteps(prev => [...prev, `📚 Initializing RAG knowledge base...`]);
-        await ragDatabase.initialize();
-      }
-
-      setLoadingSteps(prev => [...prev, `🔍 Fetching from primary sources (NVD, EPSS)...`]);
-
-      const [cveResult, epssResult] = await Promise.allSettled([
-        this.fetchCVEData(cveId, apiKeys.nvd, setLoadingSteps),
-        this.fetchEPSSData(cveId, setLoadingSteps)
-      ]);
-
-      const cve = cveResult.status === 'fulfilled' ? cveResult.value : null;
-      const epss = epssResult.status === 'fulfilled' ? epssResult.value : null;
-
-      if (!cve) {
-        throw new Error(`Failed to fetch CVE data for ${cveId}`);
-      }
-
-      setLoadingSteps(prev => [...prev, `🌐 AI analyzing real-time threat intelligence via web search...`]);
-
-      const aiThreatIntel = await this.fetchAIThreatIntelligence(cveId, cve, epss, settings, setLoadingSteps);
-
-      // Validate AI findings
-      setLoadingSteps(prev => [...prev, `🔍 Validating AI findings against authoritative sources...`]);
-      const validation = await ValidationService.validateAIFindings(aiThreatIntel, cveId, setLoadingSteps);
-
-      // Calculate confidence scores
-      const confidence = ConfidenceScorer.scoreAIFindings(
-        aiThreatIntel, 
-        validation, 
-        { discoveredSources: ['NVD', 'EPSS', 'AI_WEB_SEARCH'] }
-      );
-
-      const discoveredSources = ['NVD'];
-      const sources = [{ name: 'NVD', url: `https://nvd.nist.gov/vuln/detail/${cveId}`, aiDiscovered: false }];
-
-      if (epss) {
-        discoveredSources.push('EPSS/FIRST');
-        sources.push({ name: 'EPSS', url: `https://api.first.org/data/v1/epss?cve=${cveId}`, aiDiscovered: false });
-      }
-
-      if (aiThreatIntel.cisaKev?.listed) {
-        discoveredSources.push('CISA KEV');
-        sources.push({
-          name: 'CISA KEV',
-          url: 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog',
-          aiDiscovered: aiThreatIntel.cisaKev.aiDiscovered || true,
-          verified: validation.cisaKev?.verified || false
-        });
-      }
-
-      if (aiThreatIntel.exploitDiscovery?.found) {
-        discoveredSources.push('Exploit Intelligence');
-        if (aiThreatIntel.exploitDiscovery.exploits) {
-          aiThreatIntel.exploitDiscovery.exploits.forEach(exploit => {
-            if (exploit.url && exploit.url.startsWith('http')) {
-              sources.push({
-                name: `${exploit.source} - ${exploit.type}`,
-                url: exploit.url,
-                aiDiscovered: true,
-                reliability: exploit.reliability,
-                description: exploit.description,
-                verified: validation.exploits?.verifiedExploits?.some(v => v.url === exploit.url) || false
-              });
-            }
-          });
-        }
-      }
-
-      if (aiThreatIntel.vendorAdvisories?.found) {
-        discoveredSources.push('Vendor Advisories');
-        if (aiThreatIntel.vendorAdvisories.advisories) {
-          aiThreatIntel.vendorAdvisories.advisories.forEach(advisory => {
-            const vendorName = `${advisory.vendor} Advisory`;
-            if (!sources.some(s => s.name === vendorName)) {
-              sources.push({
-                name: vendorName,
-                url: '',
-                aiDiscovered: true,
-                patchAvailable: advisory.patchAvailable,
-                severity: advisory.severity,
-                verified: validation.vendorAdvisories?.verifiedAdvisories?.some(v => v.vendor === advisory.vendor) || false
-              });
-            }
-          });
-        }
-      }
-
-      const intelligenceSummary = aiThreatIntel.intelligenceSummary || {
-        sourcesAnalyzed: discoveredSources.length,
-        exploitsFound: aiThreatIntel.exploitDiscovery?.totalCount || 0,
-        vendorAdvisoriesFound: aiThreatIntel.vendorAdvisories?.count || 0,
-        activeExploitation: aiThreatIntel.activeExploitation?.confirmed || false,
-        cisaKevListed: aiThreatIntel.cisaKev?.listed || false,
-        cveValid: aiThreatIntel.cveValidation?.isValid !== false,
-        threatLevel: aiThreatIntel.overallThreatLevel || 'MEDIUM',
-        dataFreshness: 'AI_WEB_SEARCH',
-        analysisMethod: 'AI_WEB_SEARCH_VALIDATED',
-        confidenceLevel: confidence.overall,
-        aiEnhanced: true,
-        validated: true
-      };
-
-      const threatLevel = aiThreatIntel.overallThreatLevel || intelligenceSummary.threatLevel;
-      const summary = aiThreatIntel.summary;
-
-      const enhancedVulnerability = {
-        cve,
-        epss,
-        kev: {
-          ...aiThreatIntel.cisaKev,
-          validated: validation.cisaKev?.verified || false,
-          actualStatus: validation.cisaKev?.actualStatus
-        },
-        exploits: {
-          found: aiThreatIntel.exploitDiscovery?.found || false,
-          count: aiThreatIntel.exploitDiscovery?.totalCount || 0,
-          confidence: aiThreatIntel.exploitDiscovery?.confidence || 'LOW',
-          sources: aiThreatIntel.exploitDiscovery?.exploits?.map(e => e.url) || [],
-          types: aiThreatIntel.exploitDiscovery?.exploits?.map(e => e.type) || [],
-          details: aiThreatIntel.exploitDiscovery?.exploits || [],
-          githubRepos: aiThreatIntel.exploitDiscovery?.githubRepos || 0,
-          exploitDbEntries: aiThreatIntel.exploitDiscovery?.exploitDbEntries || 0,
-          metasploitModules: aiThreatIntel.exploitDiscovery?.metasploitModules || 0,
-          validated: validation.exploits?.verified || false,
-          verifiedCount: validation.exploits?.verifiedExploits?.length || 0
-        },
-        vendorAdvisories: {
-          ...aiThreatIntel.vendorAdvisories,
-          validated: validation.vendorAdvisories?.verified || false
-        },
-        cveValidation: aiThreatIntel.cveValidation || {
-          isValid: true,
-          confidence: 'MEDIUM',
-          validationSources: [],
-          disputes: [],
-          falsePositiveIndicators: [],
-          legitimacyEvidence: [],
-          recommendation: 'NEEDS_VERIFICATION'
-        },
-        technicalAnalysis: aiThreatIntel.technicalAnalysis,
-        github: {
-          found: (aiThreatIntel.exploitDiscovery?.githubRepos || 0) > 0 || (aiThreatIntel.vendorAdvisories?.count || 0) > 0,
-          count: (aiThreatIntel.exploitDiscovery?.githubRepos || 0) + (aiThreatIntel.vendorAdvisories?.count || 0)
-        },
-        activeExploitation: aiThreatIntel.activeExploitation || {
-          confirmed: false,
-          details: '',
-          sources: []
-        },
-        threatIntelligence: aiThreatIntel.threatIntelligence,
-        intelligenceSummary: intelligenceSummary,
-        sources,
-        discoveredSources,
-        summary,
-        threatLevel,
-        dataFreshness: intelligenceSummary.dataFreshness || 'AI_WEB_SEARCH',
-        lastUpdated: new Date().toISOString(),
-        searchTimestamp: new Date().toISOString(),
-        ragEnhanced: true,
-        aiSearchPerformed: true,
-        aiWebGrounded: true,
-        enhancedSources: discoveredSources,
-        analysisMethod: intelligenceSummary.analysisMethod || aiThreatIntel.analysisMethod || 'AI_WEB_SEARCH_VALIDATED',
-        
-        // Enhanced validation metadata
-        validation: validation,
-        confidence: confidence,
-        hallucinationFlags: aiThreatIntel.hallucinationFlags || [],
-        extractionMetadata: aiThreatIntel.extractionMetadata,
-        validationTimestamp: new Date().toISOString(),
-        enhancedWithValidation: true
-      };
-
-      setLoadingSteps(prev => [...prev, 
-        `✅ Enhanced analysis complete: ${discoveredSources.length} sources analyzed, ${threatLevel} threat level, ${confidence.overall} confidence`
-      ]);
-
-      return enhancedVulnerability;
-
-    } catch (error) {
-      console.error(`Error processing ${cveId}:`, error);
-      throw error;
-    }
-  }
-
-  static async generateAIAnalysis(vulnerability, apiKey, model, settings = {}) {
-    if (!apiKey) throw new Error('Gemini API key required');
-
-    const now = Date.now();
-    const lastRequest = window.lastGeminiRequest || 0;
-
-    if ((now - lastRequest) < CONSTANTS.RATE_LIMITS.GEMINI_COOLDOWN) {
-      const waitTime = Math.ceil((CONSTANTS.RATE_LIMITS.GEMINI_COOLDOWN - (now - lastRequest)) / 1000);
-      throw new Error(`Rate limit protection: Please wait ${waitTime} more seconds. Free Gemini API has strict limits.`);
-    }
-
-    window.lastGeminiRequest = now;
-
-    await ragDatabase.ensureInitialized(apiKey);
-    console.log(`📊 RAG Database Status: ${ragDatabase.documents.length} documents available (${ragDatabase.geminiApiKey ? 'Gemini embeddings' : 'local embeddings'})`);
-
-    const cveId = vulnerability.cve.id;
-    const ragQuery = `${cveId} ${vulnerability.cve.description.substring(0, 200)} vulnerability analysis security impact mitigation threat intelligence EPSS ${vulnerability.epss?.epssPercentage || 'N/A'} CVSS ${vulnerability.cve.cvssV3?.baseScore || 'N/A'} ${vulnerability.kev?.listed ? 'CISA KEV active exploitation' : ''}`;
-
-    console.log(`🔍 RAG Query: "${ragQuery.substring(0, 100)}..."`);
-    const relevantDocs = await ragDatabase.search(ragQuery, 15);
-    console.log(`📚 RAG Retrieved: ${relevantDocs.length} relevant documents (${relevantDocs.filter(d => d.embeddingType === 'gemini').length} with Gemini embeddings)`);
-
-    const ragContext = relevantDocs.length > 0 ?
-      relevantDocs.map((doc, index) =>
-        `[Security Knowledge ${index + 1}] ${doc.metadata.title} (Relevance: ${(doc.similarity * 100).toFixed(1)}%, ${doc.embeddingType || 'local'} embedding):\n${doc.content.substring(0, 800)}...`
-      ).join('\n\n') :
-      'No specific security knowledge found in database. Initializing knowledge base for future queries.';
-
-    if (relevantDocs.length === 0) {
-      console.log('🔄 No specific matches found, trying broader search...');
-      const broaderQuery = `vulnerability security analysis ${vulnerability.cve.cvssV3?.baseSeverity || 'unknown'} severity`;
-      const broaderDocs = await ragDatabase.search(broaderQuery, 8);
-      console.log(`📚 Broader RAG Search: ${broaderDocs.length} documents found`);
-
-      if (broaderDocs.length > 0) {
-        const broaderContext = broaderDocs.map((doc, index) =>
-          `[General Security Knowledge ${index + 1}] ${doc.metadata.title} (${doc.embeddingType || 'local'} embedding):\n${doc.content.substring(0, 600)}...`
-        ).join('\n\n');
-
-        relevantDocs.push(...broaderDocs);
-      }
-    }
-
-    const prompt = this.buildEnhancedAnalysisPrompt(vulnerability, ragContext, relevantDocs.length);
-
-    const requestBody = {
-      contents: [{ parts: [{ text: prompt }] }],
-      generationConfig: {
-        temperature: 0.1,
-        topK: 1,
-        topP: 0.8,
-        maxOutputTokens: 8192,
-        candidateCount: 1
-      }
-    };
-
-    const isWebSearchCapable = model.includes('2.0') || model.includes('2.5');
-    if (isWebSearchCapable) {
-      requestBody.tools = [{ google_search: {} }];
-    }
-
-    const apiUrl = `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${apiKey}`;
-
-    try {
-      const response = await this.fetchWithFallback(apiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-
-        if (response.status === 429) {
-          throw new Error('Gemini API rate limit exceeded. Please wait a few minutes before trying again.');
-        }
-
-        if (response.status === 401 || response.status === 403) {
-          throw new Error('Invalid Gemini API key. Please check your API key in settings.');
-        }
-
-        throw new Error(`Gemini API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
-      }
-
-      const data = await response.json();
-      const content = data.candidates?.[0]?.content;
-
-      if (!content?.parts?.[0]?.text) {
-        throw new Error('Invalid response from Gemini API');
-      }
-
-      const analysisText = content.parts[0].text;
-
-      if (!analysisText || analysisText.trim().length === 0) {
-        throw new Error('Empty analysis received from Gemini API');
-      }
-
-      if (analysisText.length > 500) {
-        await ragDatabase.addDocument(
-          `Enhanced CVE Analysis: ${cveId}\n\nCVSS: ${vulnerability.cve.cvssV3?.baseScore || 'N/A'}\nEPSS: ${vulnerability.epss?.epssPercentage || 'N/A'}%\nCISA KEV: ${vulnerability.kev?.listed ? 'Yes' : 'No'}\nValidated: ${vulnerability.validation ? 'Yes' : 'No'}\nConfidence: ${vulnerability.confidence?.overall || 'Unknown'}\n\n${analysisText}`,
-          {
-            title: `Enhanced RAG Security Analysis - ${cveId}`,
-            category: 'enhanced-analysis',
-            tags: ['rag-enhanced', 'ai-analysis', 'validated', cveId.toLowerCase(), vulnerability.cve.cvssV3?.baseSeverity?.toLowerCase() || 'unknown'],
-            source: 'ai-analysis-rag',
-            model: model,
-            cveId: cveId
-          }
-        );
-        console.log(`💾 Stored validated analysis for ${cveId} in RAG database for future reference`);
-      }
-
-      return {
-        analysis: analysisText,
-        ragUsed: true,
-        ragDocuments: relevantDocs.length,
-        ragSources: relevantDocs.map(doc => doc.metadata?.title || 'Unknown').filter(Boolean),
-        webGrounded: isWebSearchCapable,
-        enhancedSources: vulnerability.enhancedSources || [],
-        discoveredSources: vulnerability.discoveredSources || [],
-        model: model,
-        analysisTimestamp: new Date().toISOString(),
-        ragDatabaseSize: ragDatabase.documents.length,
-        embeddingType: ragDatabase.geminiApiKey ? 'gemini' : 'local',
-        geminiEmbeddingsCount: ragDatabase.documents.filter(d => d.embeddingType === 'gemini').length,
-        realTimeData: {
-          cisaKev: vulnerability.kev?.listed || false,
-          cisaKevValidated: vulnerability.kev?.validated || false,
-          exploitsFound: vulnerability.exploits?.count || 0,
-          exploitsValidated: vulnerability.exploits?.validated || false,
-          exploitConfidence: vulnerability.exploits?.confidence || 'NONE',
-          githubRefs: vulnerability.github?.count || 0,
-          threatLevel: vulnerability.threatLevel || 'STANDARD',
-          overallConfidence: vulnerability.confidence?.overall || 'UNKNOWN',
-          hallucinationFlags: vulnerability.hallucinationFlags || []
-        },
-        validationEnhanced: true,
-        confidence: vulnerability.confidence,
-        validation: vulnerability.validation
-      };
-
-    } catch (error) {
-      console.error('Enhanced RAG Analysis Error:', error);
-      return this.generateEnhancedFallbackAnalysis(vulnerability, error);
-    }
-  }
-// ADD THESE THREE METHODS TO YOUR APIService CLASS
-// (Add them after your existing methods, before the fetchVulnerabilityDataWithAI method)
 
   // Enhanced patch and advisory retrieval integrated into AI analysis
   static async fetchPatchesAndAdvisories(cveId, cveData, settings, setLoadingSteps) {
@@ -1787,23 +969,837 @@ CRITICAL: Only include URLs that were actually found in search results. Do not g
     };
   }
 
-// NOW UPDATE YOUR fetchVulnerabilityDataWithAI METHOD
-// FIND THIS LINE:
-// const aiThreatIntel = await this.fetchAIThreatIntelligence(cveId, cve, epss, settings, setLoadingSteps);
+  static async fetchAIThreatIntelligence(cveId, cveData, epssData, settings, setLoadingSteps) {
+    const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
 
-// ADD THESE LINES IMMEDIATELY AFTER IT:
+    if (!settings.geminiApiKey) {
+      throw new Error('Gemini API key required for AI-powered threat intelligence');
+    }
+
+    const model = settings.geminiModel || 'gemini-2.5-flash';
+    const isWebSearchCapable = model.includes('2.0') || model.includes('2.5');
+
+    if (!isWebSearchCapable) {
+      updateSteps(prev => [...prev, `⚠️ Model ${model} doesn't support web search - using heuristic analysis`]);
+      return await this.performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
+    }
+
+    updateSteps(prev => [...prev, `🤖 AI searching web for real-time ${cveId} threat intelligence...`]);
+
+    // Enhanced extractive prompt with specific CISA KEV verification
+    const searchPrompt = `You are a cybersecurity analyst researching ${cveId}. Use web search to EXTRACT ONLY factual information from verified sources.
+
+CRITICAL: For CISA KEV verification, you MUST search the official CISA Known Exploited Vulnerabilities catalog directly.
+
+EXTRACTION RULES:
+- ONLY extract information that is explicitly stated in search results
+- DO NOT infer, generate, or guess any information
+- DO NOT include URLs unless they appear in actual search results
+- DO NOT make predictions or estimates
+- ONLY report findings with source attribution
+- For CISA KEV: MUST find explicit confirmation in official CISA sources
+
+REQUIRED SEARCHES:
+1. **CISA KEV Verification (MANDATORY)**: 
+   - Search: "site:cisa.gov Known Exploited Vulnerabilities ${cveId}"
+   - Search: "CISA KEV catalog ${cveId}"
+   - Search: "${cveId} CISA emergency directive"
+   - ONLY mark as KEV listed if found in official CISA sources
+   - Extract due date, vendor, product if found
+
+2. **Active Exploitation Evidence**: 
+   - Search: "${cveId} active exploitation in the wild"
+   - Search: "${cveId} ransomware APT campaigns"
+   - ONLY report if confirmed by security firms or government sources
+
+3. **Public Exploit Verification**: 
+   - Search: "${cveId} exploit github poc proof of concept"
+   - Search: "${cveId} exploit-db metasploit modules"
+   - ONLY include actual repository links found in search results
+
+4. **Vendor Security Advisories**: 
+   - Search: "${cveId} security advisory patch vendor"
+   - Search: "${cveId} Microsoft Red Hat Oracle Adobe security bulletin"
+   - ONLY report vendor advisories that are explicitly found
+
+5. **Technical Analysis Sources**:
+   - Search: "${cveId} technical analysis vulnerability details"
+   - Search: "${cveId} security research analysis"
+
+CURRENT CVE DATA:
+- CVE: ${cveId}
+- CVSS: ${cveData?.cvssV3?.baseScore || 'Unknown'} (${cveData?.cvssV3?.baseSeverity || 'Unknown'})
+- EPSS: ${epssData?.epssPercentage || 'Unknown'}%
+- Description: ${cveData?.description?.substring(0, 300) || 'No description'}
+
+Return findings in JSON format with HIGH confidence only for verified sources:
+{
+  "cisaKev": {
+    "listed": boolean (ONLY true if found in official CISA sources),
+    "details": "extracted details from CISA or empty string",
+    "source": "CISA official source name or empty",
+    "dueDate": "extracted due date or empty",
+    "vendorProject": "extracted vendor/project or empty",
+    "confidence": "HIGH only if found in official CISA sources, otherwise LOW",
+    "searchQueries": ["list of search queries used"],
+    "aiDiscovered": true
+  },
+  "activeExploitation": {
+    "confirmed": boolean (ONLY true if confirmed by credible sources),
+    "details": "extracted details with source attribution",
+    "sources": ["list of credible sources that confirm this"],
+    "threatActors": ["extracted threat actor names"],
+    "confidence": "HIGH/MEDIUM/LOW based on source credibility",
+    "aiDiscovered": true
+  },
+  "exploitDiscovery": {
+    "found": boolean (ONLY true if actual exploits found in search),
+    "totalCount": number (count from actual search results only),
+    "exploits": [
+      {
+        "type": "extracted exploit type",
+        "url": "actual URL found in search results or empty",
+        "source": "source name where found",
+        "description": "extracted description",
+        "reliability": "HIGH/MEDIUM/LOW"
+      }
+    ],
+    "githubRepos": number (actual count from search),
+    "exploitDbEntries": number (actual count from search),
+    "confidence": "HIGH/MEDIUM/LOW based on findings",
+    "aiDiscovered": true
+  },
+  "vendorAdvisories": {
+    "found": boolean,
+    "count": number (actual count from search),
+    "advisories": [
+      {
+        "vendor": "extracted vendor name",
+        "title": "extracted advisory title",
+        "patchAvailable": boolean (only if explicitly stated),
+        "severity": "extracted severity rating",
+        "source": "source where found"
+      }
+    ],
+    "confidence": "HIGH/MEDIUM/LOW",
+    "aiDiscovered": true
+  },
+  "extractionSummary": {
+    "sourcesSearched": number,
+    "officialSourcesFound": number,
+    "cisaSourcesChecked": boolean,
+    "extractionMethod": "WEB_SEARCH_EXTRACTION",
+    "confidenceLevel": "HIGH/MEDIUM/LOW",
+    "searchTimestamp": "current timestamp"
+  }
+}
+
+CRITICAL REQUIREMENTS:
+- For CISA KEV: Must find in official CISA government sources
+- All confidence levels must reflect actual source quality found
+- Include search queries used for transparency
+- Only mark as "found" what was actually discovered in search results
+- Provide source attribution for all findings`;
+
+    try {
+      const requestBody = {
+        contents: [{
+          parts: [{ text: searchPrompt }]
+        }],
+        generationConfig: {
+          temperature: 0.05, // Reduced temperature for more factual responses
+          topK: 1,
+          topP: 0.8,
+          maxOutputTokens: 4096, // Reduced to limit hallucination
+          candidateCount: 1
+        },
+        tools: [{
+          google_search: {}
+        }]
+      };
+
+      const response = await this.fetchWithFallback(
+        `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody)
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(`AI Threat Intelligence API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      }
+
+      const data = await response.json();
+      const aiResponse = data.candidates[0].content.parts[0].text;
+
+      updateSteps(prev => [...prev, `✅ AI completed web-based CISA KEV and threat intelligence analysis for ${cveId}`]);
+
+      const findings = this.parseAIThreatIntelligence(aiResponse, cveId, setLoadingSteps);
+
+      // Add enhanced extraction metadata for web-based validation
+      findings.extractionMetadata = {
+        extractionMethod: 'WEB_SEARCH_EXTRACTION_WITH_CISA_VERIFICATION',
+        hallucinationMitigation: true,
+        extractiveApproach: true,
+        temperatureUsed: 0.05,
+        maxTokensUsed: 4096,
+        cisaVerificationPerformed: true,
+        webSearchValidation: true
+      };
+
+      if (ragDatabase?.initialized) {
+        await ragDatabase.addDocument(
+          `AI Web-Based Threat Intelligence for ${cveId}: CISA KEV: ${findings.cisaKev.listed ? 'LISTED' : 'Not Listed'}, Active Exploitation: ${findings.activeExploitation?.confirmed ? 'CONFIRMED' : 'None'}, Public Exploits: ${findings.exploitDiscovery?.totalCount || 0}, Threat Level: ${findings.overallThreatLevel}. ${findings.summary}`,
+          {
+            title: `AI Web Threat Intelligence - ${cveId}`,
+            category: 'ai-web-intelligence',
+            tags: ['ai-web-search', 'threat-intelligence', cveId.toLowerCase(), 'extraction-based'],
+            source: 'gemini-web-search'
+          }
+        );
+      }
+
+      return findings;
+
+    } catch (error) {
+      console.error('AI Threat Intelligence error:', error);
+      updateSteps(prev => [...prev, `⚠️ AI web search failed: ${error.message} - using fallback analysis`]);
+      return await this.performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
+    }
+  }
+
+  static parseAIThreatIntelligence(aiResponse, cveId, setLoadingSteps) {
+    const updateStepsParse = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
+
+    try {
+      const jsonMatch = aiResponse.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        updateStepsParse(prev => [...prev, `📊 Parsed structured threat intelligence for ${cveId}`]);
+        
+        // Add validation flags to parsed data
+        parsed.parsingMethod = 'JSON_EXTRACTION';
+        parsed.hallucinationFlags = this.detectHallucinationFlags(parsed);
+        
+        return this.normalizeAIFindings(parsed, cveId);
+      }
+    } catch (e) {
+      console.log('Failed to parse JSON, analyzing text response...');
+    }
+
+    // Fallback text analysis with conservative interpretation
+    const findings = this.performConservativeTextAnalysis(aiResponse, cveId);
+    updateStepsParse(prev => [...prev, `📈 Used conservative text analysis for ${cveId}`]);
+    
+    return findings;
+  }
+
+  static detectHallucinationFlags(parsed) {
+    const flags = [];
+
+    // Check for unrealistic counts
+    if (parsed.exploitDiscovery?.totalCount > 20) {
+      flags.push('UNREALISTIC_EXPLOIT_COUNT');
+    }
+
+    // Check for inconsistent confidence levels
+    if (parsed.cisaKev?.listed && parsed.cisaKev?.confidence === 'LOW') {
+      flags.push('INCONSISTENT_CONFIDENCE');
+    }
+
+    // Check for missing source attribution
+    if (parsed.cisaKev?.listed && !parsed.cisaKev?.source) {
+      flags.push('MISSING_SOURCE_ATTRIBUTION');
+    }
+
+    return flags;
+  }
+
+  static normalizeAIFindings(parsed, cveId) {
+    // Normalize the parsed findings to standard format
+    return {
+      cisaKev: {
+        listed: parsed.cisaKev?.listed || false,
+        details: parsed.cisaKev?.details || '',
+        source: parsed.cisaKev?.source || '',
+        confidence: parsed.cisaKev?.confidence || 'LOW',
+        aiDiscovered: true
+      },
+      activeExploitation: {
+        confirmed: parsed.activeExploitation?.confirmed || false,
+        details: parsed.activeExploitation?.details || '',
+        sources: parsed.activeExploitation?.sources || [],
+        aiDiscovered: true
+      },
+      exploitDiscovery: {
+        found: parsed.exploitDiscovery?.found || false,
+        totalCount: Math.min(parsed.exploitDiscovery?.totalCount || 0, 10), // Cap at 10
+        exploits: parsed.exploitDiscovery?.exploits || [],
+        confidence: parsed.exploitDiscovery?.confidence || 'LOW',
+        aiDiscovered: true
+      },
+      vendorAdvisories: {
+        found: parsed.vendorAdvisories?.found || false,
+        count: parsed.vendorAdvisories?.count || 0,
+        advisories: parsed.vendorAdvisories?.advisories || [],
+        aiDiscovered: true
+      },
+      intelligenceSummary: {
+        sourcesAnalyzed: parsed.extractionSummary?.sourcesFound || 1,
+        analysisMethod: 'AI_WEB_EXTRACTION',
+        confidenceLevel: parsed.extractionSummary?.confidenceLevel || 'LOW',
+        aiEnhanced: true,
+        extractionBased: true
+      },
+      overallThreatLevel: this.calculateThreatLevel(parsed),
+      lastUpdated: new Date().toISOString(),
+      summary: `Extractive AI analysis: ${parsed.cisaKev?.listed ? 'KEV listed' : 'Not in KEV'}, ${parsed.exploitDiscovery?.found ? parsed.exploitDiscovery.totalCount + ' exploits found' : 'No exploits found'}`,
+      hallucinationFlags: parsed.hallucinationFlags || []
+    };
+  }
+
+  static performConservativeTextAnalysis(aiResponse, cveId) {
+    const response = aiResponse.toLowerCase();
+    
+    // Very conservative text analysis
+    const findings = {
+      cisaKev: { 
+        listed: response.includes('cisa') && response.includes('kev') && response.includes('listed'),
+        details: response.includes('cisa') ? 'Mentioned in search results' : '',
+        source: '',
+        confidence: 'LOW',
+        aiDiscovered: true
+      },
+      activeExploitation: { 
+        confirmed: false, // Conservative - require explicit confirmation
+        details: '', 
+        sources: [], 
+        aiDiscovered: true 
+      },
+      exploitDiscovery: {
+        found: response.includes('exploit') && (response.includes('github') || response.includes('poc')),
+        totalCount: response.includes('exploit') ? 1 : 0, // Conservative count
+        exploits: [],
+        confidence: 'LOW',
+        aiDiscovered: true
+      },
+      vendorAdvisories: {
+        found: response.includes('advisory') || response.includes('patch'),
+        count: response.includes('advisory') ? 1 : 0,
+        advisories: [],
+        aiDiscovered: true
+      },
+      intelligenceSummary: {
+        sourcesAnalyzed: 1,
+        analysisMethod: 'CONSERVATIVE_TEXT_ANALYSIS',
+        confidenceLevel: 'VERY_LOW',
+        aiEnhanced: false
+      },
+      overallThreatLevel: 'MEDIUM',
+      lastUpdated: new Date().toISOString(),
+      summary: 'Conservative text analysis with minimal claims',
+      hallucinationFlags: ['TEXT_ANALYSIS_FALLBACK']
+    };
+
+    return findings;
+  }
+
+  static calculateThreatLevel(findings) {
+    if (findings.cisaKev?.listed) return 'CRITICAL';
+    if (findings.activeExploitation?.confirmed) return 'HIGH';
+    if (findings.exploitDiscovery?.found) return 'HIGH';
+    return 'MEDIUM';
+  }
+
+  static async performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps) {
+    const updateStepsHeuristic = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
+    updateStepsHeuristic(prev => [...prev, `🔍 Performing advanced heuristic analysis for ${cveId}...`]);
+
+    const year = parseInt(cveId.split('-')[1]);
+    const id = parseInt(cveId.split('-')[2]);
+    const cvssScore = cveData?.cvssV3?.baseScore || cveData?.cvssV2?.baseScore || 0;
+    const epssFloat = epssData?.epssFloat || 0;
+    const severity = utils?.getSeverityLevel ? utils.getSeverityLevel(cvssScore) : (cvssScore >= 9 ? 'CRITICAL' : cvssScore >= 7 ? 'HIGH' : cvssScore >= 4 ? 'MEDIUM' : 'LOW');
+
+    let riskScore = 0;
+    const indicators = [];
+
+    if (cvssScore >= 9) { riskScore += 4; indicators.push('Critical CVSS score'); }
+    else if (cvssScore >= 7) { riskScore += 3; indicators.push('High CVSS score'); }
+
+    if (epssFloat > 0.7) { riskScore += 4; indicators.push('Very high EPSS score'); }
+    else if (epssFloat > 0.3) { riskScore += 2; indicators.push('Elevated EPSS score'); }
+
+    if (year >= 2024) { riskScore += 2; indicators.push('Recent vulnerability'); }
+    if (id < 1000) { riskScore += 2; indicators.push('Early discovery in year'); }
+
+    const highRiskPatterns = ['21413', '44487', '38030', '26923', '1675'];
+    if (highRiskPatterns.some(pattern => cveId.includes(pattern))) {
+      riskScore += 5;
+      indicators.push('Matches known high-risk pattern');
+    }
+
+    const description = cveData?.description?.toLowerCase() || '';
+    const highValueTargets = ['microsoft', 'apache', 'oracle', 'vmware', 'cisco', 'windows', 'exchange', 'linux'];
+    if (highValueTargets.some(target => description.includes(target))) {
+      riskScore += 2;
+      indicators.push('Affects high-value target software');
+    }
+
+    const threatLevel = riskScore >= 8 ? 'CRITICAL' : riskScore >= 6 ? 'HIGH' : riskScore >= 4 ? 'MEDIUM' : 'LOW';
+    const likelyInKEV = riskScore >= 7;
+    const likelyExploited = riskScore >= 5;
+    const exploitCount = Math.min(Math.floor(riskScore / 2), 5);
+
+    updateStepsHeuristic(prev => [...prev, `📊 Heuristic analysis complete: ${threatLevel} threat level (score: ${riskScore})`]);
+
+    return {
+      cisaKev: {
+        listed: likelyInKEV,
+        details: likelyInKEV ? 'High probability of KEV listing based on risk factors' : 'Low probability of KEV listing',
+        confidence: 'HEURISTIC',
+        source: 'Advanced pattern analysis',
+        aiDiscovered: false
+      },
+      activeExploitation: {
+        confirmed: likelyExploited,
+        details: likelyExploited ? 'High exploitation likelihood based on multiple risk factors' : 'Lower exploitation probability',
+        sources: [`Risk indicators: ${indicators.join(', ')}`],
+        aiDiscovered: false
+      },
+      exploitDiscovery: {
+        found: exploitCount > 0,
+        totalCount: exploitCount,
+        exploits: exploitCount > 0 ? [{
+          type: exploitCount > 2 ? 'Working Exploit' : 'POC',
+          url: `https://www.exploit-db.com/search?cve=${cveId}`,
+          source: 'Exploit-DB (Predicted)',
+          description: 'Heuristic prediction based on vulnerability characteristics',
+          reliability: riskScore >= 6 ? 'HIGH' : 'MEDIUM',
+          dateFound: new Date().toISOString()
+        }] : [],
+        githubRepos: Math.max(0, exploitCount - 1),
+        exploitDbEntries: exploitCount > 0 ? 1 : 0,
+        metasploitModules: exploitCount > 3 ? 1 : 0,
+        confidence: riskScore >= 6 ? 'HIGH' : 'MEDIUM',
+        aiDiscovered: false
+      },
+      vendorAdvisories: {
+        found: Math.floor(riskScore / 3) > 0,
+        count: Math.floor(riskScore / 3),
+        advisories: [],
+        patchStatus: cvssScore >= 7 ? 'likely available' : 'pending',
+        aiDiscovered: false
+      },
+      cveValidation: {
+        isValid: true,
+        confidence: 'MEDIUM',
+        validationSources: ['NVD', 'EPSS'],
+        disputes: [],
+        falsePositiveIndicators: [],
+        legitimacyEvidence: indicators,
+        recommendation: 'VALID',
+        aiDiscovered: false
+      },
+      technicalAnalysis: {
+        rootCause: 'Analysis based on CVE description and scoring',
+        exploitMethod: cvssScore >= 7 ? 'Remote exploitation likely' : 'Local access may be required',
+        impactAnalysis: `${severity} impact vulnerability with ${cvssScore} CVSS score`,
+        mitigations: ['Apply vendor patches', 'Monitor for exploitation attempts', 'Implement network controls'],
+        sources: [],
+        aiDiscovered: false
+      },
+      threatIntelligence: {
+        iocs: [],
+        threatActors: [],
+        campaignDetails: riskScore >= 8 ? 'Possible APT interest due to high impact' : '',
+        ransomwareUsage: riskScore >= 7,
+        aptGroups: [],
+        aiDiscovered: false
+      },
+      intelligenceSummary: {
+        sourcesAnalyzed: 2,
+        exploitsFound: exploitCount,
+        vendorAdvisoriesFound: Math.floor(riskScore / 3),
+        activeExploitation: likelyExploited,
+        cisaKevListed: likelyInKEV,
+        cveValid: true,
+        threatLevel: threatLevel,
+        dataFreshness: new Date().toISOString(),
+        analysisMethod: 'ADVANCED_HEURISTICS',
+        confidenceLevel: riskScore >= 6 ? 'HIGH' : 'MEDIUM',
+        aiEnhanced: false
+      },
+      overallThreatLevel: threatLevel,
+      lastUpdated: new Date().toISOString(),
+      summary: `Heuristic analysis: ${indicators.length} risk indicators detected, ${threatLevel} threat level assigned`,
+      analysisMethod: 'ADVANCED_HEURISTICS',
+      riskScore: riskScore,
+      indicators: indicators,
+      hallucinationFlags: ['HEURISTIC_BASED']
+    };
+  }
+
+  // Enhanced main function with validation
+  static async fetchVulnerabilityDataWithAI(cveId, setLoadingSteps, apiKeys, settings) {
+    try {
+      setLoadingSteps(prev => [...prev, `🚀 Starting AI-powered real-time analysis for ${cveId}...`]);
+
+      if (ragDatabase && !ragDatabase.initialized) {
+        setLoadingSteps(prev => [...prev, `📚 Initializing RAG knowledge base...`]);
+        await ragDatabase.initialize();
+      }
+
+      setLoadingSteps(prev => [...prev, `🔍 Fetching from primary sources (NVD, EPSS)...`]);
+
+      const [cveResult, epssResult] = await Promise.allSettled([
+        this.fetchCVEData(cveId, apiKeys.nvd, setLoadingSteps),
+        this.fetchEPSSData(cveId, setLoadingSteps)
+      ]);
+
+      const cve = cveResult.status === 'fulfilled' ? cveResult.value : null;
+      const epss = epssResult.status === 'fulfilled' ? epssResult.value : null;
+
+      if (!cve) {
+        throw new Error(`Failed to fetch CVE data for ${cveId}`);
+      }
+
+      setLoadingSteps(prev => [...prev, `🌐 AI analyzing real-time threat intelligence via web search...`]);
+
+      const aiThreatIntel = await this.fetchAIThreatIntelligence(cveId, cve, epss, settings, setLoadingSteps);
 
       // Fetch patches and advisories
       setLoadingSteps(prev => [...prev, `🔧 Searching for patches and security advisories...`]);
       const patchAdvisoryData = await this.fetchPatchesAndAdvisories(cveId, cve, settings, setLoadingSteps);
 
-// THEN FIND YOUR enhancedVulnerability OBJECT AND ADD THESE PROPERTIES:
+      // Validate AI findings
+      setLoadingSteps(prev => [...prev, `🔍 Validating AI findings against authoritative sources...`]);
+      const validation = await ValidationService.validateAIFindings(aiThreatIntel, cveId, setLoadingSteps);
 
-        // ADD THESE THREE LINES TO YOUR enhancedVulnerability OBJECT (around line where you have sources, discoveredSources, etc.):
+      // Calculate confidence scores
+      const confidence = ConfidenceScorer.scoreAIFindings(
+        aiThreatIntel, 
+        validation, 
+        { discoveredSources: ['NVD', 'EPSS', 'AI_WEB_SEARCH'] }
+      );
+
+      const discoveredSources = ['NVD'];
+      const sources = [{ name: 'NVD', url: `https://nvd.nist.gov/vuln/detail/${cveId}`, aiDiscovered: false }];
+
+      if (epss) {
+        discoveredSources.push('EPSS/FIRST');
+        sources.push({ name: 'EPSS', url: `https://api.first.org/data/v1/epss?cve=${cveId}`, aiDiscovered: false });
+      }
+
+      if (aiThreatIntel.cisaKev?.listed) {
+        discoveredSources.push('CISA KEV');
+        sources.push({
+          name: 'CISA KEV',
+          url: 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog',
+          aiDiscovered: aiThreatIntel.cisaKev.aiDiscovered || true,
+          verified: validation.cisaKev?.verified || false
+        });
+      }
+
+      if (aiThreatIntel.exploitDiscovery?.found) {
+        discoveredSources.push('Exploit Intelligence');
+        if (aiThreatIntel.exploitDiscovery.exploits) {
+          aiThreatIntel.exploitDiscovery.exploits.forEach(exploit => {
+            if (exploit.url && exploit.url.startsWith('http')) {
+              sources.push({
+                name: `${exploit.source} - ${exploit.type}`,
+                url: exploit.url,
+                aiDiscovered: true,
+                reliability: exploit.reliability,
+                description: exploit.description,
+                verified: validation.exploits?.verifiedExploits?.some(v => v.url === exploit.url) || false
+              });
+            }
+          });
+        }
+      }
+
+      if (aiThreatIntel.vendorAdvisories?.found) {
+        discoveredSources.push('Vendor Advisories');
+        if (aiThreatIntel.vendorAdvisories.advisories) {
+          aiThreatIntel.vendorAdvisories.advisories.forEach(advisory => {
+            const vendorName = `${advisory.vendor} Advisory`;
+            if (!sources.some(s => s.name === vendorName)) {
+              sources.push({
+                name: vendorName,
+                url: '',
+                aiDiscovered: true,
+                patchAvailable: advisory.patchAvailable,
+                severity: advisory.severity,
+                verified: validation.vendorAdvisories?.verifiedAdvisories?.some(v => v.vendor === advisory.vendor) || false
+              });
+            }
+          });
+        }
+      }
+
+      const intelligenceSummary = aiThreatIntel.intelligenceSummary || {
+        sourcesAnalyzed: discoveredSources.length,
+        exploitsFound: aiThreatIntel.exploitDiscovery?.totalCount || 0,
+        vendorAdvisoriesFound: aiThreatIntel.vendorAdvisories?.count || 0,
+        activeExploitation: aiThreatIntel.activeExploitation?.confirmed || false,
+        cisaKevListed: aiThreatIntel.cisaKev?.listed || false,
+        cveValid: aiThreatIntel.cveValidation?.isValid !== false,
+        threatLevel: aiThreatIntel.overallThreatLevel || 'MEDIUM',
+        dataFreshness: 'AI_WEB_SEARCH',
+        analysisMethod: 'AI_WEB_SEARCH_VALIDATED',
+        confidenceLevel: confidence.overall,
+        aiEnhanced: true,
+        validated: true
+      };
+
+      const threatLevel = aiThreatIntel.overallThreatLevel || intelligenceSummary.threatLevel;
+      const summary = aiThreatIntel.summary;
+
+      const enhancedVulnerability = {
+        cve,
+        epss,
+        kev: {
+          ...aiThreatIntel.cisaKev,
+          validated: validation.cisaKev?.verified || false,
+          actualStatus: validation.cisaKev?.actualStatus
+        },
+        exploits: {
+          found: aiThreatIntel.exploitDiscovery?.found || false,
+          count: aiThreatIntel.exploitDiscovery?.totalCount || 0,
+          confidence: aiThreatIntel.exploitDiscovery?.confidence || 'LOW',
+          sources: aiThreatIntel.exploitDiscovery?.exploits?.map(e => e.url) || [],
+          types: aiThreatIntel.exploitDiscovery?.exploits?.map(e => e.type) || [],
+          details: aiThreatIntel.exploitDiscovery?.exploits || [],
+          githubRepos: aiThreatIntel.exploitDiscovery?.githubRepos || 0,
+          exploitDbEntries: aiThreatIntel.exploitDiscovery?.exploitDbEntries || 0,
+          metasploitModules: aiThreatIntel.exploitDiscovery?.metasploitModules || 0,
+          validated: validation.exploits?.verified || false,
+          verifiedCount: validation.exploits?.verifiedExploits?.length || 0
+        },
+        vendorAdvisories: {
+          ...aiThreatIntel.vendorAdvisories,
+          validated: validation.vendorAdvisories?.verified || false
+        },
+        cveValidation: aiThreatIntel.cveValidation || {
+          isValid: true,
+          confidence: 'MEDIUM',
+          validationSources: [],
+          disputes: [],
+          falsePositiveIndicators: [],
+          legitimacyEvidence: [],
+          recommendation: 'NEEDS_VERIFICATION'
+        },
+        technicalAnalysis: aiThreatIntel.technicalAnalysis,
+        github: {
+          found: (aiThreatIntel.exploitDiscovery?.githubRepos || 0) > 0 || (aiThreatIntel.vendorAdvisories?.count || 0) > 0,
+          count: (aiThreatIntel.exploitDiscovery?.githubRepos || 0) + (aiThreatIntel.vendorAdvisories?.count || 0)
+        },
+        activeExploitation: aiThreatIntel.activeExploitation || {
+          confirmed: false,
+          details: '',
+          sources: []
+        },
+        threatIntelligence: aiThreatIntel.threatIntelligence,
+        intelligenceSummary: intelligenceSummary,
+        
         // Patch and Advisory Data
         patches: patchAdvisoryData.patches || [],
         advisories: patchAdvisoryData.advisories || [],
         patchSearchSummary: patchAdvisoryData.searchSummary || {},
+        
+        sources,
+        discoveredSources,
+        summary,
+        threatLevel,
+        dataFreshness: intelligenceSummary.dataFreshness || 'AI_WEB_SEARCH',
+        lastUpdated: new Date().toISOString(),
+        searchTimestamp: new Date().toISOString(),
+        ragEnhanced: true,
+        aiSearchPerformed: true,
+        aiWebGrounded: true,
+        enhancedSources: discoveredSources,
+        analysisMethod: intelligenceSummary.analysisMethod || aiThreatIntel.analysisMethod || 'AI_WEB_SEARCH_VALIDATED',
+        
+        // Enhanced validation metadata
+        validation: validation,
+        confidence: confidence,
+        hallucinationFlags: aiThreatIntel.hallucinationFlags || [],
+        extractionMetadata: aiThreatIntel.extractionMetadata,
+        validationTimestamp: new Date().toISOString(),
+        enhancedWithValidation: true
+      };
+
+      setLoadingSteps(prev => [...prev, 
+        `✅ Enhanced analysis complete: ${discoveredSources.length} sources analyzed, ${threatLevel} threat level, ${confidence.overall} confidence`
+      ]);
+
+      return enhancedVulnerability;
+
+    } catch (error) {
+      console.error(`Error processing ${cveId}:`, error);
+      throw error;
+    }
+  }
+
+  static async generateAIAnalysis(vulnerability, apiKey, model, settings = {}) {
+    if (!apiKey) throw new Error('Gemini API key required');
+
+    const now = Date.now();
+    const lastRequest = window.lastGeminiRequest || 0;
+
+    if ((now - lastRequest) < CONSTANTS.RATE_LIMITS.GEMINI_COOLDOWN) {
+      const waitTime = Math.ceil((CONSTANTS.RATE_LIMITS.GEMINI_COOLDOWN - (now - lastRequest)) / 1000);
+      throw new Error(`Rate limit protection: Please wait ${waitTime} more seconds. Free Gemini API has strict limits.`);
+    }
+
+    window.lastGeminiRequest = now;
+
+    if (ragDatabase) {
+      await ragDatabase.ensureInitialized(apiKey);
+      console.log(`📊 RAG Database Status: ${ragDatabase.documents.length} documents available (${ragDatabase.geminiApiKey ? 'Gemini embeddings' : 'local embeddings'})`);
+    }
+
+    const cveId = vulnerability.cve.id;
+    const ragQuery = `${cveId} ${vulnerability.cve.description.substring(0, 200)} vulnerability analysis security impact mitigation threat intelligence EPSS ${vulnerability.epss?.epssPercentage || 'N/A'} CVSS ${vulnerability.cve.cvssV3?.baseScore || 'N/A'} ${vulnerability.kev?.listed ? 'CISA KEV active exploitation' : ''}`;
+
+    console.log(`🔍 RAG Query: "${ragQuery.substring(0, 100)}..."`);
+    
+    let relevantDocs = [];
+    let ragContext = 'No specific security knowledge found in database. Initializing knowledge base for future queries.';
+    
+    if (ragDatabase && ragDatabase.initialized) {
+      relevantDocs = await ragDatabase.search(ragQuery, 15);
+      console.log(`📚 RAG Retrieved: ${relevantDocs.length} relevant documents (${relevantDocs.filter(d => d.embeddingType === 'gemini').length} with Gemini embeddings)`);
+
+      if (relevantDocs.length > 0) {
+        ragContext = relevantDocs.map((doc, index) =>
+          `[Security Knowledge ${index + 1}] ${doc.metadata.title} (Relevance: ${(doc.similarity * 100).toFixed(1)}%, ${doc.embeddingType || 'local'} embedding):\n${doc.content.substring(0, 800)}...`
+        ).join('\n\n');
+      } else {
+        console.log('🔄 No specific matches found, trying broader search...');
+        const broaderQuery = `vulnerability security analysis ${vulnerability.cve.cvssV3?.baseSeverity || 'unknown'} severity`;
+        const broaderDocs = await ragDatabase.search(broaderQuery, 8);
+        console.log(`📚 Broader RAG Search: ${broaderDocs.length} documents found`);
+
+        if (broaderDocs.length > 0) {
+          const broaderContext = broaderDocs.map((doc, index) =>
+            `[General Security Knowledge ${index + 1}] ${doc.metadata.title} (${doc.embeddingType || 'local'} embedding):\n${doc.content.substring(0, 600)}...`
+          ).join('\n\n');
+
+          relevantDocs.push(...broaderDocs);
+          ragContext = broaderContext;
+        }
+      }
+    }
+
+    const prompt = this.buildEnhancedAnalysisPrompt(vulnerability, ragContext, relevantDocs.length);
+
+    const requestBody = {
+      contents: [{ parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.1,
+        topK: 1,
+        topP: 0.8,
+        maxOutputTokens: 8192,
+        candidateCount: 1
+      }
+    };
+
+    const isWebSearchCapable = model.includes('2.0') || model.includes('2.5');
+    if (isWebSearchCapable) {
+      requestBody.tools = [{ google_search: {} }];
+    }
+
+    const apiUrl = `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${apiKey}`;
+
+    try {
+      const response = await this.fetchWithFallback(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+
+        if (response.status === 429) {
+          throw new Error('Gemini API rate limit exceeded. Please wait a few minutes before trying again.');
+        }
+
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('Invalid Gemini API key. Please check your API key in settings.');
+        }
+
+        throw new Error(`Gemini API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      }
+
+      const data = await response.json();
+      const content = data.candidates?.[0]?.content;
+
+      if (!content?.parts?.[0]?.text) {
+        throw new Error('Invalid response from Gemini API');
+      }
+
+      const analysisText = content.parts[0].text;
+
+      if (!analysisText || analysisText.trim().length === 0) {
+        throw new Error('Empty analysis received from Gemini API');
+      }
+
+      if (analysisText.length > 500 && ragDatabase && ragDatabase.initialized) {
+        await ragDatabase.addDocument(
+          `Enhanced CVE Analysis: ${cveId}\n\nCVSS: ${vulnerability.cve.cvssV3?.baseScore || 'N/A'}\nEPSS: ${vulnerability.epss?.epssPercentage || 'N/A'}%\nCISA KEV: ${vulnerability.kev?.listed ? 'Yes' : 'No'}\nValidated: ${vulnerability.validation ? 'Yes' : 'No'}\nConfidence: ${vulnerability.confidence?.overall || 'Unknown'}\n\n${analysisText}`,
+          {
+            title: `Enhanced RAG Security Analysis - ${cveId}`,
+            category: 'enhanced-analysis',
+            tags: ['rag-enhanced', 'ai-analysis', 'validated', cveId.toLowerCase(), vulnerability.cve.cvssV3?.baseSeverity?.toLowerCase() || 'unknown'],
+            source: 'ai-analysis-rag',
+            model: model,
+            cveId: cveId
+          }
+        );
+        console.log(`💾 Stored validated analysis for ${cveId} in RAG database for future reference`);
+      }
+
+      return {
+        analysis: analysisText,
+        ragUsed: true,
+        ragDocuments: relevantDocs.length,
+        ragSources: relevantDocs.map(doc => doc.metadata?.title || 'Unknown').filter(Boolean),
+        webGrounded: isWebSearchCapable,
+        enhancedSources: vulnerability.enhancedSources || [],
+        discoveredSources: vulnerability.discoveredSources || [],
+        model: model,
+        analysisTimestamp: new Date().toISOString(),
+        ragDatabaseSize: ragDatabase ? ragDatabase.documents.length : 0,
+        embeddingType: ragDatabase && ragDatabase.geminiApiKey ? 'gemini' : 'local',
+        geminiEmbeddingsCount: ragDatabase ? ragDatabase.documents.filter(d => d.embeddingType === 'gemini').length : 0,
+        realTimeData: {
+          cisaKev: vulnerability.kev?.listed || false,
+          cisaKevValidated: vulnerability.kev?.validated || false,
+          exploitsFound: vulnerability.exploits?.count || 0,
+          exploitsValidated: vulnerability.exploits?.validated || false,
+          exploitConfidence: vulnerability.exploits?.confidence || 'NONE',
+          githubRefs: vulnerability.github?.count || 0,
+          threatLevel: vulnerability.threatLevel || 'STANDARD',
+          overallConfidence: vulnerability.confidence?.overall || 'UNKNOWN',
+          hallucinationFlags: vulnerability.hallucinationFlags || []
+        },
+        validationEnhanced: true,
+        confidence: vulnerability.confidence,
+        validation: vulnerability.validation
+      };
+
+    } catch (error) {
+      console.error('Enhanced RAG Analysis Error:', error);
+      return this.generateEnhancedFallbackAnalysis(vulnerability, error);
+    }
+  }
+
   static buildEnhancedAnalysisPrompt(vulnerability, ragContext, ragDocCount = 0) {
     const cveId = vulnerability.cve.id;
     const cvssScore = vulnerability.cve.cvssV3?.baseScore || vulnerability.cve.cvssV2?.baseScore || 'N/A';
@@ -1833,6 +1829,10 @@ ${vulnerability.exploits?.found ? `💣 PUBLIC EXPLOITS: ${vulnerability.exploit
 ${vulnerability.github?.found ? `🔍 GITHUB REFS: ${vulnerability.github.count} security-related repositories found.` : ''}
 ${vulnerability.activeExploitation?.confirmed ? `🚨 ACTIVE EXPLOITATION: Confirmed exploitation in the wild.` : ''}
 
+PATCHES AND ADVISORIES:
+${vulnerability.patches?.length ? `🔧 PATCHES FOUND: ${vulnerability.patches.length} patch(es) available from ${[...new Set(vulnerability.patches.map(p => p.vendor))].join(', ')}` : 'No specific patches identified'}
+${vulnerability.advisories?.length ? `📋 ADVISORIES: ${vulnerability.advisories.length} security advisory(ies) from ${[...new Set(vulnerability.advisories.map(a => a.source))].join(', ')}` : 'Limited advisory coverage'}
+
 SECURITY KNOWLEDGE BASE (${ragDocCount} relevant documents retrieved):
 ${ragContext}
 
@@ -1855,17 +1855,19 @@ ANALYSIS REQUIREMENTS:
 3. **Note any hallucination flags or inconsistencies**
 4. **Prioritize validated information over AI-generated content**
 5. **Provide actionable recommendations based on confidence levels**
+6. **Include patch and advisory information in recommendations**
 
 Provide a comprehensive vulnerability analysis including:
 1. Executive Summary with immediate actions needed (noting confidence levels)
 2. Technical details and attack vectors (validated vs unvalidated)
 3. Impact assessment and potential consequences
-4. Mitigation strategies and remediation guidance
-5. Affected systems and software components
-6. Current exploitation status and threat landscape (with validation status)
-7. Priority recommendations based on validated threat intelligence
-8. Lessons learned from similar vulnerabilities (use knowledge base context)
-9. Data quality assessment and recommendation reliability
+4. Patch availability and vendor advisory status
+5. Mitigation strategies and remediation guidance
+6. Affected systems and software components
+7. Current exploitation status and threat landscape (with validation status)
+8. Priority recommendations based on validated threat intelligence
+9. Lessons learned from similar vulnerabilities (use knowledge base context)
+10. Data quality assessment and recommendation reliability
 
 Format your response in clear sections with detailed analysis. Leverage the security knowledge base context and validated threat intelligence to provide enhanced insights that go beyond basic CVE information.
 
@@ -1878,7 +1880,8 @@ ${vulnerability.exploits?.found && vulnerability.exploits.confidence === 'HIGH' 
 - DO NOT include citation numbers like [1], [2], [3] or any bracketed numbers
 - Write in clear, natural language without citation markers
 - Always note the reliability of each piece of information
-- Provide specific recommendations for low-confidence findings`;
+- Provide specific recommendations for low-confidence findings
+- Include patch and advisory information where applicable`;
   }
 
   static generateEnhancedFallbackAnalysis(vulnerability, error) {
@@ -1909,6 +1912,13 @@ ${vulnerability.exploits?.found ? `💣 **PUBLIC EXPLOITS AVAILABLE** - ${vulner
 **CISA KEV Status:** ${kevStatus}${kevValidated}
 
 **Description:** ${vulnerability.cve.description}
+
+## Patches and Advisories
+${vulnerability.patches?.length ? `**Available Patches:** ${vulnerability.patches.length} patch(es) identified
+${vulnerability.patches.map(p => `- ${p.vendor} ${p.patchType}: ${p.description}`).join('\n')}` : 'No specific patches identified through automated search'}
+
+${vulnerability.advisories?.length ? `**Security Advisories:** ${vulnerability.advisories.length} advisory(ies) found
+${vulnerability.advisories.slice(0, 5).map(a => `- ${a.source}: ${a.title || a.description}`).join('\n')}` : 'Limited security advisory coverage found'}
 
 ## Data Quality Assessment
 **Validation Status:** ${vulnerability.validation ? 'Performed' : 'Not performed'}
@@ -1945,6 +1955,16 @@ ${vulnerability.activeExploitation?.confirmed ? '- 🚨 **ACTIVE EXPLOITATION**:
 3. **Review access controls and authentication mechanisms**
 
 4. **${vulnerability.kev?.listed ? (vulnerability.kev?.validated ? 'Follow CISA emergency directive timelines' : 'Manually verify CISA KEV status before following emergency timelines') : 'Consider temporary compensating controls if patches unavailable'}**
+
+### Patch Management
+${vulnerability.patches?.length ? `**Available Patches:**
+${vulnerability.patches.slice(0, 3).map(p => `- **${p.vendor}**: ${p.description} (Confidence: ${p.confidence})`).join('\n')}
+${vulnerability.patches.length > 3 ? `- *... and ${vulnerability.patches.length - 3} additional patch sources*` : ''}
+
+**Patch Priority:** ${vulnerability.kev?.listed ? 'CRITICAL - Emergency deployment' : vulnerability.exploits?.found ? 'HIGH - Expedited testing and deployment' : 'STANDARD - Normal patch cycle'}` : `**Patch Status:** No specific patches identified through automated search
+- Check vendor security advisories manually
+- Review CVE references for patch information
+- Monitor vendor security bulletins for updates`}
 
 ### Data Quality Actions
 ${vulnerability.confidence?.overall === 'LOW' || vulnerability.confidence?.overall === 'VERY_LOW' ? `
@@ -2016,7 +2036,7 @@ ${vulnerability.confidence?.recommendations ? vulnerability.confidence.recommend
     };
   }
 
-  // Utility method to create presentation-ready data with confidence indicators
+  // Utility methods for confidence and validation
   static formatFindingWithConfidence(finding, confidence, validation) {
     const confidenceIcon = this.getConfidenceIcon(confidence);
     const verificationBadge = this.getVerificationBadge(validation);
@@ -2062,7 +2082,6 @@ ${vulnerability.confidence?.recommendations ? vulnerability.confidence.recommend
     return null;
   }
 
-  // Method to create comprehensive AI data disclaimer
   static createAIDataDisclaimer(vulnerability) {
     const totalAIFindings = this.countAIGeneratedFindings(vulnerability);
     const verifiedFindings = this.countVerifiedFindings(vulnerability.validation);
