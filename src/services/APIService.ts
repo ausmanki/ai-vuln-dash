@@ -1,9 +1,9 @@
 import { CONSTANTS } from '../utils/constants';
 import { ragDatabase } from '../db/EnhancedVectorDatabase';
-import { fetchCVEData, processCVEData } from './nvdService';
+import { fetchCVEData } from './nvdService'; // processCVEData is internal to nvdService
 import { fetchEPSSData } from './epssService';
-import { fetchAIThreatIntelligence, performHeuristicAnalysis } from './aiThreatIntelService';
-import { generateAIAnalysis } from './geminiService';
+import { fetchAIThreatIntelligence } from './aiThreatIntelService'; // performHeuristicAnalysis is internal to aiThreatIntelService
+import { generateAIAnalysis as generateGeminiAIAnalysis } from './geminiService'; // Renamed import
 
 // Enhanced API Service Layer with Multi-Source Intelligence
 export class APIService {
@@ -26,19 +26,13 @@ export class APIService {
     }
   }
 
-  // Keep processCVEData here if it's used by other methods within APIService, or move it if only used by fetchCVEData
-  // For now, assuming it might be used elsewhere or is closely tied.
-  // If it's only used by fetchCVEData, it should ideally be in nvdService.ts and not exported from there if not needed externally.
-  // However, to minimize initial disruption, keeping it here if no immediate issues arise.
-  // static processCVEData = processCVEData; // Already in nvdService, no need to re-declare here if imported
-
   static async fetchVulnerabilityDataWithAI(cveId, setLoadingSteps, apiKeys, settings) {
     try {
       setLoadingSteps(prev => [...prev, `🚀 Starting AI-powered real-time analysis for ${cveId}...`]);
 
       if (!ragDatabase.initialized) {
         setLoadingSteps(prev => [...prev, `📚 Initializing RAG knowledge base...`]);
-        await ragDatabase.initialize(settings.geminiApiKey); // Pass API key for initialization
+        await ragDatabase.initialize(settings.geminiApiKey);
       }
 
       setLoadingSteps(prev => [...prev, `🔍 Fetching from primary sources (NVD, EPSS)...`]);
@@ -85,7 +79,9 @@ export class APIService {
                 name: `${exploit.source} - ${exploit.type}`,
                 url: exploit.url,
                 aiDiscovered: true,
+                // @ts-ignore
                 reliability: exploit.reliability,
+                // @ts-ignore
                 description: exploit.description
               });
             }
@@ -103,7 +99,9 @@ export class APIService {
                 name: vendorName,
                 url: '',
                 aiDiscovered: true,
+                // @ts-ignore
                 patchAvailable: advisory.patchAvailable,
+                // @ts-ignore
                 severity: advisory.severity
               });
             }
@@ -192,7 +190,19 @@ export class APIService {
         aiSearchPerformed: true,
         aiWebGrounded: true,
         enhancedSources: discoveredSources,
-        analysisMethod: intelligenceSummary.analysisMethod || aiThreatIntel.analysisMethod || 'AI_WEB_SEARCH'
+        analysisMethod: intelligenceSummary.analysisMethod || aiThreatIntel.analysisMethod || 'AI_WEB_SEARCH',
+        // @ts-ignore
+        patches: aiThreatIntel.patches, // Added from master version
+        // @ts-ignore
+        advisories: aiThreatIntel.advisories, // Added from master version
+        // @ts-ignore
+        validation: aiThreatIntel.validation, // Added from master version
+        // @ts-ignore
+        confidence: aiThreatIntel.confidence, // Added from master version
+        // @ts-ignore
+        hallucinationFlags: aiThreatIntel.hallucinationFlags, // Added from master version
+        // @ts-ignore
+        extractionMetadata: aiThreatIntel.extractionMetadata // Added from master version
       };
 
       setLoadingSteps(prev => [...prev, `✅ AI web-based analysis complete: ${discoveredSources.length} sources analyzed, ${threatLevel} threat level`]);
@@ -205,11 +215,7 @@ export class APIService {
     }
   }
 
-  // This method is now a wrapper calling the one from geminiService.ts
   static async generateAIAnalysis(vulnerability, apiKey, model, settings = {}) {
-    // The actual implementation is in geminiService.generateAIAnalysis
-    // This ensures that APIService.generateAIAnalysis can still be called from components
-    // without them needing to know about geminiService directly for this specific function.
-    return generateAIAnalysis(vulnerability, apiKey, model, settings);
+    return generateGeminiAIAnalysis(vulnerability, apiKey, model, settings);
   }
 }
