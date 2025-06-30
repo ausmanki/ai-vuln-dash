@@ -4,8 +4,8 @@ import { ValidationService } from '../services/ValidationService';
 import { ConfidenceScorer } from '../services/ConfidenceScorer';
 import { ragDatabase } from '../db/EnhancedVectorDatabase'; // Direct import for now
 import {
-  fetchCVEDataInternal,
-  fetchEPSSDataInternal,
+  fetchCVEData,
+  fetchEPSSData,
 } from '../services/DataFetchingService';
 import {
   fetchPatchesAndAdvisories,
@@ -45,8 +45,8 @@ export class ResearchAgent {
 
     this.updateSteps(`🔍 Agent fetching primary data (NVD, EPSS) for ${cveId}...`);
     const [cveResult, epssResult] = await Promise.allSettled([
-        fetchCVEDataInternal(cveId, apiKeys.nvd, this.setLoadingSteps, ragDatabase, fetchWithFallback, processCVEData),
-        fetchEPSSDataInternal(cveId, this.setLoadingSteps, ragDatabase, fetchWithFallback)
+        fetchCVEData(cveId, apiKeys.nvd, this.setLoadingSteps, ragDatabase, fetchWithFallback, processCVEData),
+        fetchEPSSData(cveId, this.setLoadingSteps, ragDatabase, fetchWithFallback)
     ]);
 
     const cve = cveResult.status === 'fulfilled' ? cveResult.value : null;
