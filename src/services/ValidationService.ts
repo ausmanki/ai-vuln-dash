@@ -116,7 +116,15 @@ export class ValidationService {
       const aiTextContent = this.extractTextFromAIIntel(aiIntel);
 
       // Vendor Disputes from AI
-      const disputeKeywords = ['vendor disputes this', 'vendor does not consider this a vulnerability', 'vendor rejected this claim', 'will not fix this issue', 'out of scope for vendor'];
+      const disputeKeywords = [
+        'vendor disputes this',
+        'vendor does not consider this a vulnerability',
+        'vendor rejected this claim',
+        'will not fix this issue',
+        'out of scope for vendor',
+        'vendor denies',
+        'vendor claims not exploitable'
+      ];
       const disputeInfo = this.findKeywordsAndContext(aiTextContent, disputeKeywords, aiIntel.searchResults || []);
       if (disputeInfo.found && !validationOutput.vendorDispute?.hasDispute) { // Prioritize NVD if already set
         validationOutput.vendorDispute = {
@@ -138,19 +146,55 @@ export class ValidationService {
       }
 
       // Researcher Validation from AI
-      const researcherKeywords = ['security researcher analysis of', 'technical write-up for cve', 'poc available for', 'confirmed by security researchers', 'public exploit for'];
-      const researcherEvidences = this.findKeywordsAndContext(aiTextContent, researcherKeywords, aiIntel.searchResults || [], true);
+      const positiveResearcherKeywords = [
+        'security researcher analysis of',
+        'technical write-up for cve',
+        'poc available for',
+        'confirmed by security researchers',
+        'public exploit for'
+      ];
+      const negativeResearcherKeywords = [
+        'no public exploit',
+        'no evidence of exploit',
+        'vendor denies',
+        'exploit not reproducible',
+        'researchers question',
+        'unconfirmed vulnerability'
+      ];
 
-      if (researcherEvidences.length > 0) {
-        validationOutput.researcherValidation!.consensus = 'Positive'; // Simplified, needs better sentiment analysis
-        validationOutput.researcherValidation!.summary = `${researcherEvidences.length} potential researcher source(s) found.`;
-        validationOutput.researcherValidation!.evidence = researcherEvidences.map(ev => ({
-            text: ev.context,
-            url: ev.sourceURL,
-            source: ev.sourceTitle || "AI Web Search"
+      const positiveEvidence = this.findKeywordsAndContext(
+        aiTextContent,
+        positiveResearcherKeywords,
+        aiIntel.searchResults || [],
+        true
+      ) as Array<{ context: string; sourceURL?: string; sourceTitle?: string }>;
+
+      const negativeEvidence = this.findKeywordsAndContext(
+        aiTextContent,
+        negativeResearcherKeywords,
+        aiIntel.searchResults || [],
+        true
+      ) as Array<{ context: string; sourceURL?: string; sourceTitle?: string }>;
+
+      const evidenceCombined = [...positiveEvidence, ...negativeEvidence];
+      let consensus: 'Positive' | 'Negative' | 'Mixed' | 'Unknown' = 'Unknown';
+      if (positiveEvidence.length > 0 && negativeEvidence.length > 0) {
+        consensus = 'Mixed';
+      } else if (positiveEvidence.length > 0) {
+        consensus = 'Positive';
+      } else if (negativeEvidence.length > 0) {
+        consensus = 'Negative';
+      }
+
+      if (consensus !== 'Unknown') {
+        validationOutput.researcherValidation!.consensus = consensus;
+        validationOutput.researcherValidation!.summary = `${positiveEvidence.length} positive and ${negativeEvidence.length} negative source(s) found.`;
+        validationOutput.researcherValidation!.evidence = evidenceCombined.map(ev => ({
+          text: ev.context,
+          url: ev.sourceURL,
+          source: ev.sourceTitle || 'AI Web Search'
         }));
       }
-      // TODO: Add logic for 'Negative' or 'Mixed' researcher consensus if possible (e.g., finding researchers disputing it)
     }
 
     // --- Populate Legitimacy Summary and Score ---
@@ -261,6 +305,10 @@ export class ValidationService {
       summaryParts.push(`Status: VENDOR CONFIRMED (Patches/Advisories: ${validationData.vendorConfirmation.details || 'Available'}).`);
     } else if (validationData.researcherValidation?.consensus === 'Positive') {
       summaryParts.push(`Status: RESEARCHER VALIDATED (Evidence found: ${validationData.researcherValidation.summary || 'Positive signals from researchers'}).`);
+    } else if (validationData.researcherValidation?.consensus === 'Negative') {
+      summaryParts.push(`Status: RESEARCHERS DISPUTE VALIDITY (Evidence found: ${validationData.researcherValidation.summary || 'Negative assessments from researchers'}).`);
+    } else if (validationData.researcherValidation?.consensus === 'Mixed') {
+      summaryParts.push(`Status: MIXED RESEARCHER OPINIONS (Evidence found: ${validationData.researcherValidation.summary || 'Conflicting assessments from researchers'}).`);
     } else {
       summaryParts.push(`Status: UNCERTAIN/NEEDS VERIFICATION (No strong positive or negative legitimacy signals found).`);
     }
@@ -284,8 +332,10 @@ export class ValidationService {
 
     if (validationData.researcherValidation?.consensus === 'Positive') {
       score += Math.min(25, 5 + (validationData.researcherValidation.evidence?.length || 0) * 5); // More evidence, higher score up to a cap
-    } else if (validationData.researcherValidation?.consensus === 'Negative') { // If we could detect this
+    } else if (validationData.researcherValidation?.consensus === 'Negative') {
       score -= 30;
+    } else if (validationData.researcherValidation?.consensus === 'Mixed') {
+      score -= 10;
     }
 
     // If NVD status is just "Analyzed" or similar without specific dispute/rejection, and no other signals.
