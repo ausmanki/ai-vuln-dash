@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useContext, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown'; // Added for Markdown rendering
+import remarkGfm from 'remark-gfm'; // Added for GitHub Flavored Markdown (tables, etc.)
 import { Send, Bot, User, AlertCircle, Search } from 'lucide-react';
 import { AppContext } from '../contexts/AppContext';
 import { UserAssistantAgent } from '../agents/UserAssistantAgent';
@@ -155,16 +157,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId }) => {
                     ? (settings.darkMode ? `rgba(${utils.hexToRgb(COLORS.green)}, 0.2)` : `rgba(${utils.hexToRgb(COLORS.green)}, 0.1)`)
                     : msg.sender === 'bot'
                     ? (settings.darkMode ? `rgba(${utils.hexToRgb(COLORS.blue)}, 0.2)` : `rgba(${utils.hexToRgb(COLORS.blue)}, 0.1)`)
-                    : (settings.darkMode ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.15)` : `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)`),
+                    : msg.error // System message with error
+                    ? (settings.darkMode ? `rgba(${utils.hexToRgb(COLORS.red)}, 0.25)` : `rgba(${utils.hexToRgb(COLORS.red)}, 0.15)`)
+                    : (settings.darkMode ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.15)` : `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)`), // System message, non-error
                   padding: '10px 14px',
                   borderRadius: '12px',
-                  border: msg.error ? `1px solid ${COLORS.red}`: 'none',
-                  color: styles.app.color, // Changed from styles.primaryText.color
+                  border: msg.error ? `1px solid ${settings.darkMode ? COLORS.red : utils.shadeColor(COLORS.red, -20)}`: 'none',
+                  color: msg.error ? (settings.darkMode ? COLORS.light.primaryText : COLORS.dark.primaryText) : styles.app.color,
                   whiteSpace: 'pre-wrap', // To respect newlines from bot
                   overflowWrap: 'break-word',
                 }}
               >
-                {msg.text}
+                {msg.sender === 'bot' ? (
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>{msg.text}</ReactMarkdown>
+                ) : (
+                  msg.text
+                )}
               </div>
             </div>
              {msg.sender === 'bot' && msg.data && (
