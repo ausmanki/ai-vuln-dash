@@ -19,8 +19,8 @@ const ChatInterface: React.FC = () => {
   const styles = createStyles(settings.darkMode); // Assuming createStyles is memoized or lightweight
 
   const [agent, setAgent] = useState<UserAssistantAgent | null>(null);
-  const [cveId, setCveId] = useState<string>('');
-  const [currentCveId, setCurrentCveId] = useState<string>(''); // The CVE ID currently being discussed
+  // const [cveId, setCveId] = useState<string>(''); // No longer needed for separate input
+  // const [currentCveId, setCurrentCveId] = useState<string>(''); // Agent manages context
   const [inputMessage, setInputMessage] = useState<string>('');
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -41,24 +41,24 @@ const ChatInterface: React.FC = () => {
     }
   }, [chatHistory]);
 
-  const handleSetCveContext = () => {
-    if (!utils.validateCVE(cveId)) {
-      addNotification({
-        type: 'error',
-        title: 'Invalid CVE ID',
-        message: 'Please enter a valid CVE ID format (e.g., CVE-2023-12345).',
-      });
-      return;
-    }
-    setCurrentCveId(cveId.toUpperCase());
-    setChatHistory([
-      { id: Date.now().toString(), text: `Okay, let's talk about ${cveId.toUpperCase()}. What would you like to know?`, sender: 'system' }
-    ]);
-    setInputMessage(''); // Clear input for the actual question
-  };
+  // const handleSetCveContext = () => { // Removed: Agent handles CVE context
+  //   if (!utils.validateCVE(cveId)) {
+  //     addNotification({
+  //       type: 'error',
+  //       title: 'Invalid CVE ID',
+  //       message: 'Please enter a valid CVE ID format (e.g., CVE-2023-12345).',
+  //     });
+  //     return;
+  //   }
+  //   setCurrentCveId(cveId.toUpperCase());
+  //   setChatHistory([
+  //     { id: Date.now().toString(), text: `Okay, let's talk about ${cveId.toUpperCase()}. What would you like to know?`, sender: 'system' }
+  //   ]);
+  //   setInputMessage(''); // Clear input for the actual question
+  // };
 
   const handleSendMessage = useCallback(async () => {
-    if (!inputMessage.trim() || !agent || !currentCveId) return;
+    if (!inputMessage.trim() || !agent) return; // currentCveId check removed
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
@@ -70,7 +70,7 @@ const ChatInterface: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const botResponse = await agent.handleQuery(inputMessage, currentCveId);
+      const botResponse = await agent.handleQuery(inputMessage); // currentCveId removed
       const responseMessage: Message = {
         id: `bot-${Date.now()}`,
         text: botResponse.text,
@@ -90,7 +90,7 @@ const ChatInterface: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [inputMessage, agent, currentCveId, addNotification]);
+  }, [inputMessage, agent, addNotification]); // currentCveId removed from dependencies
 
 
   return (
@@ -107,31 +107,10 @@ const ChatInterface: React.FC = () => {
         <h2 style={{ ...styles.title, margin: 0, fontSize: '1.25rem', textAlign: 'center' }}>
           CVE Smart Assistant
         </h2>
-        {!currentCveId ? (
-          <div style={{ marginTop: '16px', display: 'flex', gap: '8px' }}>
-            <input
-              type="text"
-              value={cveId}
-              onChange={(e) => setCveId(e.target.value)}
-              placeholder="Enter CVE ID to discuss (e.g., CVE-2023-1234)"
-              style={{ ...styles.input, flexGrow: 1, minHeight: '48px' }}
-              onKeyPress={(e) => e.key === 'Enter' && handleSetCveContext()}
-            />
-            <button onClick={handleSetCveContext} style={{ ...styles.button, ...styles.buttonPrimary, minHeight: '48px' }} disabled={!cveId.trim()}>
-              <Search size={18} /> Set CVE
-            </button>
-          </div>
-        ) : (
-          <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.9rem', color: styles.subtitle.color }}>
-            Talking about: <strong>{currentCveId}</strong>
-            <button
-              onClick={() => { setCurrentCveId(''); setCveId(''); setChatHistory([]); }}
-              style={{ ...styles.button, ...styles.buttonLink, marginLeft: '12px', fontSize: '0.85rem' }}
-            >
-              Change CVE
-            </button>
-          </div>
-        )}
+        {/* Removed CVE ID input section; context is handled by agent via natural language queries */}
+        <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.9rem', color: styles.subtitle.color }}>
+          Ask me about a CVE (e.g., "Tell me about CVE-2023-1234")
+        </div>
       </div>
 
       <div ref={chatContainerRef} style={{ flexGrow: 1, padding: '16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -189,15 +168,15 @@ const ChatInterface: React.FC = () => {
           type="text"
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
-          placeholder={currentCveId ? `Ask about ${currentCveId}...` : "First, set a CVE ID above."}
+          placeholder="Ask about a CVE or a previous topic..."
           style={{ ...styles.input, flexGrow: 1, minHeight: '48px' }}
           onKeyPress={(e) => e.key === 'Enter' && !isLoading && handleSendMessage()}
-          disabled={isLoading || !currentCveId || !agent}
+          disabled={isLoading || !agent}
         />
         <button
           onClick={handleSendMessage}
           style={{ ...styles.button, ...styles.buttonPrimary, minHeight: '48px' }}
-          disabled={isLoading || !inputMessage.trim() || !currentCveId || !agent}
+          disabled={isLoading || !inputMessage.trim() || !agent}
         >
           <Send size={18} />
         </button>
