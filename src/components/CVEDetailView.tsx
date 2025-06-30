@@ -435,7 +435,7 @@ const CVEDetailView = ({ vulnerability }) => {
                           fontSize: '0.875rem',
                           color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText
                         }}>
-                          {vulnerability.summary || `AI searched ${vulnerability.discoveredSources?.length || 2} security sources`}
+                          {vulnerability.analysisSummary || vulnerability.summary || `AI searched ${vulnerability.discoveredSources?.length || 2} security sources`}
                         </p>
                       </div>
                     </div>
