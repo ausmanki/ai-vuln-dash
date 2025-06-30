@@ -46,5 +46,7 @@ export const utils = {
       clearTimeout(timeout);
       timeout = setTimeout(later, wait);
     };
-  }
+  },
+
+  sleep: (ms) => new Promise(resolve => setTimeout(resolve, ms))
 };
