@@ -62,271 +62,34 @@ export class APIService {
   }
 
 
-  // Enhanced main function with validation
+import { ResearchAgent } from '../agents/ResearchAgent';
+
+// Enhanced main function with validation
   static async fetchVulnerabilityDataWithAI(cveId, setLoadingSteps, apiKeys, settings) {
     try {
-      setLoadingSteps(prev => [...prev, `🚀 Starting AI-powered real-time analysis for ${cveId}...`]);
+      // All previous logic is now encapsulated within ResearchAgent
+      const agent = new ResearchAgent(setLoadingSteps);
+      const enhancedVulnerability = await agent.analyzeCVE(cveId, apiKeys, settings);
 
-      if (ragDatabase && !ragDatabase.initialized) {
-        setLoadingSteps(prev => [...prev, `📚 Initializing RAG knowledge base...`]);
-        await ragDatabase.initialize();
-      }
-
-      setLoadingSteps(prev => [...prev, `🔍 Fetching from primary sources (NVD, EPSS)...`]);
-
-      const [cveResult, epssResult] = await Promise.allSettled([
-        APIService.fetchCVEData(cveId, apiKeys.nvd, setLoadingSteps), // Use APIService.fetchCVEData
-        APIService.fetchEPSSData(cveId, setLoadingSteps) // Use APIService.fetchEPSSData
-      ]);
-
-      const cve = cveResult.status === 'fulfilled' ? cveResult.value : null;
-      const epss = epssResult.status === 'fulfilled' ? epssResult.value : null;
-
-      if (!cve) {
-        throw new Error(`Failed to fetch CVE data for ${cveId}`);
-      }
-
-      setLoadingSteps(prev => [...prev, `🌐 AI analyzing real-time threat intelligence via web search...`]);
-
-      const aiThreatIntel = await APIService.fetchAIThreatIntelligence(cveId, cve, epss, settings, setLoadingSteps); // Use APIService.fetchAIThreatIntelligence
-
-      // Fetch patches and advisories
-      setLoadingSteps(prev => [...prev, `🔧 Searching for patches and security advisories...`]);
-      const patchAdvisoryData = await APIService.fetchPatchesAndAdvisories(cveId, cve, settings, setLoadingSteps); // Use APIService.fetchPatchesAndAdvisories
-
-      // Validate AI findings
-      setLoadingSteps(prev => [...prev, `🔍 Validating AI findings against authoritative sources...`]);
-      const validation = await ValidationService.validateAIFindings(aiThreatIntel, cveId, setLoadingSteps);
-
-      // Calculate confidence scores
-      const confidence = ConfidenceScorer.scoreAIFindings(
-        aiThreatIntel, 
-        validation, 
-        { discoveredSources: ['NVD', 'EPSS', 'AI_WEB_SEARCH'] }
-      );
-
-      const discoveredSources = ['NVD'];
-      const sources = [{ name: 'NVD', url: `https://nvd.nist.gov/vuln/detail/${cveId}`, aiDiscovered: false }];
-
-      if (epss) {
-        discoveredSources.push('EPSS/FIRST');
-        sources.push({ name: 'EPSS', url: `https://api.first.org/data/v1/epss?cve=${cveId}`, aiDiscovered: false });
-      }
-
-      if (aiThreatIntel.cisaKev?.listed) {
-        discoveredSources.push('CISA KEV');
-        sources.push({
-          name: 'CISA KEV',
-          url: 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog',
-          aiDiscovered: aiThreatIntel.cisaKev.aiDiscovered || true,
-          verified: validation.cisaKev?.verified || false
-        });
-      }
-
-      if (aiThreatIntel.exploitDiscovery?.found) {
-        discoveredSources.push('Exploit Intelligence');
-        if (aiThreatIntel.exploitDiscovery.exploits) {
-          aiThreatIntel.exploitDiscovery.exploits.forEach(exploit => {
-            if (exploit.url && exploit.url.startsWith('http')) {
-              sources.push({
-                name: `${exploit.source} - ${exploit.type}`,
-                url: exploit.url,
-                aiDiscovered: true,
-                reliability: exploit.reliability,
-                description: exploit.description,
-                verified: validation.exploits?.verifiedExploits?.some(v => v.url === exploit.url) || false
-              });
-            }
-          });
-        }
-      }
-
-      if (aiThreatIntel.vendorAdvisories?.found) {
-        discoveredSources.push('Vendor Advisories');
-        if (aiThreatIntel.vendorAdvisories.advisories) {
-          aiThreatIntel.vendorAdvisories.advisories.forEach(advisory => {
-            const vendorName = `${advisory.vendor} Advisory`;
-            if (!sources.some(s => s.name === vendorName)) {
-              sources.push({
-                name: vendorName,
-                url: '',
-                aiDiscovered: true,
-                patchAvailable: advisory.patchAvailable,
-                severity: advisory.severity,
-                verified: validation.vendorAdvisories?.verifiedAdvisories?.some(v => v.vendor === advisory.vendor) || false
-              });
-            }
-          });
-        }
-      }
-
-      if (aiThreatIntel.intelligenceSummary?.analysisMethod === 'GROUNDING_INFO_ONLY' && aiThreatIntel.intelligenceSummary.searchQueries?.length > 0) {
-        discoveredSources.push('AI Performed Searches');
-        sources.push({
-          name: 'AI Search Queries Performed',
-          type: 'ai-search-queries', // New type for UI to potentially handle differently
-          queries: aiThreatIntel.intelligenceSummary.searchQueries,
-          aiDiscovered: true,
-          description: 'The AI performed these web searches but did not provide a textual summary based on them.'
-        });
-      }
-
-      const intelligenceSummary = aiThreatIntel.intelligenceSummary || {
-        sourcesAnalyzed: discoveredSources.length,
-        exploitsFound: aiThreatIntel.exploitDiscovery?.totalCount || 0,
-        vendorAdvisoriesFound: aiThreatIntel.vendorAdvisories?.count || 0,
-        activeExploitation: aiThreatIntel.activeExploitation?.confirmed || false,
-        cisaKevListed: aiThreatIntel.cisaKev?.listed || false,
-        cveValid: aiThreatIntel.cveValidation?.isValid !== false,
-        threatLevel: aiThreatIntel.overallThreatLevel || 'MEDIUM',
-        dataFreshness: 'AI_WEB_SEARCH',
-        analysisMethod: 'AI_WEB_SEARCH_VALIDATED',
-        confidenceLevel: confidence.overall,
-        aiEnhanced: true,
-        validated: true
-      };
-
-      const threatLevel = aiThreatIntel.overallThreatLevel || intelligenceSummary.threatLevel;
-      const summary = aiThreatIntel.summary;
-
-      const enhancedVulnerability = {
-        cve,
-        epss,
-        kev: {
-          ...aiThreatIntel.cisaKev,
-          validated: validation.cisaKev?.verified || false,
-          actualStatus: validation.cisaKev?.actualStatus
-        },
-        exploits: {
-          found: aiThreatIntel.exploitDiscovery?.found || false,
-          count: aiThreatIntel.exploitDiscovery?.totalCount || 0,
-          confidence: aiThreatIntel.exploitDiscovery?.confidence || 'LOW',
-          sources: aiThreatIntel.exploitDiscovery?.exploits?.map(e => e.url) || [],
-          types: aiThreatIntel.exploitDiscovery?.exploits?.map(e => e.type) || [],
-          details: aiThreatIntel.exploitDiscovery?.exploits || [],
-          githubRepos: aiThreatIntel.exploitDiscovery?.githubRepos || 0,
-          exploitDbEntries: aiThreatIntel.exploitDiscovery?.exploitDbEntries || 0,
-          metasploitModules: aiThreatIntel.exploitDiscovery?.metasploitModules || 0,
-          validated: validation.exploits?.verified || false,
-          verifiedCount: validation.exploits?.verifiedExploits?.length || 0
-        },
-        vendorAdvisories: {
-          ...aiThreatIntel.vendorAdvisories,
-          validated: validation.vendorAdvisories?.verified || false
-        },
-        cveValidation: aiThreatIntel.cveValidation || {
-          isValid: true,
-          confidence: 'MEDIUM',
-          validationSources: [],
-          disputes: [],
-          falsePositiveIndicators: [],
-          legitimacyEvidence: [],
-          recommendation: 'NEEDS_VERIFICATION'
-        },
-        technicalAnalysis: aiThreatIntel.technicalAnalysis,
-        github: {
-          found: (aiThreatIntel.exploitDiscovery?.githubRepos || 0) > 0 || (aiThreatIntel.vendorAdvisories?.count || 0) > 0,
-          count: (aiThreatIntel.exploitDiscovery?.githubRepos || 0) + (aiThreatIntel.vendorAdvisories?.count || 0)
-        },
-        activeExploitation: aiThreatIntel.activeExploitation || {
-          confirmed: false,
-          details: '',
-          sources: []
-        },
-        threatIntelligence: aiThreatIntel.threatIntelligence,
-        intelligenceSummary: intelligenceSummary,
-        
-        // Patch and Advisory Data
-        patches: patchAdvisoryData.patches || [],
-        advisories: patchAdvisoryData.advisories || [],
-        patchSearchSummary: patchAdvisoryData.searchSummary || {},
-        
-        sources,
-        discoveredSources,
-        summary,
-        threatLevel,
-        dataFreshness: intelligenceSummary.dataFreshness || 'AI_WEB_SEARCH',
-        lastUpdated: new Date().toISOString(),
-        searchTimestamp: new Date().toISOString(),
-        ragEnhanced: true,
-        aiSearchPerformed: true,
-        aiWebGrounded: true,
-        enhancedSources: discoveredSources,
-        analysisMethod: intelligenceSummary.analysisMethod || aiThreatIntel.analysisMethod || 'AI_WEB_SEARCH_VALIDATED',
-        
-        // Enhanced validation metadata
-        validation: validation,
-        confidence: confidence,
-        hallucinationFlags: aiThreatIntel.hallucinationFlags || [],
-        extractionMetadata: aiThreatIntel.extractionMetadata,
-        validationTimestamp: new Date().toISOString(),
-        enhancedWithValidation: true
-      };
-
-      setLoadingSteps(prev => [...prev, 
-        `✅ Enhanced analysis complete: ${discoveredSources.length} sources analyzed, ${threatLevel} threat level, ${confidence.overall} confidence`
-      ]);
-
-      // Further Leverage RAG for 'Learning'
-      if (ragDatabase?.initialized && (confidence.overall === 'HIGH' || confidence.overall === 'MEDIUM')) {
-        let ragDocContent = `Refined AI Summary for ${cveId}:\nOverall Threat: ${threatLevel}\nSummary: ${summary}\n`;
-        if (aiThreatIntel.cisaKev?.listed) ragDocContent += `CISA KEV: Listed. Details: ${aiThreatIntel.cisaKev.details}\n`;
-        if (aiThreatIntel.activeExploitation?.confirmed) ragDocContent += `Active Exploitation: Confirmed. Details: ${aiThreatIntel.activeExploitation.details}\n`;
-        if (aiThreatIntel.exploitDiscovery?.found && aiThreatIntel.exploitDiscovery.exploits.length > 0) {
-          ragDocContent += `Public Exploits (${aiThreatIntel.exploitDiscovery.totalCount}):\n`;
-          aiThreatIntel.exploitDiscovery.exploits.slice(0, 2).forEach(ex => { // Store details for a couple of exploits
-            ragDocContent += `- Type: ${ex.type}, Source: ${ex.source}, Reliability: ${ex.reliability}, URL: ${ex.url}\n Description: ${ex.description?.substring(0,100)}...\n`;
-          });
-        }
-        if (patchAdvisoryData.patches?.length > 0) {
-            ragDocContent += `Patches (${patchAdvisoryData.patches.length}):\n`;
-            patchAdvisoryData.patches.slice(0,1).forEach(p => {
-                 ragDocContent += `- Vendor: ${p.vendor}, Product: ${p.product}, Version: ${p.patchVersion}, URL: ${p.downloadUrl}\n`;
-            });
-        }
-        // Simple idempotency: check if a similar document was added recently (e.g., in the last day)
-        // This is a basic check; a more robust system might use checksums or versioning.
-        const existingDocs = await ragDatabase.search(`Refined AI Summary for ${cveId}`, 1, { cveId: cveId, source: 'self-ai-refined-summary' });
-        let shouldAdd = true;
-        if (existingDocs.length > 0 && existingDocs[0].metadata?.timestamp) {
-            const lastAddedTime = new Date(existingDocs[0].metadata.timestamp).getTime();
-            if ((new Date().getTime() - lastAddedTime) < 24 * 60 * 60 * 1000) { // 24 hours
-                 console.log(`Skipping RAG update for ${cveId}, recent summary exists.`);
-                 shouldAdd = false;
-            }
-        }
-
-        if (shouldAdd) {
-            try {
-                await ragDatabase.addDocument(
-                    ragDocContent,
-                    {
-                        title: `Refined AI Analysis - ${cveId} (${confidence.overall} Confidence)`,
-                        category: 'ai-refined-summary',
-                        tags: ['ai-refined', cveId.toLowerCase(), threatLevel.toLowerCase(), confidence.overall.toLowerCase()],
-                        source: 'self-ai-refined-summary',
-                        cveId: cveId,
-                        timestamp: new Date().toISOString(),
-                        confidence: confidence.overall,
-                        threatLevel: threatLevel
-                    }
-                );
-                console.log(`Stored refined AI summary for ${cveId} in RAG database.`);
-            } catch (ragError) {
-                console.error(`Failed to store refined AI summary for ${cveId} in RAG:`, ragError);
-            }
-        }
-      }
+      // The setLoadingSteps updates are now handled by the agent itself.
+      // The final "Enhanced analysis complete" message from APIService might be redundant
+      // if the agent has its own final step message.
+      // For consistency, we can rely on the agent's last message or add a specific one here.
+      // For now, let's assume agent's logging is sufficient.
+      // setLoadingSteps(prev => [...prev,
+      //   `✅ APIService: Orchestration complete via ResearchAgent for ${cveId}`
+      // ]);
 
       return enhancedVulnerability;
-
     } catch (error) {
-      console.error(`Error processing ${cveId}:`, error);
+      console.error(`APIService: Error processing ${cveId} via ResearchAgent:`, error);
+      // It's important to re-throw the error so the UI can catch it and display an appropriate message.
+      // Or, APIService could return a structured error object. For now, re-throwing.
       throw error;
     }
   }
 
-  // These static methods are now part of UtilityService.ts and are imported.
+  // Utility methods previously here are now in UtilityService.ts or handled by the ResearchAgent
   // They are kept here for now to avoid breaking existing calls from other parts of the APIService class,
   // but they should be removed once all internal calls are updated to use the imported versions.
   static formatFindingWithConfidence(finding, confidence, validation) {
