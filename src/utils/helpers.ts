@@ -15,7 +15,18 @@ export const utils = {
     return `${r}, ${g}, ${b}`;
   },
 
-  validateCVE: (cveId) => /^CVE-\d{4}-\d{4,}$/i.test(cveId.trim()),
+  validateCVE: (cveId) => {
+    const id = cveId.trim();
+    return /^CVE-\d{4}-\d{4,}$/i.test(id) || /^BDSA-\d{4}-\d{4,}$/i.test(id);
+  },
+
+  getVulnerabilityUrl: (id) => {
+    const upper = id.trim().toUpperCase();
+    if (upper.startsWith('BDSA-')) {
+      return `https://openhub.net/vulnerabilities/bdsa/${upper}`;
+    }
+    return `https://nvd.nist.gov/vuln/detail/${upper}`;
+  },
 
   getSeverityLevel: (score) => {
     if (score >= CONSTANTS.CVSS_THRESHOLDS.CRITICAL) return 'CRITICAL';

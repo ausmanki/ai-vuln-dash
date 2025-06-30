@@ -88,7 +88,7 @@ const CVSSDisplay = ({ vulnerability }) => {
               color: vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.HIGH ? COLORS.red :
                      vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.MEDIUM ? COLORS.yellow : COLORS.green
             }}>
-              {(vulnerability.epss.epssFloat * 100).toFixed(1)}%
+              {(vulnerability.epss.epssFloat * 100).toFixed(1)}
             </span>
           </div>
         </div>

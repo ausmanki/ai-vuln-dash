@@ -336,7 +336,7 @@ const CVEDetailView = ({ vulnerability }) => {
                       <Target size={24} color={vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.HIGH ? COLORS.yellow : COLORS.green} />
                       <div>
                         <div style={{ fontWeight: '700', fontSize: '1.05rem' }}>
-                          EPSS Score: {vulnerability.epss.epssPercentage}%
+                          EPSS Score: {vulnerability.epss.epssPercentage}
                         </div>
                         <div style={{ fontSize: '0.85rem', color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
                           Percentile: {parseFloat(vulnerability.epss.percentile).toFixed(3)}
@@ -655,7 +655,7 @@ const CVEDetailView = ({ vulnerability }) => {
                                   <button
                                     onClick={() => {
                                       const sourceUrls = {
-                                        'NVD': `https://nvd.nist.gov/vuln/detail/${vulnerability.cve?.id}`,
+                                        'NVD': utils.getVulnerabilityUrl(vulnerability.cve?.id),
                                         'EPSS': `https://api.first.org/data/v1/epss?cve=${vulnerability.cve?.id}`,
                                         'CISA KEV': 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog',
                                         'Microsoft Advisory': `https://msrc.microsoft.com/update-guide/en-US/vulnerability/${vulnerability.cve?.id}`,
@@ -1068,7 +1068,7 @@ const CVEDetailView = ({ vulnerability }) => {
               <strong>CVSS Score:</strong> {cvssScore?.toFixed(1) || 'N/A'} ({severity})
             </p>
             <p style={{ margin: '0 0 8px 0' }}>
-              <strong>EPSS Score:</strong> {vulnerability.epss?.epssPercentage || 'N/A'}%
+              <strong>EPSS Score:</strong> {vulnerability.epss?.epssPercentage || 'N/A'}
               {vulnerability.epss && (
                 <span style={{ color: vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.HIGH ? COLORS.red : vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.MEDIUM ? COLORS.yellow : COLORS.green }}>
                   {vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.HIGH ? ' (High Risk)' : vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.MEDIUM ? ' (Medium Risk)' : ' (Low Risk)'}

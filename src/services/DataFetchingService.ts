@@ -80,12 +80,12 @@ export async function fetchEPSSData(cveId, setLoadingSteps, ragDatabase, fetchWi
   const percentileScore = parseFloat(epssData.percentile);
   const epssPercentage = (epssScore * 100).toFixed(3);
 
-  updateSteps(prev => [...prev, `✅ Retrieved EPSS data for ${cveId}: ${epssPercentage}% (Percentile: ${percentileScore.toFixed(3)})`]);
+  updateSteps(prev => [...prev, `✅ Retrieved EPSS data for ${cveId}: ${epssPercentage} (Percentile: ${percentileScore.toFixed(3)})`]);
 
   // Store in RAG database
   if (ragDatabase?.initialized) {
     await ragDatabase.addDocument(
-      `CVE ${cveId} EPSS Analysis: Exploitation probability ${epssPercentage}% (percentile ${percentileScore.toFixed(3)}). ${epssScore > 0.5 ? 'High exploitation likelihood - immediate attention required.' : epssScore > 0.1 ? 'Moderate exploitation likelihood - monitor closely.' : 'Lower exploitation likelihood but monitoring recommended.'}`,
+      `CVE ${cveId} EPSS Analysis: Exploitation probability ${epssPercentage} (percentile ${percentileScore.toFixed(3)}). ${epssScore > 0.5 ? 'High exploitation likelihood - immediate attention required.' : epssScore > 0.1 ? 'Moderate exploitation likelihood - monitor closely.' : 'Lower exploitation likelihood but monitoring recommended.'}`,
       {
         title: `EPSS Analysis - ${cveId}`,
         category: 'epss-data',
