@@ -109,7 +109,7 @@ export class ResearchAgent {
         sources.push({
           name: 'CISA KEV',
           url: 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog',
-          aiDiscovered: aiThreatIntel.cisaKev.aiDiscovered || true,
+          aiDiscovered: aiThreatIntel.cisaKev?.aiDiscovered ?? true,
           verified: validation.cisaKev?.verified || false
         });
       }
@@ -149,6 +149,42 @@ export class ResearchAgent {
             }
           });
         }
+      }
+
+      if (patchAdvisoryData.patches && patchAdvisoryData.patches.length > 0) {
+        discoveredSources.push('Vendor Patches');
+        patchAdvisoryData.patches.forEach(patch => {
+          const patchName = `${patch.vendor} Patch${patch.patchVersion ? ' ' + patch.patchVersion : ''}`.trim();
+          sources.push({
+            name: patchName,
+            url: patch.downloadUrl || patch.advisoryUrl || '',
+            aiDiscovered: true,
+            vendor: patch.vendor,
+            product: patch.product,
+            patchVersion: patch.patchVersion,
+            verified: validation.vendorConfirmation?.patches?.some(p => (p.downloadUrl && patch.downloadUrl && p.downloadUrl === patch.downloadUrl) || (p.advisoryUrl && patch.advisoryUrl && p.advisoryUrl === patch.advisoryUrl)) || false,
+            citationUrl: patch.citationUrl
+          });
+        });
+      }
+
+      if (patchAdvisoryData.advisories && patchAdvisoryData.advisories.length > 0) {
+        discoveredSources.push('Vendor Patch Advisories');
+        patchAdvisoryData.advisories.forEach(advisory => {
+          const advName = advisory.title || `${advisory.vendor} Advisory`;
+          if (!sources.some(s => s.name === advName)) {
+            sources.push({
+              name: advName,
+              url: advisory.url || '',
+              aiDiscovered: true,
+              vendor: advisory.vendor,
+              severity: advisory.severity,
+              patchAvailable: advisory.patchAvailable,
+              verified: validation.vendorConfirmation?.advisories?.some(a => a.url === advisory.url) || false,
+              citationUrl: advisory.citationUrl
+            });
+          }
+        });
       }
 
 
@@ -191,6 +227,7 @@ export class ResearchAgent {
         sources,
         discoveredSources: [...new Set(discoveredSources)], // Deduplicate
         summary,
+        analysisSummary: summary,
         threatLevel,
         dataFreshness: intelligenceSummary.dataFreshness,
         lastUpdated: new Date().toISOString(),
