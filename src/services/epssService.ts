@@ -2,12 +2,12 @@ import { CONSTANTS } from '../utils/constants';
 import { ragDatabase } from '../db/EnhancedVectorDatabase';
 import { APIService } from './APIService'; // For fetchWithFallback
 
+// Using the more complex logic from the 'master' side of the conflict
 export const fetchEPSSData = async (cveId, setLoadingSteps) => {
   const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
   updateSteps(prev => [...prev, `📊 Fetching EPSS data for ${cveId}...`]);
 
   const url = `${CONSTANTS.API_ENDPOINTS.EPSS}?cve=${cveId}`;
-  // Assuming APIService.fetchWithFallback is accessible or moved to a shared util
   const response = await APIService.fetchWithFallback(url, {
     headers: {
       'Accept': 'application/json',
@@ -37,7 +37,7 @@ export const fetchEPSSData = async (cveId, setLoadingSteps) => {
 
   updateSteps(prev => [...prev, `✅ Retrieved EPSS data for ${cveId}: ${epssPercentage}% (Percentile: ${percentileScore.toFixed(3)})`]);
 
-  if (ragDatabase.initialized) {
+  if (ragDatabase?.initialized) { // Added null check
     await ragDatabase.addDocument(
       `CVE ${cveId} EPSS Analysis: Exploitation probability ${epssPercentage}% (percentile ${percentileScore.toFixed(3)}). ${epssScore > 0.5 ? 'High exploitation likelihood - immediate attention required.' : epssScore > 0.1 ? 'Moderate exploitation likelihood - monitor closely.' : 'Lower exploitation likelihood but monitoring recommended.'}`,
       {

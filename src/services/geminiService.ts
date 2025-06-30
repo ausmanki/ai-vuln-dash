@@ -18,7 +18,7 @@ export const generateAIAnalysis = async (vulnerability, apiKey, model, settings 
   // @ts-ignore
   window.lastGeminiRequest = now;
 
-  if (ragDatabase) {
+  if (ragDatabase) { // Null check
     await ragDatabase.ensureInitialized(apiKey);
     console.log(`📊 RAG Database Status: ${ragDatabase.documents.length} documents available (${ragDatabase.geminiApiKey ? 'Gemini embeddings' : 'local embeddings'})`);
   }
@@ -31,7 +31,7 @@ export const generateAIAnalysis = async (vulnerability, apiKey, model, settings 
   let relevantDocs = [];
   let ragContext = 'No specific security knowledge found in database. Initializing knowledge base for future queries.';
 
-  if (ragDatabase && ragDatabase.initialized) {
+  if (ragDatabase && ragDatabase.initialized) { // Null checks
     relevantDocs = await ragDatabase.search(ragQuery, 15);
     console.log(`📚 RAG Retrieved: ${relevantDocs.length} relevant documents (${relevantDocs.filter(d => d.embeddingType === 'gemini').length} with Gemini embeddings)`);
 
@@ -46,7 +46,7 @@ export const generateAIAnalysis = async (vulnerability, apiKey, model, settings 
       console.log(`📚 Broader RAG Search: ${broaderDocs.length} documents found`);
 
       if (broaderDocs.length > 0) {
-        const broaderContextText = broaderDocs.map((doc, index) =>
+        const broaderContextText = broaderDocs.map((doc, index) => // Renamed to avoid conflict
           `[General Security Knowledge ${index + 1}] ${doc.metadata.title} (${doc.embeddingType || 'local'} embedding):\n${doc.content.substring(0, 600)}...`
         ).join('\n\n');
         // @ts-ignore
@@ -78,7 +78,7 @@ export const generateAIAnalysis = async (vulnerability, apiKey, model, settings 
   const apiUrl = `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${apiKey}`;
 
   try {
-    const response = await APIService.fetchWithFallback(apiUrl, { // APIService.fetchWithFallback might need to be made available if not already
+    const response = await APIService.fetchWithFallback(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(requestBody)
@@ -86,32 +86,19 @@ export const generateAIAnalysis = async (vulnerability, apiKey, model, settings 
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
-
-      if (response.status === 429) {
-        throw new Error('Gemini API rate limit exceeded. Please wait a few minutes before trying again.');
-      }
-
-      if (response.status === 401 || response.status === 403) {
-        throw new Error('Invalid Gemini API key. Please check your API key in settings.');
-      }
-
+      if (response.status === 429) throw new Error('Gemini API rate limit exceeded. Please wait a few minutes before trying again.');
+      if (response.status === 401 || response.status === 403) throw new Error('Invalid Gemini API key. Please check your API key in settings.');
       throw new Error(`Gemini API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
     }
 
     const data = await response.json();
     const content = data.candidates?.[0]?.content;
-
-    if (!content?.parts?.[0]?.text) {
-      throw new Error('Invalid response from Gemini API');
-    }
+    if (!content?.parts?.[0]?.text) throw new Error('Invalid response from Gemini API');
 
     const analysisText = content.parts[0].text;
+    if (!analysisText || analysisText.trim().length === 0) throw new Error('Empty analysis received from Gemini API');
 
-    if (!analysisText || analysisText.trim().length === 0) {
-      throw new Error('Empty analysis received from Gemini API');
-    }
-
-    if (analysisText.length > 500 && ragDatabase && ragDatabase.initialized) {
+    if (analysisText.length > 500 && ragDatabase && ragDatabase.initialized) { // Null checks
       await ragDatabase.addDocument(
         `Enhanced CVE Analysis: ${cveId}\n\nCVSS: ${vulnerability.cve.cvssV3?.baseScore || 'N/A'}\nEPSS: ${vulnerability.epss?.epssPercentage || 'N/A'}%\nCISA KEV: ${vulnerability.kev?.listed ? 'Yes' : 'No'}\nValidated: ${vulnerability.validation ? 'Yes' : 'No'}\nConfidence: ${vulnerability.confidence?.overall || 'Unknown'}\n\n${analysisText}`,
         {
@@ -136,10 +123,9 @@ export const generateAIAnalysis = async (vulnerability, apiKey, model, settings 
       discoveredSources: vulnerability.discoveredSources || [],
       model: model,
       analysisTimestamp: new Date().toISOString(),
-      ragDatabaseSize: ragDatabase ? ragDatabase.documents.length : 0,
-      embeddingType: ragDatabase && ragDatabase.geminiApiKey ? 'gemini' : 'local',
-      // @ts-ignore
-      geminiEmbeddingsCount: ragDatabase ? ragDatabase.documents.filter(d => d.embeddingType === 'gemini').length : 0,
+      ragDatabaseSize: ragDatabase ? ragDatabase.documents.length : 0, // Null check
+      embeddingType: ragDatabase && ragDatabase.geminiApiKey ? 'gemini' : 'local', // Null check
+      geminiEmbeddingsCount: ragDatabase ? ragDatabase.documents.filter(d => d.embeddingType === 'gemini').length : 0, // Null check
       realTimeData: {
         cisaKev: vulnerability.kev?.listed || false,
         cisaKevValidated: vulnerability.kev?.validated || false,
@@ -155,7 +141,6 @@ export const generateAIAnalysis = async (vulnerability, apiKey, model, settings 
       confidence: vulnerability.confidence,
       validation: vulnerability.validation
     };
-
   } catch (error) {
     console.error('Enhanced RAG Analysis Error:', error);
     return generateEnhancedFallbackAnalysis(vulnerability, error);

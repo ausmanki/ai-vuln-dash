@@ -2,6 +2,7 @@ import { CONSTANTS } from '../utils/constants';
 import { ragDatabase } from '../db/EnhancedVectorDatabase';
 import { APIService } from './APIService'; // For fetchWithFallback
 
+// Using the more complex logic from the 'master' side of the conflict
 export const fetchCVEData = async (cveId, apiKey, setLoadingSteps) => {
   const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
   updateSteps(prev => [...prev, `🔍 Fetching ${cveId} from NVD...`]);
@@ -14,7 +15,6 @@ export const fetchCVEData = async (cveId, apiKey, setLoadingSteps) => {
 
   if (apiKey) headers['apiKey'] = apiKey;
 
-  // Assuming APIService.fetchWithFallback is accessible or moved to a shared util
   const response = await APIService.fetchWithFallback(url, { headers });
 
   if (!response.ok) {
@@ -34,7 +34,7 @@ export const fetchCVEData = async (cveId, apiKey, setLoadingSteps) => {
 
   const processedData = processCVEData(data.vulnerabilities[0].cve);
 
-  if (ragDatabase.initialized) {
+  if (ragDatabase?.initialized) { // Added null check for ragDatabase
     await ragDatabase.addDocument(
       `CVE ${cveId} NVD Data: ${processedData.description} CVSS Score: ${processedData.cvssV3?.baseScore || 'N/A'} Severity: ${processedData.cvssV3?.baseSeverity || 'Unknown'}`,
       {
