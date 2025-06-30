@@ -1,25 +1,28 @@
 import { APIService } from '../services/APIService';
-import { AppContext } from '../contexts/AppContext'; // Assuming settings might come from AppContext
-// We might need to import specific types for vulnerability data if we strongly type responses.
-// For now, we'll keep it simple and return strings or simple objects.
-
-// Define a simple structure for responses, can be expanded later
-interface ChatResponse {
-  text: string;
-  data?: any; // Optional structured data
-  error?: string;
-}
+import {
+  AgentSettings,
+  ChatResponse,
+  EPSSData,
+  PatchData,
+  EnhancedVulnerabilityData,
+  CVEValidationData,
+  BaseCVEInfo,
+  CisaKevDetails,
+  ActiveExploitationData,
+  ExploitDiscoveryData,
+  AISummaryData
+} from '../types/cveData'; // Keep these type imports
 
 const CVE_REGEX = /CVE-\d{4}-\d{4,7}/i;
 
+// InternalAIThreatIntelData removed as it's a helper and APIService calls should be typed if possible or use optional chaining
+
 export class UserAssistantAgent {
-  private settings: any; // To store settings if needed
+  private settings: AgentSettings; // Use imported AgentSettings type
   private currentCveIdForSession: string | null = null;
 
-  constructor(settings?: any) {
+  constructor(settings?: AgentSettings) { // Use imported AgentSettings type
     this.settings = settings || {};
-    // Initialize any services if they require instantiation and settings
-    // For now, APIService uses static methods, so no instantiation needed here.
   }
 
   public setContextualCVE(cveId: string): ChatResponse | null {
@@ -31,11 +34,11 @@ export class UserAssistantAgent {
         id: Date.now().toString(),
       };
     }
-    return null; // No change or invalid CVE
+    return null;
   }
 
   public async generateBulkAnalysisSummary(
-    bulkResults: Array<{cveId: string, data?: any, error?: string}>
+    bulkResults: Array<{cveId: string, data?: EnhancedVulnerabilityData, error?: string}> // Stronger type for data
   ): Promise<ChatResponse> {
     if (!bulkResults || bulkResults.length === 0) {
       return { text: "There are no bulk analysis results to summarize. Please perform a bulk analysis first." };
@@ -45,7 +48,7 @@ export class UserAssistantAgent {
     let successfullyAnalyzed = 0;
     let failedAnalysis = 0;
 
-    const severityCounts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, UNKNOWN: 0 };
+    const severityCounts: Record<string, number> = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, UNKNOWN: 0 }; // Explicit Record type
     const kevListedCVEs: string[] = [];
     const highEpssCVEs: { cveId: string, score: string }[] = [];
 
@@ -55,9 +58,10 @@ export class UserAssistantAgent {
         continue;
       }
       successfullyAnalyzed++;
-      const cveData = result.data.cve;
-      const epssData = result.data.epss;
-      const kevData = result.data.kev;
+      // Assuming result.data is EnhancedVulnerabilityData
+      const cveData = result.data.cve; // BaseCVEInfo
+      const epssData = result.data.epss; // EPSSData
+      const kevData = result.data.kev; // CisaKevDetails
 
       // Severity
       let severity = "UNKNOWN";
@@ -66,7 +70,13 @@ export class UserAssistantAgent {
       } else if (cveData?.cvssV2?.severity) {
         severity = cveData.cvssV2.severity.toUpperCase();
       }
-      severityCounts[severity]++;
+      // Ensure severity is a valid key for severityCounts
+      if (severityCounts.hasOwnProperty(severity)) {
+        severityCounts[severity]++;
+      } else {
+        severityCounts["UNKNOWN"]++;
+      }
+
 
       // KEV
       if (kevData?.listed) {
@@ -74,8 +84,8 @@ export class UserAssistantAgent {
       }
 
       // EPSS
-      if (epssData?.epssFloat && epssData.epssFloat > 0.75) { // Threshold for "high" EPSS, adjust as needed
-        highEpssCVEs.push({ cveId: result.cveId, score: epssData.epssPercentage });
+      if (epssData?.epssFloat && epssData.epssFloat > 0.75) {
+        highEpssCVEs.push({ cveId: result.cveId, score: epssData.epssPercentage || "N/A" });
       }
     }
 
@@ -112,7 +122,7 @@ export class UserAssistantAgent {
 
     return {
       text: summaryText,
-      data: {
+      data: { // This data object could also be typed
         totalCVEs,
         successfullyAnalyzed,
         failedAnalysis,
@@ -123,7 +133,7 @@ export class UserAssistantAgent {
     };
   }
 
-  public async handleQuery(query: string, bulkResults?: Array<{cveId: string, data?: any, error?: string}> ): Promise<ChatResponse> {
+  public async handleQuery(query: string, bulkResults?: Array<{cveId: string, data?: EnhancedVulnerabilityData, error?: string}> ): Promise<ChatResponse> {
     const lowerQuery = query.toLowerCase();
 
     // Check for bulk summary command first
