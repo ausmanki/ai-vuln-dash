@@ -75,13 +75,18 @@ export class UserAssistantAgent {
       operationalCveId = this.currentCveIdForSession;
     }
 
-    // If no operational CVE ID is active (neither in query nor in session), guide the user.
+    // If no operational CVE ID is active, attempt a general AI answer
     if (!operationalCveId) {
-      return {
-        text: "I don't have a specific CVE in context. Please specify a CVE ID (e.g., 'What about CVE-2023-1234?'), ask me to focus on one, or type `/bulk_summary` for an overview of analyzed CVEs.",
-        sender: 'bot',
-        id: Date.now().toString(),
-      };
+      try {
+        const aiResult = await APIService.fetchGeneralAnswer(query, this.settings);
+        return { text: aiResult.answer, sender: 'bot', id: Date.now().toString() };
+      } catch (err: any) {
+        return {
+          text: "I don't have a specific CVE in context. Please specify a CVE ID (e.g., 'What about CVE-2023-1234?'), ask me to focus on one, or type `/bulk_summary` for an overview of analyzed CVEs.",
+          sender: 'bot',
+          id: Date.now().toString(),
+        };
+      }
     }
 
     // Define intents - these are processed ONLY if an operationalCveId is active.
@@ -121,12 +126,22 @@ export class UserAssistantAgent {
           return await intent.handler.call(this, operationalCveId as string);
         }
       }
-      // Fallback if no intent is matched but a CVE context exists
-      return {
-        text: `I'm focused on ${operationalCveId}, but I'm not sure what you're asking. You can ask for its EPSS score, summary, patches, validation, etc. Type '/bulk_summary' for an overview of all analyzed CVEs.`,
-        sender: 'bot',
-        id: Date.now().toString(),
-      };
+      // Use AI search as a smart fallback if no intent is matched
+      try {
+        const aiResult = await APIService.fetchGeneralAnswer(query, this.settings);
+        return {
+          text: aiResult.answer,
+          sender: 'bot',
+          id: Date.now().toString(),
+        };
+      } catch (err: any) {
+        // If AI search fails, return a basic help message
+        return {
+          text: `I'm focused on ${operationalCveId}, but I'm not sure what you're asking. You can ask for its EPSS score, summary, patches, validation, etc. Type '/bulk_summary' for an overview of all analyzed CVEs.`,
+          sender: 'bot',
+          id: Date.now().toString(),
+        };
+      }
 
     } catch (error: any) {
       console.error(`Error handling query for CVE ${operationalCveId}:`, error);
