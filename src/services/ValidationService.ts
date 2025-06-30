@@ -1,223 +1,300 @@
-// This file will contain the ValidationService class
-// Add necessary imports here
+// src/services/ValidationService.ts
+import {
+  CVEValidationData,
+  BaseCVEInfo,
+  PatchInfo, // Ensure this is correctly imported if defined in cveData.ts
+  AdvisoryInfo, // Ensure this is correctly imported
+  // Import other necessary types like AIThreatIntelData (actual name may vary), PatchData
+  // For now, using 'any' for undefined complex types from other services.
+} from '../types/cveData';
+import { APIService } from './APIService'; // Assuming APIService might be needed for some sub-fetches, though ideally data is passed in.
+
+// Placeholder for actual AI Intel and PatchData types
+// These should be replaced with their actual definitions from other parts of the application
+interface AIThreatIntelDataPlaceholder {
+  summary?: string;
+  technicalAnalysis?: { text?: string };
+  searchResults?: Array<{ snippet?: string; title?: string; url?: string }>; // Example structure
+  // Add other fields that might contain relevant text or structured info from AI
+  vendorDisputes?: Array<{ source: string; detail: string }>; // Example if AI can structure this
+  researcherOpinions?: Array<{ source: string; opinion: string; url: string }>; // Example
+}
+
+interface PatchDataPlaceholder {
+  patches?: Array<PatchInfo & { vendor: string; product?: string; downloadUrl?: string; advisoryUrl?: string; description?: string }>;
+  advisories?: Array<AdvisoryInfo & { source: string; url?: string; title?: string }>;
+  searchSummary?: any;
+}
+
+
 export class ValidationService {
-  static async validateAIFindings(aiFindings, cveId, setLoadingSteps) {
-    const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
-    updateSteps(prev => [...prev, `🔍 Validating AI findings for ${cveId}...`]);
+  public static async validateAIFindings(
+    cveId: string,
+    nvdData: BaseCVEInfo | null,
+    aiIntel: AIThreatIntelDataPlaceholder | null, // Using placeholder
+    patchAdvisoryData: PatchDataPlaceholder | null, // Using placeholder
+  ): Promise<CVEValidationData> {
 
-    const validationResults = {
-      cisaKev: await this.validateCISAKEV(cveId, aiFindings.cisaKev),
-      exploits: await this.validateExploits(cveId, aiFindings.exploitDiscovery),
-      vendorAdvisories: await this.validateVendorAdvisories(cveId, aiFindings.vendorAdvisories),
-      confidence: 'MEDIUM',
-      validatedClaims: 0,
-      totalClaims: 0,
-      validationTimestamp: new Date().toISOString()
+    const validationOutput: CVEValidationData = {
+      cveId,
+      vendorDispute: { hasDispute: false },
+      falsePositive: { isFalsePositive: false },
+      vendorConfirmation: { hasConfirmation: false, patches: [], advisories: [] },
+      researcherValidation: { consensus: 'Unknown', evidence: [] },
+      legitimacySummary: '',
+      legitimacyScore: null,
+      status: 'UNKNOWN',
+      confidence: 'Low',
+      validationSources: [],
+      disputes: [],
+      lastUpdated: new Date().toISOString(),
     };
 
-    // Calculate overall confidence
-    const validationScore = this.calculateValidationScore(validationResults);
-    validationResults.confidence = validationScore >= 0.8 ? 'HIGH' :
-                                   validationScore >= 0.5 ? 'MEDIUM' : 'LOW';
+    // --- Populate Vendor Confirmation ---
+    if (patchAdvisoryData) {
+      const { patches, advisories } = patchAdvisoryData;
+      const collectedPatches: PatchInfo[] = [];
+      const collectedAdvisories: AdvisoryInfo[] = [];
 
-    updateSteps(prev => [...prev, `✅ Validation complete: ${validationResults.confidence} confidence`]);
-    return validationResults;
-  }
+      if (patches && patches.length > 0) {
+        validationOutput.vendorConfirmation!.hasConfirmation = true;
+        patches.forEach(p => collectedPatches.push({
+          vendor: p.vendor || 'N/A',
+          product: p.product || 'N/A',
+          patchVersion: p.patchVersion,
+          downloadUrl: p.downloadUrl,
+          advisoryUrl: p.advisoryUrl,
+          releaseDate: p.releaseDate,
+          description: p.description,
+          source: p.source || 'Patch Data',
+          citationUrl: p.citationUrl,
+        }));
+      }
+      if (advisories && advisories.length > 0) {
+        validationOutput.vendorConfirmation!.hasConfirmation = true;
+        advisories.forEach(a => collectedAdvisories.push({
+          source: a.source || 'Advisory Data',
+          url: a.url,
+          title: a.title,
+          // Map other fields if AdvisoryInfo in CVEValidationData expects them
+        }));
+      }
+      validationOutput.vendorConfirmation!.patches = collectedPatches;
+      validationOutput.vendorConfirmation!.advisories = collectedAdvisories;
 
-  static async validateCISAKEV(cveId, aiKevFindings) {
-    // Since direct API calls fail due to CORS, we rely on AI web search validation
-    // The AI search will access the CISA KEV catalog during its web search phase
-
-    return {
-      aiClaimed: aiKevFindings?.listed || false,
-      actualStatus: null, // Will be determined by AI web search
-      verified: aiKevFindings?.confidence === 'HIGH' && aiKevFindings?.source, // Trust high-confidence AI findings with sources
-      validationMethod: 'AI_WEB_SEARCH',
-      confidence: aiKevFindings?.confidence || 'UNKNOWN',
-      note: 'CISA KEV validation performed via AI web search due to CORS restrictions',
-      sourceProvided: !!aiKevFindings?.source,
-      confidenceLevel: aiKevFindings?.confidence || 'LOW'
-    };
-  }
-
-  static async validateExploits(cveId, aiExploitFindings) {
-    const validationResults = {
-      aiClaimed: aiExploitFindings?.found || false,
-      aiClaimedCount: aiExploitFindings?.totalCount || 0,
-      verifiedExploits: [],
-      invalidUrls: [],
-      validationMethod: 'URL_VERIFICATION',
-      confidence: 'LOW'
-    };
-
-    if (!aiExploitFindings?.exploits?.length) {
-      return { ...validationResults, verified: true, confidence: 'HIGH' };
+      if (validationOutput.vendorConfirmation!.hasConfirmation) {
+        validationOutput.vendorConfirmation!.details = `Found ${collectedPatches.length} patch(es) and ${collectedAdvisories.length} advisory(ies).`;
+        validationOutput.validationSources?.push('Vendor Patches/Advisories');
+      }
     }
 
-    // Validate URLs without actually fetching (to avoid security risks in client-side)
-    for (const exploit of aiExploitFindings.exploits) {
-      const urlsToValidate = [exploit.url, exploit.citationUrl].filter(Boolean);
-      let allUrlsValid = true;
-      const urlValidationResults = {};
-
-      if (urlsToValidate.length === 0) {
-        // If no URL is provided at all, consider it not verifiable for this purpose
-        allUrlsValid = false;
-        validationResults.invalidUrls.push({
-          url: 'No URL provided',
-          reason: 'No URL or citationUrl for exploit entry'
+    // --- Populate False Positive and Dispute from NVD ---
+    if (nvdData?.cve) {
+      validationOutput.validationSources?.push('NVD');
+      if (nvdData.cve.vulnStatus === 'Rejected' || nvdData.cve.vulnStatus === 'Withdrawn') { // Assuming 'Withdrawn' is a possible status
+        validationOutput.falsePositive!.isFalsePositive = true;
+        validationOutput.falsePositive!.reason = `NVD Status: ${nvdData.cve.vulnStatus}`;
+        validationOutput.falsePositive!.source = 'NVD';
+      }
+      // NVD can also mark as DISPUTED. This often means a vendor disputes it.
+      if (nvdData.cve.vulnStatus === 'Disputed') {
+        validationOutput.vendorDispute!.hasDispute = true;
+        validationOutput.vendorDispute!.details = nvdData.cve.descriptions?.find(d => d.lang === 'en')?.value || 'Marked as DISPUTED in NVD.';
+        validationOutput.vendorDispute!.source = 'NVD';
+        // Also add to the main 'disputes' array for compatibility/detail
+        validationOutput.disputes?.push({
+            source: 'NVD',
+            reason: validationOutput.vendorDispute!.details || 'Disputed',
+            date: nvdData.cve.lastModified // Or published date
         });
       }
+    }
 
-      for (const currentUrl of urlsToValidate) {
-        const validation = this.validateExploitUrl(currentUrl, cveId);
-        urlValidationResults[currentUrl] = validation;
-        // Placeholder for future HEAD request:
-        // if (validation.likely_valid) {
-        //   try {
-        //     // const headResponse = await fetchWithFallback(currentUrl, { method: 'HEAD', mode: 'cors' });
-        //     // validation.live = headResponse.ok;
-        //     // validation.liveStatus = headResponse.status;
-        //   } catch (e) {
-        //     validation.live = false;
-        //     validation.liveError = e.message;
-        //   }
-        // }
-        if (!validation.likely_valid /* || !validation.live */) {
-          allUrlsValid = false;
-          validationResults.invalidUrls.push({
-            url: currentUrl,
-            reason: validation.reason // + (validation.live === false ? ' Liveness check failed.' : '')
-          });
+    // --- Process AI Intelligence (aiIntel) for Disputes, Researcher Validation, and further False Positive/Confirmation signals ---
+    if (aiIntel) {
+      validationOutput.validationSources?.push('AI Web Search Analysis');
+      const aiTextContent = this.extractTextFromAIIntel(aiIntel);
+
+      // Vendor Disputes from AI
+      const disputeKeywords = ['vendor disputes this', 'vendor does not consider this a vulnerability', 'vendor rejected this claim', 'will not fix this issue', 'out of scope for vendor'];
+      const disputeInfo = this.findKeywordsAndContext(aiTextContent, disputeKeywords, aiIntel.searchResults || []);
+      if (disputeInfo.found && !validationOutput.vendorDispute?.hasDispute) { // Prioritize NVD if already set
+        validationOutput.vendorDispute = {
+          hasDispute: true,
+          details: disputeInfo.context || 'AI analysis suggests vendor dispute.',
+          source: disputeInfo.sourceURL || 'AI Web Search',
+        };
+      }
+
+      // False Positives from AI
+      const fpKeywords = ['cve withdrawn by reporter', 'incorrectly assigned cve', 'vulnerability does not exist', 'confirmed false positive'];
+      const fpInfo = this.findKeywordsAndContext(aiTextContent, fpKeywords, aiIntel.searchResults || []);
+      if (fpInfo.found && !validationOutput.falsePositive?.isFalsePositive) { // Prioritize NVD
+        validationOutput.falsePositive = {
+          isFalsePositive: true,
+          reason: fpInfo.context || 'AI analysis suggests false positive.',
+          source: fpInfo.sourceURL || 'AI Web Search',
+        };
+      }
+
+      // Researcher Validation from AI
+      const researcherKeywords = ['security researcher analysis of', 'technical write-up for cve', 'poc available for', 'confirmed by security researchers', 'public exploit for'];
+      const researcherEvidences = this.findKeywordsAndContext(aiTextContent, researcherKeywords, aiIntel.searchResults || [], true);
+
+      if (researcherEvidences.length > 0) {
+        validationOutput.researcherValidation!.consensus = 'Positive'; // Simplified, needs better sentiment analysis
+        validationOutput.researcherValidation!.summary = `${researcherEvidences.length} potential researcher source(s) found.`;
+        validationOutput.researcherValidation!.evidence = researcherEvidences.map(ev => ({
+            text: ev.context,
+            url: ev.sourceURL,
+            source: ev.sourceTitle || "AI Web Search"
+        }));
+      }
+      // TODO: Add logic for 'Negative' or 'Mixed' researcher consensus if possible (e.g., finding researchers disputing it)
+    }
+
+    // --- Populate Legitimacy Summary and Score ---
+    validationOutput.legitimacySummary = this.generateLegitimacySummary(validationOutput);
+    validationOutput.legitimacyScore = this.calculateLegitimacyScore(validationOutput);
+
+    // --- Determine overall status and confidence ---
+    if (validationOutput.falsePositive?.isFalsePositive) {
+        validationOutput.status = 'INVALID';
+        validationOutput.recommendation = `Likely False Positive or Rejected. Reason: ${validationOutput.falsePositive.reason || 'Not specified'}`;
+        validationOutput.confidence = 'High';
+    } else if (validationOutput.vendorDispute?.hasDispute) {
+        validationOutput.status = 'DISPUTED';
+        validationOutput.recommendation = `Disputed by vendor. Details: ${validationOutput.vendorDispute.details || 'Not specified'}. Investigate carefully.`;
+        validationOutput.confidence = 'High'; // Confidence in the "disputed" status
+    } else if (validationOutput.vendorConfirmation?.hasConfirmation) {
+        validationOutput.status = 'VALID';
+        validationOutput.recommendation = 'Considered valid based on vendor confirmation (patches/advisories available).';
+        validationOutput.confidence = 'High';
+    } else if (validationOutput.researcherValidation?.consensus === 'Positive' && (validationOutput.researcherValidation.evidence?.length || 0) > 0) {
+        validationOutput.status = 'VALID';
+        validationOutput.recommendation = 'Likely valid based on researcher analysis/PoC.';
+        validationOutput.confidence = 'Medium';
+    } else {
+        validationOutput.status = 'NEEDS_VERIFICATION';
+        validationOutput.recommendation = 'Legitimacy is unclear based on available automated analysis. Further verification may be needed.';
+        validationOutput.confidence = 'Low';
+    }
+    validationOutput.lastUpdated = new Date().toISOString();
+
+    return validationOutput;
+  }
+
+  private static extractTextFromAIIntel(aiIntel: AIThreatIntelDataPlaceholder): string {
+    let text = '';
+    if (aiIntel?.summary) text += aiIntel.summary.toLowerCase() + ' ';
+    if (aiIntel?.technicalAnalysis?.text) text += aiIntel.technicalAnalysis.text.toLowerCase() + ' ';
+    if (aiIntel?.searchResults) {
+        aiIntel.searchResults.forEach(res => {
+            if (res.snippet) text += res.snippet.toLowerCase() + ' ';
+            if (res.title) text += res.title.toLowerCase() + ' ';
+        });
+    }
+    // Add other text sources from aiIntel if necessary
+    return text;
+  }
+
+  private static findKeywordsAndContext(
+    textToSearch: string,
+    keywords: string[],
+    searchResults: Array<{ snippet?: string; title?: string; url?: string }>,
+    collectMultiple = false
+  ): { found: boolean; context?: string; sourceURL?: string; sourceTitle?: string; } | Array<{context: string; sourceURL?: string; sourceTitle?: string;}> {
+
+    const foundItems: Array<{context: string; sourceURL?: string; sourceTitle?: string;}> = [];
+
+    // First, check direct textToSearch (e.g., overall summaries from AI)
+    for (const keyword of keywords) {
+      const kwLower = keyword.toLowerCase();
+      let index = textToSearch.indexOf(kwLower);
+      while (index !== -1) {
+        const start = Math.max(0, index - 70); // Extend context window
+        const end = Math.min(textToSearch.length, index + kwLower.length + 200); // Extend context window
+        const contextSnippet = textToSearch.substring(start, end);
+        const item = { context: `...${contextSnippet}...`, sourceURL: undefined, sourceTitle: "AI Summary/Analysis" };
+        if (collectMultiple) {
+          foundItems.push(item);
+        } else {
+          return { found: true, ...item };
         }
-      }
-
-      if (allUrlsValid && urlsToValidate.length > 0) {
-        validationResults.verifiedExploits.push({
-          ...exploit,
-          urlValidationResults: urlValidationResults // Store all results
-        });
-      } else if (urlsToValidate.length > 0) { // If some URLs were present but not all valid
-        // Already added to invalidUrls if any specific URL failed
+        index = textToSearch.indexOf(kwLower, index + 1);
       }
     }
 
-    // Adjust verification rate calculation if needed, e.g., based on primary URL vs. citation
-    const totalExploitsWithAttemptedValidation = aiExploitFindings.exploits?.length || 0;
-    const verificationRate = totalExploitsWithAttemptedValidation > 0
-                           ? validationResults.verifiedExploits.length / totalExploitsWithAttemptedValidation
-                           : 1; // If no exploits, consider it 100% verified (no false claims)
+    // Then, iterate through search results for more specific context and URLs
+    if (searchResults) {
+        for (const res of searchResults) {
+            const resText = ((res.title || '') + ' ' + (res.snippet || '')).toLowerCase();
+            for (const keyword of keywords) {
+                const kwLower = keyword.toLowerCase();
+                if (resText.includes(kwLower)) {
+                    const item = { context: `${res.title || ''}: ${res.snippet || ''}`, sourceURL: res.url, sourceTitle: res.title || res.url};
+                    if (collectMultiple) {
+                        if (!foundItems.some(fi => fi.sourceURL === item.sourceURL && fi.context.includes(keyword))) { // Avoid duplicates for same keyword from same source
+                           foundItems.push(item);
+                        }
+                    } else {
+                        return { found: true, ...item };
+                    }
+                }
+            }
+        }
+    }
 
-    validationResults.verified = verificationRate >= 0.5;
-    validationResults.confidence = verificationRate >= 0.8 ? 'HIGH' :
-                                  verificationRate >= 0.5 ? 'MEDIUM' : 'LOW';
-
-    return validationResults;
+    if (collectMultiple) return foundItems;
+    return { found: false };
   }
 
-  static validateExploitUrl(url, cveId) {
-    try {
-      const patterns = {
-        github: /^https:\/\/github\.com\/[\w\-_]+\/[\w\-_]+/,
-        exploitDb: /^https:\/\/(www\.)?exploit-db\.com\/(exploits|search)/,
-        nvd: /^https:\/\/nvd\.nist\.gov\/vuln\/detail\//,
-        cve: new RegExp(`.*${cveId}.*`, 'i')
-      };
+  private static generateLegitimacySummary(validationData: CVEValidationData): string {
+    let summaryParts: string[] = [];
+    summaryParts.push(`Assessment for ${validationData.cveId}:`);
 
-      const domain = new URL(url).hostname;
-      const trustedDomains = [
-        'github.com', 'exploit-db.com', 'nvd.nist.gov',
-        'cve.mitre.org', 'security.snyk.io'
-      ];
-
-      const validations = {
-        has_trusted_domain: trustedDomains.includes(domain),
-        matches_exploit_pattern: patterns.github.test(url) || patterns.exploitDb.test(url),
-        contains_cve_id: patterns.cve.test(url),
-        is_https: url.startsWith('https://'),
-        likely_valid: false,
-        reason: ''
-      };
-
-      // Calculate likelihood
-      if (validations.has_trusted_domain && validations.contains_cve_id && validations.is_https) {
-        validations.likely_valid = true;
-        validations.reason = 'Trusted domain with CVE reference';
-      } else if (!validations.has_trusted_domain) {
-        validations.reason = 'Untrusted domain';
-      } else if (!validations.contains_cve_id) {
-        validations.reason = 'No CVE reference in URL';
-      } else {
-        validations.reason = 'Pattern mismatch';
-      }
-
-      return validations;
-    } catch (error) {
-      return {
-        likely_valid: false,
-        reason: 'Invalid URL format'
-      };
+    if (validationData.falsePositive?.isFalsePositive) {
+      summaryParts.push(`Status: LIKELY FALSE POSITIVE/REJECTED (Reason: ${validationData.falsePositive.reason || 'N/A'}, Source: ${validationData.falsePositive.source || 'N/A'}).`);
+    } else if (validationData.vendorDispute?.hasDispute) {
+      summaryParts.push(`Status: DISPUTED BY VENDOR (Details: ${validationData.vendorDispute.details || 'N/A'}, Source: ${validationData.vendorDispute.source || 'N/A'}).`);
+    } else if (validationData.vendorConfirmation?.hasConfirmation) {
+      summaryParts.push(`Status: VENDOR CONFIRMED (Patches/Advisories: ${validationData.vendorConfirmation.details || 'Available'}).`);
+    } else if (validationData.researcherValidation?.consensus === 'Positive') {
+      summaryParts.push(`Status: RESEARCHER VALIDATED (Evidence found: ${validationData.researcherValidation.summary || 'Positive signals from researchers'}).`);
+    } else {
+      summaryParts.push(`Status: UNCERTAIN/NEEDS VERIFICATION (No strong positive or negative legitimacy signals found).`);
     }
+
+    if (validationData.legitimacyScore !== null) {
+      summaryParts.push(`Calculated Legitimacy Score: ${validationData.legitimacyScore}/100.`);
+    }
+    return summaryParts.join(' ');
   }
 
-  static async validateVendorAdvisories(cveId, aiVendorFindings) {
-    // Cross-reference with known vendor advisory patterns
-    const knownVendorPatterns = {
-      'Microsoft': /^https:\/\/(msrc\.microsoft\.com|docs\.microsoft\.com)/,
-      'Red Hat': /^https:\/\/(access\.)?redhat\.com\/(security|errata)/,
-      'Oracle': /^https:\/\/(www\.)?oracle\.com\/security/,
-      'Adobe': /^https:\/\/helpx\.adobe\.com\/security/,
-      'Cisco': /^https:\/\/(tools\.)?cisco\.com\/security/
-    };
+  private static calculateLegitimacyScore(validationData: CVEValidationData): number {
+    let score = 50;
 
-    const validationResults = {
-      aiClaimed: aiVendorFindings?.found || false,
-      aiClaimedCount: aiVendorFindings?.count || 0,
-      verifiedAdvisories: [],
-      validationMethod: 'PATTERN_MATCHING',
-      confidence: 'MEDIUM'
-    };
+    if (validationData.falsePositive?.isFalsePositive) return 5;
+    if (validationData.vendorDispute?.hasDispute) return 20;
 
-    if (!aiVendorFindings?.advisories?.length) {
-      return { ...validationResults, verified: true, confidence: 'HIGH' };
+    if (validationData.vendorConfirmation?.hasConfirmation) {
+      score += 40;
+      if ((validationData.vendorConfirmation.patches?.length || 0) > 0) score +=5; // Extra for direct patches
     }
 
-    for (const advisory of aiVendorFindings.advisories) {
-      const vendorName = advisory.vendor;
-      const expectedPattern = knownVendorPatterns[vendorName];
-
-      validationResults.verifiedAdvisories.push({
-        ...advisory,
-        patternMatch: !!expectedPattern,
-        confidence: expectedPattern ? 'MEDIUM' : 'LOW'
-      });
+    if (validationData.researcherValidation?.consensus === 'Positive') {
+      score += Math.min(25, 5 + (validationData.researcherValidation.evidence?.length || 0) * 5); // More evidence, higher score up to a cap
+    } else if (validationData.researcherValidation?.consensus === 'Negative') { // If we could detect this
+      score -= 30;
     }
 
-    return validationResults;
-  }
-
-  static calculateValidationScore(validationResults) {
-    let score = 0;
-    let totalChecks = 0;
-
-    // CISA KEV validation (high weight)
-    if (validationResults.cisaKev?.verified !== undefined) {
-      score += validationResults.cisaKev.verified ? 0.4 : 0;
-      totalChecks += 0.4;
+    // If NVD status is just "Analyzed" or similar without specific dispute/rejection, and no other signals.
+    if (validationData.status === 'UNKNOWN' || validationData.status === 'NEEDS_VERIFICATION') {
+        if (!validationData.vendorConfirmation?.hasConfirmation && validationData.researcherValidation?.consensus === 'Unknown') {
+            score -= 20; // Less confidence if no positive signals
+        }
     }
 
-    // Exploit validation (medium weight)
-    if (validationResults.exploits?.verified !== undefined) {
-      score += validationResults.exploits.verified ? 0.3 : 0;
-      totalChecks += 0.3;
-    }
-
-    // Vendor advisory validation (medium weight)
-    if (validationResults.vendorAdvisories?.verified !== undefined) {
-      score += validationResults.vendorAdvisories.verified ? 0.3 : 0;
-      totalChecks += 0.3;
-    }
-
-    return totalChecks > 0 ? score / totalChecks : 0.5;
+    return Math.max(0, Math.min(100, score));
   }
 }

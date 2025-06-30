@@ -730,336 +730,160 @@ const CVEDetailView = ({ vulnerability }) => {
                 </div>
               ) : (
                 <div>
-                  <div style={{
-                    ...styles.card,
-                    marginBottom: '24px',
-                    background: vulnerability.cveValidation.isValid
-                      ? `rgba(${utils.hexToRgb(COLORS.green)}, 0.1)`
-                      : vulnerability.cveValidation.recommendation === 'NEEDS_VERIFICATION'
-                      ? `rgba(${utils.hexToRgb(COLORS.blue)}, 0.1)`
-                      : `rgba(${utils.hexToRgb(COLORS.red)}, 0.1)`,
-                    borderWidth: '2px',
-                    borderStyle: 'solid',
-                    borderColor: vulnerability.cveValidation.isValid
-                      ? `rgba(${utils.hexToRgb(COLORS.green)}, 0.3)`
-                      : vulnerability.cveValidation.recommendation === 'NEEDS_VERIFICATION'
-                      ? `rgba(${utils.hexToRgb(COLORS.blue)}, 0.3)`
-                      : `rgba(${utils.hexToRgb(COLORS.red)}, 0.3)`
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      marginBottom: '16px'
-                    }}>
-                      <Shield
-                        size={32}
-                        color={vulnerability.cveValidation.isValid
-                          ? COLORS.green
-                          : vulnerability.cveValidation.recommendation === 'NEEDS_VERIFICATION'
-                          ? COLORS.blue
-                          : COLORS.red}
-                      />
-                      <div>
-                        <h3 style={{
-                          fontSize: '1.25rem',
-                          fontWeight: '700',
-                          margin: 0,
-                          color: vulnerability.cveValidation.isValid
-                            ? COLORS.green
-                            : vulnerability.cveValidation.recommendation === 'NEEDS_VERIFICATION'
-                            ? COLORS.blue
-                            : COLORS.red
-                        }}>
-                          {vulnerability.cveValidation.recommendation === 'VALID' ? '✓ Legitimate Vulnerability' :
-                           vulnerability.cveValidation.recommendation === 'FALSE_POSITIVE' ? '✗ Likely False Positive' :
-                           vulnerability.cveValidation.recommendation === 'DISPUTED' ? '⚠ Disputed Vulnerability' :
-                           vulnerability.cveValidation.recommendation === 'NEEDS_VERIFICATION' ? 'ℹ Standard CVE Entry' :
-                           vulnerability.cveValidation.recommendation}
-                        </h3>
-                        <p style={{
-                          margin: '4px 0 0 0',
-                          fontSize: '0.875rem',
-                          color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText
-                        }}>
-                          {vulnerability.cveValidation.confidence === 'HIGH' ? '✓ High confidence assessment' :
-                           vulnerability.cveValidation.confidence === 'MEDIUM' ? '• Moderate confidence assessment' :
-                           '○ Limited validation data available'}
-                          {vulnerability.cveValidation.validationSources?.length > 0 &&
-                            ` • ${vulnerability.cveValidation.validationSources.length} sources checked`}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div style={{ fontSize: '0.95rem', lineHeight: '1.6' }}>
-                      {vulnerability.cveValidation.recommendation === 'NEEDS_VERIFICATION' ? (
-                        <>
-                          <p style={{ margin: '0 0 12px 0' }}>
-                            <strong>What this means:</strong> This CVE is listed in the National Vulnerability Database (NVD)
-                            but hasn't been independently verified or disputed by vendors/researchers yet. This is normal for many CVEs.
-                          </p>
-                          <div style={{
-                            background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
-                            borderRadius: '8px',
-                            padding: '12px',
-                            marginTop: '12px'
-                          }}>
-                            <p style={{ margin: '0 0 8px 0', fontWeight: '600', color: COLORS.blue }}>
-                              👉 Recommended Actions:
-                            </p>
-                            <ul style={{ margin: '0 0 0 20px', padding: 0 }}>
-                              <li>Treat this as a legitimate vulnerability until proven otherwise</li>
-                              <li>Check with your software vendor for patches or statements</li>
-                              <li>Monitor security advisories for updates</li>
-                              <li>Apply standard risk assessment based on CVSS score ({vulnerability.cve?.cvssV3?.baseScore || 'N/A'})</li>
-                            </ul>
-                          </div>
-                        </>
-                      ) : vulnerability.cveValidation.recommendation === 'VALID' ? (
-                        <>
-                          <p style={{ margin: '0 0 12px 0' }}>
-                            <strong>What this means:</strong> This vulnerability has been confirmed by multiple sources,
-                            vendors, or security researchers. It represents a real security risk that should be addressed.
-                          </p>
-                          <div style={{
-                            background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
-                            borderRadius: '8px',
-                            padding: '12px',
-                            marginTop: '12px'
-                          }}>
-                            <p style={{ margin: '0 0 8px 0', fontWeight: '600', color: COLORS.green }}>
-                              ✓ Recommended Actions:
-                            </p>
-                            <ul style={{ margin: '0 0 0 20px', padding: 0 }}>
-                              <li>Prioritize patching based on your environment</li>
-                              <li>Apply vendor-provided fixes immediately if critical</li>
-                              <li>Implement compensating controls if patches unavailable</li>
-                            </ul>
-                          </div>
-                        </>
-                      ) : vulnerability.cveValidation.recommendation === 'FALSE_POSITIVE' ? (
-                        <>
-                          <p style={{ margin: '0 0 12px 0' }}>
-                            <strong>What this means:</strong> This CVE has been disputed or identified as not being a real
-                            vulnerability. It may be intended behavior, a configuration issue, or incorrectly reported.
-                          </p>
-                          <div style={{
-                            background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
-                            borderRadius: '8px',
-                            padding: '12px',
-                            marginTop: '12px'
-                          }}>
-                            <p style={{ margin: '0 0 8px 0', fontWeight: '600', color: COLORS.red }}>
-                              ⚠ Recommended Actions:
-                            </p>
-                            <ul style={{ margin: '0 0 0 20px', padding: 0 }}>
-                              <li>Review the dispute reasons below</li>
-                              <li>May not require patching - verify with your vendor</li>
-                              <li>Consider deprioritizing unless you have specific concerns</li>
-                            </ul>
-                          </div>
-                        </>
-                      ) : (
-                        <p style={{ margin: '0' }}>
-                          <strong>Validation Status:</strong> {vulnerability.cveValidation.recommendation}
-                        </p>
-                      )}
-                    </div>
-
-                    <div style={{
-                      marginTop: '16px',
-                      padding: '12px',
-                      background: settings.darkMode ? `rgba(255, 255, 255, 0.05)` : `rgba(0, 0, 0, 0.05)`,
-                      borderRadius: '6px',
-                      fontSize: '0.85rem'
-                    }}>
-                      <div style={{ fontWeight: '600', marginBottom: '8px' }}>
-                        🔍 How CVE Validation Works:
-                      </div>
-                      <div style={{ display: 'grid', gap: '4px' }}>
-                        <div>• <strong>Legitimate:</strong> Confirmed by vendors/researchers as a real vulnerability</div>
-                        <div>• <strong>False Positive:</strong> Disputed or withdrawn - may not need patching</div>
-                        <div>• <strong>Standard Entry:</strong> In NVD but not yet independently verified (most CVEs)</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {vulnerability.cveValidation.legitimacyEvidence && vulnerability.cveValidation.legitimacyEvidence.length > 0 && (
-                    <div style={{
+                  {(() => {
+                    const validation = vulnerability.cveValidation;
+                    let boxStyle = {
                       ...styles.card,
-                      marginBottom: '20px',
-                      background: settings.darkMode ? COLORS.dark.background : COLORS.light.background
-                    }}>
-                      <h4 style={{
-                        fontSize: '1.1rem',
-                        fontWeight: '600',
-                        marginBottom: '12px',
-                        color: COLORS.green,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}>
-                        <CheckCircle size={18} />
-                        Supporting Evidence for Validity
-                      </h4>
-                      <ul style={{
-                        margin: '0 0 0 20px',
-                        padding: 0,
-                        fontSize: '0.9rem',
-                        lineHeight: '1.5'
-                      }}>
-                        {vulnerability.cveValidation.legitimacyEvidence.map((evidence, index) => (
-                          <li key={index} style={{ marginBottom: '6px' }}>
-                            {evidence}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                      marginBottom: '24px',
+                      borderWidth: '2px',
+                      borderStyle: 'solid',
+                    };
+                    let iconColor = COLORS.blue;
+                    let titleText = validation.status || 'Status Unknown';
 
-                  {vulnerability.cveValidation.falsePositiveIndicators && vulnerability.cveValidation.falsePositiveIndicators.length > 0 && (
-                    <div style={{
-                      ...styles.card,
-                      marginBottom: '20px',
-                      background: settings.darkMode ? COLORS.dark.background : COLORS.light.background
-                    }}>
-                      <h4 style={{
-                        fontSize: '1.1rem',
-                        fontWeight: '600',
-                        marginBottom: '12px',
-                        color: COLORS.yellow,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}>
-                        <AlertTriangle size={18} />
-                        False Positive Indicators
-                      </h4>
-                      <ul style={{
-                        margin: '0 0 0 20px',
-                        padding: 0,
-                        fontSize: '0.9rem',
-                        lineHeight: '1.5'
-                      }}>
-                        {vulnerability.cveValidation.falsePositiveIndicators.map((indicator, index) => (
-                          <li key={index} style={{ marginBottom: '6px' }}>
-                            {indicator}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+                    switch (validation.status) {
+                      case 'VALID':
+                        boxStyle.background = `rgba(${utils.hexToRgb(COLORS.green)}, 0.1)`;
+                        boxStyle.borderColor = `rgba(${utils.hexToRgb(COLORS.green)}, 0.3)`;
+                        iconColor = COLORS.green;
+                        titleText = '✓ Legitimate Vulnerability';
+                        break;
+                      case 'INVALID':
+                      case 'REJECTED':
+                        boxStyle.background = `rgba(${utils.hexToRgb(COLORS.red)}, 0.1)`;
+                        boxStyle.borderColor = `rgba(${utils.hexToRgb(COLORS.red)}, 0.3)`;
+                        iconColor = COLORS.red;
+                        titleText = '✗ Likely False Positive / Rejected';
+                        break;
+                      case 'DISPUTED':
+                        boxStyle.background = `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.15)`;
+                        boxStyle.borderColor = `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.3)`;
+                        iconColor = COLORS.yellow; // Or orange if you have it
+                        titleText = '⚠ Disputed Vulnerability';
+                        break;
+                      case 'NEEDS_VERIFICATION':
+                      default:
+                        boxStyle.background = `rgba(${utils.hexToRgb(COLORS.blue)}, 0.1)`;
+                        boxStyle.borderColor = `rgba(${utils.hexToRgb(COLORS.blue)}, 0.3)`;
+                        iconColor = COLORS.blue;
+                        titleText = 'ℹ Needs Verification / Standard Entry';
+                        break;
+                    }
 
-                  {vulnerability.cveValidation.disputes && vulnerability.cveValidation.disputes.length > 0 && (
-                    <div style={{
-                      ...styles.card,
-                      marginBottom: '20px',
-                      background: settings.darkMode ? COLORS.dark.background : COLORS.light.background
-                    }}>
-                      <h4 style={{
-                        fontSize: '1.1rem',
-                        fontWeight: '600',
-                        marginBottom: '12px',
-                        color: COLORS.red,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px'
-                      }}>
-                        <XCircle size={18} />
-                        CVE Disputes & Challenges
-                      </h4>
-                      {vulnerability.cveValidation.disputes.map((dispute, index) => (
-                        <div key={index} style={{
-                          padding: '12px',
-                          background: `rgba(${utils.hexToRgb(COLORS.red)}, 0.05)`,
-                          borderWidth: '1px',
-                          borderStyle: 'solid',
-                          borderColor: `rgba(${utils.hexToRgb(COLORS.red)}, 0.2)`,
-                          borderRadius: '6px',
-                          marginBottom: '8px'
-                        }}>
-                          <div style={{ fontWeight: '600', marginBottom: '4px' }}>
-                            {dispute.source} ({dispute.date})
+                    return (
+                      <>
+                        <div style={boxStyle}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                            <Shield size={32} color={iconColor} />
+                            <div>
+                              <h3 style={{ fontSize: '1.25rem', fontWeight: '700', margin: 0, color: iconColor }}>
+                                {titleText}
+                              </h3>
+                              <p style={{ margin: '4px 0 0 0', fontSize: '0.875rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                                Legitimacy Score: {validation.legitimacyScore ?? 'N/A'} / 100
+                                {' • '}
+                                Confidence: {validation.confidence || 'N/A'}
+                                {validation.validationSources?.length > 0 && ` • ${validation.validationSources.length} sources checked`}
+                              </p>
+                            </div>
                           </div>
-                          <div style={{ fontSize: '0.9rem', marginBottom: '4px' }}>
-                            {dispute.reason}
+                          <div style={{ fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '12px' }}>
+                             <strong>Summary:</strong> {validation.legitimacySummary || validation.recommendation || 'No detailed summary available.'}
                           </div>
-                          {dispute.url && (
-                            <a
-                              href={dispute.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ color: COLORS.blue, fontSize: '0.85rem' }}
-                            >
-                              View Dispute Details →
-                            </a>
-                          )}
+                           <div style={{ fontSize: '0.8rem', color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
+                             Last Assessed: {validation.lastUpdated ? new Date(validation.lastUpdated).toLocaleString() : 'N/A'}
+                           </div>
                         </div>
-                      ))}
-                    </div>
-                  )}
 
-                  {vulnerability.cveValidation.validationSources && vulnerability.cveValidation.validationSources.length > 0 && (
-                    <div style={{
-                      ...styles.card,
-                      background: settings.darkMode ? COLORS.dark.background : COLORS.light.background
-                    }}>
-                      <h4 style={{
-                        fontSize: '1rem',
-                        fontWeight: '600',
-                        marginBottom: '12px'
-                      }}>
-                        Validation Sources ({vulnerability.cveValidation.validationSources.length})
-                      </h4>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                        {vulnerability.cveValidation.validationSources.map((source, index) => {
-                          const sourceUrls = {
-                            'NVD': `https://nvd.nist.gov/vuln/detail/${vulnerability.cve?.id}`,
-                            'EPSS': `https://api.first.org/data/v1/epss?cve=${vulnerability.cve?.id}`,
-                             // ... Add more mappings as needed
-                          };
-                          let url = sourceUrls[source] || `https://www.cvedetails.com/cve/${vulnerability.cve?.id}/`;
+                        {/* Detailed Breakdown */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '20px' }}>
 
-                          return (
-                            <a
-                              key={index}
-                              href={url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{
-                                padding: '4px 8px',
-                                background: `rgba(${utils.hexToRgb(COLORS.blue)}, 0.15)`,
-                                color: COLORS.blue,
-                                borderWidth: '1px',
-                                borderStyle: 'solid',
-                                borderColor: `rgba(${utils.hexToRgb(COLORS.blue)}, 0.3)`,
-                                borderRadius: '4px',
-                                fontSize: '0.8rem',
-                                fontWeight: '500',
-                                textDecoration: 'none',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                transition: 'all 0.2s ease-in-out'
-                              }}
-                              onMouseEnter={(e) => {
-                                e.target.style.background = `rgba(${utils.hexToRgb(COLORS.blue)}, 0.25)`;
-                                e.target.style.transform = 'translateY(-1px)';
-                              }}
-                              onMouseLeave={(e) => {
-                                e.target.style.background = `rgba(${utils.hexToRgb(COLORS.blue)}, 0.15)`;
-                                e.target.style.transform = 'translateY(0)';
-                              }}
-                              title={`View ${source} information for ${vulnerability.cve?.id}`}
-                            >
-                              {source}
-                              <ChevronRight size={12} />
-                            </a>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
+                          {/* Vendor Confirmation */}
+                          <div style={{...styles.card, background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface}}>
+                            <h4 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: '600', marginBottom: '12px' }}>
+                              <CheckCircle size={18} color={validation.vendorConfirmation?.hasConfirmation ? COLORS.green : COLORS.gray} /> Vendor Confirmation
+                            </h4>
+                            {validation.vendorConfirmation ? (
+                              <>
+                                <p><strong>Status:</strong> {validation.vendorConfirmation.hasConfirmation ? 'Confirmed by Vendor' : 'No Direct Confirmation Found'}</p>
+                                {validation.vendorConfirmation.hasConfirmation && validation.vendorConfirmation.details && <p>{validation.vendorConfirmation.details}</p>}
+                                {validation.vendorConfirmation.patches && validation.vendorConfirmation.patches.length > 0 && (
+                                  <div>Patches: {validation.vendorConfirmation.patches.map(p => p.vendor || 'Patch').join(', ')}</div>
+                                )}
+                                {validation.vendorConfirmation.advisories && validation.vendorConfirmation.advisories.length > 0 && (
+                                  <div>Advisories: {validation.vendorConfirmation.advisories.map(a => a.source || 'Advisory').join(', ')}</div>
+                                )}
+                              </>
+                            ) : <p>Data not available.</p>}
+                          </div>
+
+                          {/* Vendor Dispute */}
+                           <div style={{...styles.card, background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface}}>
+                            <h4 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: '600', marginBottom: '12px'}}>
+                              <XCircle size={18} color={validation.vendorDispute?.hasDispute ? COLORS.red : COLORS.gray} /> Vendor Dispute
+                            </h4>
+                            {validation.vendorDispute ? (
+                              <>
+                                <p><strong>Status:</strong> {validation.vendorDispute.hasDispute ? 'Disputed by Vendor' : 'No Specific Dispute Found'}</p>
+                                {validation.vendorDispute.hasDispute && <p><strong>Source:</strong> {validation.vendorDispute.source || 'N/A'}</p>}
+                                {validation.vendorDispute.hasDispute && <p><strong>Details:</strong> {validation.vendorDispute.details || 'N/A'}</p>}
+                              </>
+                            ) : <p>Data not available.</p>}
+                          </div>
+
+                          {/* False Positive */}
+                           <div style={{...styles.card, background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface}}>
+                             <h4 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: '600', marginBottom: '12px'}}>
+                              <AlertTriangle size={18} color={validation.falsePositive?.isFalsePositive ? COLORS.yellow : COLORS.gray} /> False Positive Status
+                            </h4>
+                            {validation.falsePositive ? (
+                              <>
+                                <p><strong>Status:</strong> {validation.falsePositive.isFalsePositive ? 'Likely False Positive / Rejected' : 'Not Identified as False Positive'}</p>
+                                {validation.falsePositive.isFalsePositive && <p><strong>Reason:</strong> {validation.falsePositive.reason || 'N/A'}</p>}
+                                {validation.falsePositive.isFalsePositive && <p><strong>Source:</strong> {validation.falsePositive.source || 'N/A'}</p>}
+                              </>
+                            ) : <p>Data not available.</p>}
+                          </div>
+
+                          {/* Researcher Validation */}
+                          <div style={{...styles.card, background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface}}>
+                            <h4 style={{display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.1rem', fontWeight: '600', marginBottom: '12px'}}>
+                              <Info size={18} color={validation.researcherValidation?.consensus === 'Positive' ? COLORS.blue : COLORS.gray} /> Researcher Validation
+                            </h4>
+                            {validation.researcherValidation ? (
+                              <>
+                                <p><strong>Consensus:</strong> {validation.researcherValidation.consensus || 'Unknown'}</p>
+                                {validation.researcherValidation.summary && <p><strong>Summary:</strong> {validation.researcherValidation.summary}</p>}
+                                {validation.researcherValidation.evidence && validation.researcherValidation.evidence.length > 0 && (
+                                  <div>
+                                    <strong>Evidence ({validation.researcherValidation.evidence.length}):</strong>
+                                    <ul style={{margin: '4px 0 0 20px', padding:0, fontSize: '0.85rem'}}>
+                                      {validation.researcherValidation.evidence.slice(0, 2).map((ev, i) => (
+                                        <li key={i} title={ev.text}>
+                                          <a href={ev.url} target="_blank" rel="noopener noreferrer" style={{color: settings.darkMode ? COLORS.blue : COLORS.blue}}>
+                                            {ev.source || new URL(ev.url).hostname}
+                                          </a>
+                                          {ev.text && `: ${ev.text.substring(0,50)}...`}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                )}
+                              </>
+                            ) : <p>Data not available.</p>}
+                          </div>
+                        </div>
+
+                        {/* Fallback for older dispute/evidence fields if they exist and new ones are minimal */}
+                        {validation.disputes && validation.disputes.length > 0 && (!validation.vendorDispute || !validation.vendorDispute.hasDispute) && (
+                           <div style={{...styles.card, background: settings.darkMode ? COLORS.dark.background : COLORS.light.background, marginTop: '20px'}}>
+                              <h4 style={{fontSize: '1rem', fontWeight: '600', color: COLORS.red}}>Original Dispute Records</h4>
+                              {validation.disputes.map((d, i) => <p key={i} style={{fontSize:'0.85rem'}}>Source: {d.source}, Reason: {d.reason}</p>)}
+                           </div>
+                        )}
+                       </>
+                    );
+                  })()}
                 </div>
               )}
             </div>

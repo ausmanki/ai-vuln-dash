@@ -5,8 +5,14 @@ import {
   EPSSData,
   PatchData,
   EnhancedVulnerabilityData,
-  CVEValidationData,
+  CVEValidationData, // Make sure this is the new detailed structure
   BaseCVEInfo,
+  CisaKevDetails,
+  ActiveExploitationData,
+  ExploitDiscoveryData,
+  AISummaryData,
+  PatchInfo, // For vendorConfirmation
+  AdvisoryInfo // For vendorConfirmation
   CisaKevDetails,
   ActiveExploitationData,
   ExploitDiscoveryData,
@@ -278,72 +284,116 @@ export class UserAssistantAgent {
 
   private async getValidationInfo(cveId: string): Promise<ChatResponse<CVEValidationData | null>> {
     try {
-      const vulnerability = await APIService.fetchVulnerabilityDataWithAI(cveId, () => {}, { nvd: this.settings?.nvdApiKey }, this.settings) as EnhancedVulnerabilityData | null;
+      // This call should now return EnhancedVulnerabilityData with the *new* CVEValidationData structure
+      const vulnerabilityData = await APIService.fetchVulnerabilityDataWithAI(cveId, () => {}, { nvd: this.settings?.nvdApiKey }, this.settings) as EnhancedVulnerabilityData | null;
 
-      if (!vulnerability || !vulnerability.cveValidation) {
-        return { text: `I couldn't retrieve detailed validation information for ${cveId}. Basic CVE data might be missing or validation could not be performed.`, error: "Validation data fetch failed or incomplete", data: null };
+      if (!vulnerabilityData || !vulnerabilityData.cveValidation) {
+        return {
+          text: `I couldn't retrieve detailed validation and legitimacy information for ${cveId}. Basic CVE data might be missing or validation could not be performed.`,
+          error: "Validation data fetch failed or incomplete",
+          data: null
+        };
       }
 
-      const validation = vulnerability.cveValidation;
-      const overallConfidence = vulnerability.confidence?.overallValidation || validation.confidence || "Not available";
+      const validation = vulnerabilityData.cveValidation; // This should be our new detailed CVEValidationData
+      let responseText = `**Legitimacy Analysis for ${cveId}**:\n\n`;
 
-      let responseText = `Here's the validation analysis for ${cveId} (Confidence: ${overallConfidence}):\n\n`;
-
-      responseText += `**Overall Assessment:** ${validation.recommendation || 'Unavailable'}\n`;
-      responseText += `   - Meaning: ${this.getValidationRecommendationMeaning(validation.recommendation)}\n\n`;
-
-      if (validation.summary) {
-        responseText += `**AI Summary of Validation:**\n${validation.summary}\n\n`;
+      // Use the new legitimacySummary if available and informative
+      if (validation.legitimacySummary) {
+        responseText += `*Summary:* ${validation.legitimacySummary}\n\n`;
+      } else {
+        // Fallback if summary is not generated
+        responseText += `*Overall Status:* ${validation.status || 'Unknown'}\n`;
+        responseText += `*Recommendation:* ${validation.recommendation || 'N/A'}\n`;
       }
 
-      if (validation.legitimacyEvidence && validation.legitimacyEvidence.length > 0) {
-        responseText += "**Evidence Supporting Validity:**\n";
-        validation.legitimacyEvidence.forEach(e => responseText += `- ${e}\n`);
-        responseText += "\n";
+      if (validation.legitimacyScore !== null) {
+        responseText += `*Legitimacy Score:* ${validation.legitimacyScore}/100\n`;
+      }
+      responseText += `*Confidence in this Assessment:* ${validation.confidence || 'N/A'}\n\n`;
+
+      responseText += "**Key Legitimacy Factors:**\n";
+
+      // 1. Vendor Confirmation
+      if (validation.vendorConfirmation) {
+        if (validation.vendorConfirmation.hasConfirmation) {
+          responseText += `- **Vendor Confirmation:** Yes. ${validation.vendorConfirmation.details || ''}\n`;
+          if (validation.vendorConfirmation.patches && validation.vendorConfirmation.patches.length > 0) {
+            responseText += `  - Patches found: ${validation.vendorConfirmation.patches.length}\n`;
+          }
+          if (validation.vendorConfirmation.advisories && validation.vendorConfirmation.advisories.length > 0) {
+            responseText += `  - Advisories found: ${validation.vendorConfirmation.advisories.length}\n`;
+          }
+        } else {
+          responseText += `- **Vendor Confirmation:** No direct confirmation via patches/advisories found by automated search.\n`;
+        }
+      } else {
+        responseText += `- **Vendor Confirmation:** Information not available.\n`;
       }
 
-      if (validation.falsePositiveIndicators && validation.falsePositiveIndicators.length > 0) {
-        responseText += "**Potential False Positive Indicators:**\n";
-        validation.falsePositiveIndicators.forEach(i => responseText += `- ${i}\n`);
-        responseText += "\n";
+      // 2. Vendor Dispute
+      if (validation.vendorDispute) {
+        if (validation.vendorDispute.hasDispute) {
+          responseText += `- **Vendor Dispute:** Yes. Source: ${validation.vendorDispute.source || 'N/A'}. Details: ${validation.vendorDispute.details || 'A vendor has disputed this CVE.'}\n`;
+        } else {
+          responseText += `- **Vendor Dispute:** No specific vendor dispute found by automated search.\n`;
+        }
+      } else {
+        responseText += `- **Vendor Dispute:** Information not available.\n`;
       }
 
-      if (validation.disputes && validation.disputes.length > 0) {
-        responseText += "**Disputes or Challenges:**\n";
-        validation.disputes.forEach(d => {
-          responseText += `- Source: ${d.source} (${d.date || 'N/A'})\n   Reason: ${d.reason}\n`;
-          if (d.url) responseText += `   More Info: ${d.url}\n`;
-        });
-        responseText += "\n";
+      // 3. False Positive Status
+      if (validation.falsePositive) {
+        if (validation.falsePositive.isFalsePositive) {
+          responseText += `- **False Positive Status:** Likely a False Positive or Rejected. Reason: ${validation.falsePositive.reason || 'N/A'}. Source: ${validation.falsePositive.source || 'N/A'}.\n`;
+        } else {
+          responseText += `- **False Positive Status:** Not identified as a false positive by automated search.\n`;
+        }
+      } else {
+        responseText += `- **False Positive Status:** Information not available.\n`;
       }
 
-      if (!validation.legitimacyEvidence?.length && !validation.falsePositiveIndicators?.length && !validation.disputes?.length && !validation.summary) {
-        responseText += "No specific evidence, indicators, or disputes were detailed in the AI validation process beyond the overall assessment.\n";
+      // 4. Researcher Validation
+      if (validation.researcherValidation) {
+        responseText += `- **Researcher Validation:** Consensus: ${validation.researcherValidation.consensus || 'Unknown'}.\n`;
+        if (validation.researcherValidation.summary) {
+          responseText += `  - Summary: ${validation.researcherValidation.summary}\n`;
+        }
+        if (validation.researcherValidation.evidence && validation.researcherValidation.evidence.length > 0) {
+          responseText += `  - Supporting Evidence/Mentions: ${validation.researcherValidation.evidence.length}\n`;
+          // Optionally list some evidence URLs or sources if not too verbose
+          // For example, list the first 1-2 pieces of evidence:
+          validation.researcherValidation.evidence.slice(0, 1).forEach(ev => {
+            responseText += `    - Source: ${ev.source || (ev.url ? new URL(ev.url).hostname : 'N/A')}\n`; // Show domain if URL exists
+          });
+        }
+      } else {
+        responseText += `- **Researcher Validation:** Information not available.\n`;
       }
 
-      responseText += `\n*Validation Source(s): ${validation.validationSources?.join(', ') || 'AI analysis based on available data'}*`;
+      responseText += `\n*Validation Sources Consulted:* ${validation.validationSources?.join(', ') || 'N/A'}\n`;
+      responseText += `*Last Assessed:* ${validation.lastUpdated ? new Date(validation.lastUpdated).toLocaleString() : 'N/A'}\n`;
+
+      // Retain original raw disputes if they exist and provide more detail
+      if (validation.disputes && validation.disputes.length > 0 && !validation.vendorDispute?.hasDispute) {
+          responseText += `\n*Additional Dispute Information (from original data structure):*\n`;
+          validation.disputes.forEach(d => {
+            responseText += `  - Source: ${d.source}, Reason: ${d.reason}\n`;
+          });
+      }
+
 
       return { text: responseText, data: validation };
     } catch (error: any) {
       console.error(`Error fetching validation info for ${cveId}:`, error);
-      return { text: `Sorry, I couldn't fetch or process validation information for ${cveId}. Error: ${error.message}`, error: error.message, data: null };
+      return {
+        text: `Sorry, I couldn't fetch or process legitimacy and validation information for ${cveId}. Error: ${error.message}`,
+        error: error.message,
+        data: null
+      };
     }
   }
 
-  private getValidationRecommendationMeaning(recommendation: string | undefined): string {
-    switch (recommendation) {
-      case 'VALID':
-        return "The CVE is considered legitimate and confirmed by various sources.";
-      case 'FALSE_POSITIVE':
-        return "The CVE is likely a false positive or has been disputed/withdrawn.";
-      case 'DISPUTED':
-        return "The CVE has been disputed by vendors or researchers; its legitimacy is questionable.";
-      case 'NEEDS_VERIFICATION':
-        return "The CVE is listed but requires further verification from vendors or researchers. Treat as potentially valid until confirmed otherwise.";
-      case 'REJECTED':
-        return "The CVE has been officially rejected or withdrawn.";
-      default:
-        return "The validation status is undetermined or not clearly specified.";
-    }
-  }
+  // getValidationRecommendationMeaning is no longer needed as the new structure provides more direct info.
+  // If any part of the old logic for meaning is required, it should be integrated into the response generation above.
 }
