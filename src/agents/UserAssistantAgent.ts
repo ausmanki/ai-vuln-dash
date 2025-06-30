@@ -128,10 +128,10 @@ export class UserAssistantAgent {
 
     // Check for bulk summary command first
     if (lowerQuery.includes("/summarize_bulk") || lowerQuery.includes("/bulksummary") || lowerQuery.includes("/bulk_summary")) {
-      if (bulkResults) {
+      if (bulkResults && bulkResults.length > 0) {
         return this.generateBulkAnalysisSummary(bulkResults);
       } else {
-        return { text: "Bulk analysis data is not available to summarize. Please ensure a bulk analysis has been run and results are loaded."};
+        return { text: "Bulk analysis data is not available or is empty. Please perform a bulk analysis first and ensure it has results."};
       }
     }
 
@@ -145,39 +145,53 @@ export class UserAssistantAgent {
       operationalCveId = this.currentCveIdForSession;
     }
 
+    // If the query is just the CVE ID (and it matched), or if it's a known command that requires a CVE context.
+    // If no operationalCveId is set (neither from query nor session), then it's an ambiguous query.
     if (!operationalCveId) {
-      return { text: "Please specify a CVE ID in your query (e.g., 'What about CVE-2023-1234?'), ask me to focus on one, or use '/bulk_summary' for the latest bulk report." };
+      // Check if it's a generic query that doesn't need a CVE context but isn't a bulk summary command
+      const isGenericQueryNotRequiringCVE = intents.some(intent =>
+        intent.keywords.some(keyword => lowerQuery.includes(keyword)) && !intent.requiresCveContext
+      );
+      if (!isGenericQueryNotRequiringCVE) {
+         return { text: "Please specify a CVE ID in your query (e.g., 'What about CVE-2023-1234?'), ask me to focus on one, or use '/bulk_summary' for the latest bulk report." };
+      }
+      // If it IS a generic query that doesn't require CVE context, proceed (though current intents all seem to require it implicitly by using operationalCveId)
+      // This part might need refinement if we add truly CVE-independent general queries.
     }
 
+    // If CVE was just set by the query, and the query is *only* the CVE ID, ask for more details.
     if (cveMatch && query.trim().toUpperCase() === operationalCveId) {
         return { text: `Okay, I'm now focused on ${operationalCveId}. What would you like to know about it? (e.g., summary, EPSS score, patches)` };
     }
 
-    try {
-      if (lowerQuery.includes("epss score")) {
-        return this.getEPSSScore(operationalCveId);
-      } else if (lowerQuery.includes("exploit") || lowerQuery.includes("exploited")) {
-        return this.getExploitInfo(operationalCveId);
-      } else if (lowerQuery.includes("summarize") || lowerQuery.includes("summary") || lowerQuery.includes("overview") || lowerQuery.includes("tell me about")) {
-        // Ensure "summary" here doesn't clash with "/bulk_summary" if no CVE is specified
-        if (!cveMatch && this.currentCveIdForSession !== operationalCveId) {
-          // If query is just "summary" and no CVE is in query, but we have a session CVE.
-           return this.getSummary(operationalCveId);
-        } else if (cveMatch || this.currentCveIdForSession === operationalCveId) {
-           return this.getSummary(operationalCveId);
-        }
-        // Fallthrough if it was "summary" but not specific enough for a single CVE.
-        // This case should ideally be handled by the initial operationalCveId check.
-      } else if (lowerQuery.includes("patch") || lowerQuery.includes("patches") || lowerQuery.includes("advisory") || lowerQuery.includes("advisories")) {
-        return this.getPatchAndAdvisoryInfo(operationalCveId);
-      } else if (lowerQuery.includes("validate") || lowerQuery.includes("validity") || lowerQuery.includes("legitimacy") || lowerQuery.includes("is valid")) {
-        return this.getValidationInfo(operationalCveId);
-      }
-      // If it wasn't a bulk command and wasn't a recognized single CVE command
-      return { text: "I'm not sure how to answer that. You can ask about a specific CVE (e.g., EPSS scores, summary, patches) or use '/bulk_summary' for the latest bulk report." };
+    // Define intents (assuming this might be expanded or moved)
+    // For now, keeping structure from master, but all handlers implicitly use operationalCveId
+    const intents = [
+      { name: 'getEPSSScore', keywords: ['epss score', 'epss value', 'exploit prediction'], handler: this.getEPSSScore, requiresCveContext: true },
+      { name: 'getExploitInfo', keywords: ['exploit', 'exploited', 'exploitation details'], handler: this.getExploitInfo, requiresCveContext: true },
+      { name: 'getValidationInfo', keywords: ['validate', 'validity', 'legitimacy', 'is valid', 'is it real'], handler: this.getValidationInfo, requiresCveContext: true },
+      { name: 'getPatchAndAdvisoryInfo', keywords: ['patch', 'patches', 'advisory', 'advisories', 'fix', 'remediation', 'mitigation'], handler: this.getPatchAndAdvisoryInfo, requiresCveContext: true },
+      { name: 'getSummary', keywords: ['summarize', 'summary', 'overview', 'tell me about', 'details for'], handler: this.getSummary, requiresCveContext: true },
+    ];
 
-    } catch (error) {
-      console.error("Error handling query:", error);
+    try {
+      if (operationalCveId) { // Ensure we have a CVE context for intent processing
+        for (const intent of intents) {
+          if (intent.keywords.some(keyword => lowerQuery.includes(keyword))) {
+            return await intent.handler.call(this, operationalCveId);
+          }
+        }
+      }
+      // Fallback if no intent is matched OR if operationalCveId was not set but we passed the initial check (e.g. for a future general query type)
+      // If operationalCveId exists, it means we didn't match an intent for it.
+      if (operationalCveId) {
+        return { text: `I have context for ${operationalCveId}, but I'm not sure how to answer your query about it. You can ask for EPSS score, summary, patches, validation, etc., or use '/bulk_summary' for the bulk report.` };
+      }
+      // If no operationalCveId and it wasn't a bulk command (already handled) or a recognized general query.
+      return { text: "I'm not sure how to help with that. Please specify a CVE ID, ask me to focus on one, or use '/bulk_summary' for the latest report." };
+
+    } catch (error: any) {
+      console.error(`Error handling query. CVE context: ${operationalCveId || 'None'}. Query: "${query}". Error:`, error);
       return { text: `Sorry, I encountered an error trying to answer that: ${error.message}`, error: error.message };
     }
   }
