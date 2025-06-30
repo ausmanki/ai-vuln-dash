@@ -4,7 +4,7 @@ import { AppContext } from '../contexts/AppContext';
 import { UserAssistantAgent } from '../agents/UserAssistantAgent';
 import { utils } from '../utils/helpers'; // For CVE validation
 import { createStyles } from '../utils/styles';
-import { COLORS }_from '../utils/constants';
+import { COLORS } from '../utils/constants';
 
 interface Message {
   id: string;
