@@ -213,46 +213,38 @@ export class UserAssistantAgent {
 
   private async getEPSSScore(cveId: string): Promise<ChatResponse<EPSSData | null>> {
     try {
-      // Assuming APIService.fetchEPSSData might need setLoadingSteps, but for agent, we might omit or use a dummy.
-      // Also, it interacts with ragDatabase, which APIService handles.
-      const epssData = await APIService.fetchEPSSData(cveId, () => {}); // Passing a dummy setLoadingSteps
+      const epssData = await APIService.fetchEPSSData(cveId, () => {}) as EPSSData | null;
       if (epssData && epssData.epss) {
         return {
           text: `The EPSS score for ${cveId} is ${epssData.epssPercentage}% (Percentile: ${epssData.percentile}). This data was last updated on ${epssData.date}.`,
           data: epssData
         };
       } else {
-        return { text: `I couldn't find EPSS data for ${cveId}. It might not be available.` };
+        return { text: `I couldn't find EPSS data for ${cveId}. It might not be available.`, data: null };
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error fetching EPSS for ${cveId}:`, error);
-      return { text: `Sorry, I couldn't fetch the EPSS score for ${cveId}. Error: ${error.message}`, error: error.message };
+      return { text: `Sorry, I couldn't fetch the EPSS score for ${cveId}. Error: ${error.message}`, error: error.message, data: null };
     }
   }
 
-  private async getExploitInfo(cveId: string): Promise<ChatResponse> {
+  private async getExploitInfo(cveId: string): Promise<ChatResponse<Partial<InternalAIThreatIntelData> | null>> {
     try {
-      // We need CVE data and EPSS data to pass to fetchAIThreatIntelligence
-      // Let's fetch minimal CVE data first.
-      // The NVD API key and Gemini API key would ideally come from settings.
-      // For now, assuming APIService or its underlying services can access them if configured globally,
-      // or they are passed via `this.settings` if the agent is instantiated with them.
-
-      const cveData = await APIService.fetchCVEData(cveId, this.settings?.nvdApiKey, () => {});
+      const cveData = await APIService.fetchCVEData(cveId, this.settings?.nvdApiKey, () => {}) as BaseCVEInfo | null;
       if (!cveData) {
-        return { text: `Could not retrieve basic data for ${cveId} to check for exploits.`, error: "CVE data fetch failed" };
+        return { text: `Could not retrieve basic data for ${cveId} to check for exploits.`, error: "CVE data fetch failed", data: null };
       }
-      const epssData = await APIService.fetchEPSSData(cveId, () => {}); // epssData can be null, that's okay
-
-      // fetchAIThreatIntelligence requires settings for Gemini API key and model
-      const aiThreatIntel = await APIService.fetchAIThreatIntelligence(cveId, cveData, epssData, this.settings, () => {});
+      const epssData = await APIService.fetchEPSSData(cveId, () => {}) as EPSSData | null;
+      const aiThreatIntel = await APIService.fetchAIThreatIntelligence(cveId, cveData, epssData, this.settings, () => {}) as InternalAIThreatIntelData;
 
       let responseText = `For ${cveId}, my focus is on providing vendor advisories and patch information to help you mitigate risks.\n`;
       let keyInfoFound = false;
+      const returnedData: Partial<InternalAIThreatIntelData> = {};
 
       if (aiThreatIntel.cisaKev?.listed) {
         responseText += `- **CISA KEV:** This CVE IS LISTED in the CISA Known Exploited Vulnerabilities (KEV) catalog, indicating active exploitation. Details: ${aiThreatIntel.cisaKev.details || 'Refer to CISA for specifics.'}\n`;
         keyInfoFound = true;
+        returnedData.cisaKev = aiThreatIntel.cisaKev;
       } else {
         responseText += `- **CISA KEV:** This CVE is NOT listed in the CISA KEV catalog at this time.\n`;
       }
@@ -260,6 +252,7 @@ export class UserAssistantAgent {
       if (aiThreatIntel.activeExploitation?.confirmed) {
         responseText += `- **Active Exploitation:** AI threat intelligence suggests evidence of active exploitation in the wild. Details: ${aiThreatIntel.activeExploitation.details || 'General reports suggest activity.'}\n`;
         keyInfoFound = true;
+        returnedData.activeExploitation = aiThreatIntel.activeExploitation;
       } else {
         responseText += `- **Active Exploitation:** No specific widespread active exploitation was confirmed by AI threat intelligence beyond potential KEV listing.\n`;
       }
@@ -267,6 +260,7 @@ export class UserAssistantAgent {
       if (aiThreatIntel.exploitDiscovery?.found) {
         responseText += `- **Public Exploit Code:** Publicly available exploit information or PoCs may exist for this vulnerability (AI found ${aiThreatIntel.exploitDiscovery.totalCount} potential indicators).\n`;
         keyInfoFound = true;
+        returnedData.exploitDiscovery = { found: true, totalCount: aiThreatIntel.exploitDiscovery.totalCount };
       } else {
          responseText += `- **Public Exploit Code:** AI threat intelligence did not immediately find specific public exploit PoCs.\n`;
       }
@@ -277,23 +271,25 @@ export class UserAssistantAgent {
          responseText = `I've checked for high-level exploit information for ${cveId}. It's not listed in CISA KEV, and AI threat intelligence didn't confirm widespread active exploitation or readily available public PoCs. For security details, please refer to vendor advisories. You can ask 'patches for ${cveId}'.`;
       }
 
-      // We are deliberately not returning detailed exploit links here.
-      // The 'data' can still contain the full aiThreatIntel for internal use or future structured display if policies change.
-      return { text: responseText, data: { cisaKev: aiThreatIntel.cisaKev, activeExploitation: aiThreatIntel.activeExploitation, exploitDiscoverySummary: { found: aiThreatIntel.exploitDiscovery?.found, count: aiThreatIntel.exploitDiscovery?.totalCount } } };
-    } catch (error) {
+      return { text: responseText, data: returnedData };
+    } catch (error: any) {
       console.error(`Error fetching exploit info for ${cveId}:`, error);
-      return { text: `Sorry, I couldn't fetch exploit information for ${cveId}. Error: ${error.message}`, error: error.message };
+      return { text: `Sorry, I couldn't fetch exploit information for ${cveId}. Error: ${error.message}`, error: error.message, data: null };
     }
   }
 
-  private async getPatchAndAdvisoryInfo(cveId: string): Promise<ChatResponse> {
+  private async getPatchAndAdvisoryInfo(cveId: string): Promise<ChatResponse<PatchData | null>> {
     try {
-      const cveData = await APIService.fetchCVEData(cveId, this.settings?.nvdApiKey, () => {});
+      const cveData = await APIService.fetchCVEData(cveId, this.settings?.nvdApiKey, () => {}) as BaseCVEInfo | null;
       if (!cveData) {
-        return { text: `Could not retrieve basic data for ${cveId} to check for patches/advisories.`, error: "CVE data fetch failed" };
+        return { text: `Could not retrieve basic data for ${cveId} to check for patches/advisories.`, error: "CVE data fetch failed", data: null };
       }
 
-      const patchAdvisoryData = await APIService.fetchPatchesAndAdvisories(cveId, cveData, this.settings, () => {});
+      const patchAdvisoryData = await APIService.fetchPatchesAndAdvisories(cveId, cveData, this.settings, () => {}) as PatchData | null;
+
+      if (!patchAdvisoryData) {
+        return { text: `Could not retrieve patch and advisory data for ${cveId}.`, error: "Patch/Advisory data fetch failed", data: null };
+      }
 
       let responseText = `For patches and advisories regarding ${cveId}:\n`;
       let foundInfo = false;
@@ -327,49 +323,29 @@ export class UserAssistantAgent {
       }
 
       return { text: responseText, data: patchAdvisoryData };
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error fetching patch/advisory info for ${cveId}:`, error);
-      return { text: `Sorry, I couldn't fetch patch and advisory information for ${cveId}. Error: ${error.message}`, error: error.message };
+      return { text: `Sorry, I couldn't fetch patch and advisory information for ${cveId}. Error: ${error.message}`, error: error.message, data: null };
     }
   }
 
-  private async getSummary(cveId: string): Promise<ChatResponse> {
+  private async getSummary(cveId: string): Promise<ChatResponse<AISummaryData | EnhancedVulnerabilityData | null>> {
     try {
-      // For a summary, we probably want the full enhanced vulnerability data.
-      // This means using the ResearchAgent or a similar comprehensive fetch.
-      // APIService.fetchVulnerabilityDataWithAI uses ResearchAgent.
-      // Fetch necessary base data first
-      const cveData = await APIService.fetchCVEData(cveId, this.settings?.nvdApiKey, () => {});
-      if (!cveData) {
-        return { text: `I couldn't retrieve basic data for ${cveId} to generate a summary.`, error: "CVE data fetch failed" };
-      }
-      const epssData = await APIService.fetchEPSSData(cveId, () => {}); // Can be null
-
-      // Construct a partial vulnerability object for generateAIAnalysis
-      // The generateAIAnalysis function expects a richer object, often the output of ResearchAgent.
-      // We need to ensure it can handle a more minimal input or adapt.
-      // For now, we pass what we have. The service might also re-fetch if needed or work with partial data.
-      // A more robust solution might involve enhancing generateAIAnalysis or having a dedicated "summarizeThisData" type of method.
-
-      // Let's use the more comprehensive fetchVulnerabilityDataWithAI to get a richer object
-      // as generateAIAnalysis is designed to work with its output.
-      const vulnerabilityDataForAISummary = await APIService.fetchVulnerabilityDataWithAI(cveId, () => {}, { nvd: this.settings?.nvdApiKey }, this.settings);
+      const vulnerabilityDataForAISummary = await APIService.fetchVulnerabilityDataWithAI(cveId, () => {}, { nvd: this.settings?.nvdApiKey }, this.settings) as EnhancedVulnerabilityData | null;
 
       if (!vulnerabilityDataForAISummary || !vulnerabilityDataForAISummary.cve) {
-        return { text: `I couldn't retrieve enough information for ${cveId} to generate an AI summary.`, error: "Comprehensive CVE data fetch failed" };
+        return { text: `I couldn't retrieve enough information for ${cveId} to generate an AI summary.`, error: "Comprehensive CVE data fetch failed", data: null };
       }
 
-      // Now call generateAIAnalysis with the richer vulnerability data
       const aiAnalysis = await APIService.generateAIAnalysis(
         vulnerabilityDataForAISummary,
         this.settings.geminiApiKey,
         this.settings.geminiModel,
         this.settings
-      );
+      ) as AISummaryData | null; // Assuming generateAIAnalysis returns this or similar
 
       if (aiAnalysis && aiAnalysis.analysis) {
         let responseText = `Here's an AI-generated summary for ${cveId}:\n\n`;
-        // Prepend some key facts for clarity before the narrative
         if (vulnerabilityDataForAISummary.cve.cvssV3) {
           responseText += `CVSS v3: ${vulnerabilityDataForAISummary.cve.cvssV3.baseScore} (${vulnerabilityDataForAISummary.cve.cvssV3.baseSeverity})\n`;
         } else if (vulnerabilityDataForAISummary.cve.cvssV2) {
@@ -385,7 +361,6 @@ export class UserAssistantAgent {
         responseText += aiAnalysis.analysis;
         return { text: responseText, data: aiAnalysis };
       } else {
-        // Fallback if AI analysis fails but we have some data
         let fallbackText = `I retrieved some information for ${cveId}, but couldn't generate a full AI summary.\n`;
         fallbackText += `- Description: ${vulnerabilityDataForAISummary.cve.description?.substring(0, 200) + "..." || 'Not available.'}\n`;
         if (vulnerabilityDataForAISummary.cve.cvssV3) {
@@ -396,15 +371,15 @@ export class UserAssistantAgent {
         }
         return { text: fallbackText, data: vulnerabilityDataForAISummary };
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Error fetching summary for ${cveId}:`, error);
-      return { text: `Sorry, I couldn't generate a summary for ${cveId}. Error: ${error.message}`, error: error.message };
+      return { text: `Sorry, I couldn't generate a summary for ${cveId}. Error: ${error.message}`, error: error.message, data: null };
     }
   }
 
-  private async getValidationInfo(cveId: string): Promise<ChatResponse> {
+  private async getValidationInfo(cveId: string): Promise<ChatResponse<CVEValidationData | null>> {
     try {
-      const vulnerability = await APIService.fetchVulnerabilityDataWithAI(cveId, () => {}, { nvd: this.settings?.nvdApiKey }, this.settings);
+      const vulnerability = await APIService.fetchVulnerabilityDataWithAI(cveId, () => {}, { nvd: this.settings?.nvdApiKey }, this.settings) as EnhancedVulnerabilityData | null;
 
       if (!vulnerability || !vulnerability.cveValidation) {
         return { text: `I couldn't retrieve detailed validation information for ${cveId}. Basic CVE data might be missing or validation could not be performed.`, error: "Validation data fetch failed or incomplete" };
