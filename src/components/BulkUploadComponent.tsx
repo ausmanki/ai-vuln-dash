@@ -21,7 +21,7 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
   isBulkLoading,
   bulkProgress
  }) => {
-  const { settings, addNotification } = useContext(AppContext);
+  const { settings, addNotification, setVulnerabilities } = useContext(AppContext);
   const styles = createStyles(settings.darkMode);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -243,14 +243,24 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
                       >
                         {cveId} <ExternalLink size={14} style={{ display:'inline-block', marginLeft:'4px', opacity:0.7 }} />
                       </a>
-                      {/* Placeholder for "View Full Details" button */}
-                       <button
-                          onClick={() => alert(`TODO: Show full details for ${cveId}`)}
-                          style={{...styles.button, ...styles.buttonSecondary, padding: '6px 12px', fontSize: '0.8rem'}}
-                          title="View Full Details"
-                        >
-                          <Eye size={14} /> Details
-                       </button>
+                      <button
+                        onClick={() => {
+                          if (resultData) {
+                            setVulnerabilities([resultData]);
+                            onClose();
+                          } else {
+                            addNotification({
+                              type: 'error',
+                              title: 'Data Unavailable',
+                              message: `No analysis data available for ${cveId}`
+                            });
+                          }
+                        }}
+                        style={{ ...styles.button, ...styles.buttonSecondary, padding: '6px 12px', fontSize: '0.8rem' }}
+                        title="View Full Details"
+                      >
+                        <Eye size={14} /> Details
+                      </button>
                     </div>
 
                     {error ? (
