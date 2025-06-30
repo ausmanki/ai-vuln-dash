@@ -146,23 +146,39 @@ export class UserAssistantAgent {
     }
 
     // Define intents (handlers are methods of this class)
-    // Note: The 'requiresCveContext' flag from previous attempt is removed for simplicity,
-    // as all current intents inherently require operationalCveId to be useful.
-    // The check for operationalCveId happens *before* this loop.
     const intents = [
-      { name: 'getEPSSScore', keywords: ['epss score', 'epss value', 'exploit prediction'], handler: this.getEPSSScore },
-      { name: 'getExploitInfo', keywords: ['exploit', 'exploited', 'exploitation details'], handler: this.getExploitInfo },
-      { name: 'getValidationInfo', keywords: ['validate', 'validity', 'legitimacy', 'is valid', 'is it real'], handler: this.getValidationInfo },
-      { name: 'getPatchAndAdvisoryInfo', keywords: ['patch', 'patches', 'advisory', 'advisories', 'fix', 'remediation', 'mitigation'], handler: this.getPatchAndAdvisoryInfo },
-      { name: 'getSummary', keywords: ['summarize', 'summary', 'overview', 'tell me about', 'details for'], handler: this.getSummary },
+      {
+        name: 'getEPSSScore',
+        keywords: ['epss score', 'epss value', 'exploit prediction'],
+        handler: this.getEPSSScore
+      },
+      {
+        name: 'getExploitInfo',
+        keywords: ['exploit', 'exploited', 'exploitation details'], // "exploit" is broad, ensure it's desired
+        handler: this.getExploitInfo
+      },
+      {
+        name: 'getValidationInfo',
+        keywords: ['validate', 'validity', 'legitimacy', 'is valid', 'is it real'],
+        handler: this.getValidationInfo
+      },
+      {
+        name: 'getPatchAndAdvisoryInfo',
+        keywords: ['patch', 'patches', 'advisory', 'advisories', 'fix', 'remediation', 'mitigation'],
+        handler: this.getPatchAndAdvisoryInfo
+      },
+      {
+        name: 'getSummary', // Should generally be less specific or a fallback if other keywords for summary are used
+        keywords: ['summarize', 'summary', 'overview', 'tell me about', 'details for'],
+        handler: this.getSummary
+      },
+      // Add more intents here. Order might matter if keywords overlap.
+      // More specific intents should generally come before broader ones.
     ];
 
     // If no operationalCveId is set (neither from query nor session) at this point,
     // and it wasn't a bulk command, then it's an ambiguous query for CVE-specific info.
     if (!operationalCveId) {
-      // Before returning a generic "specify CVE" message, quickly check if the query matches any intent keywords
-      // that *might* be misconstrued as general if we had general intents.
-      // For now, since all intents need a CVE, this primarily helps refine the error message.
       const matchesIntentKeywords = intents.some(intent => intent.keywords.some(keyword => lowerQuery.includes(keyword)));
       if (matchesIntentKeywords) {
         return { text: `It looks like you're asking about something specific (e.g., EPSS, summary), but I don't have a CVE in context. Please specify a CVE ID or use '/bulk_summary'.` };
@@ -176,7 +192,6 @@ export class UserAssistantAgent {
     }
 
     try {
-      // Now that we're sure operationalCveId is set, process intents
       for (const intent of intents) {
         if (intent.keywords.some(keyword => lowerQuery.includes(keyword))) {
           return await intent.handler.call(this, operationalCveId);
