@@ -49,7 +49,7 @@ EXTRACTION REQUIREMENTS:
 - Get patch version numbers and release dates if available.
 - Identify affected product versions if specified in the advisory.
 - Note patch availability status (e.g., "Available", "Superseded", "Unavailable").
-- For each patch and advisory, provide a `citationUrl` which is the direct URL of the page confirming the information.
+- For each patch and advisory, provide a citationUrl which is the direct URL of the page confirming the information.
 
 NEGATIVE CONSTRAINTS:
 - Do not invent URLs or patch details not found in sources.
@@ -94,7 +94,7 @@ Return JSON with actual findings:
   }
 }
 
-CRITICAL: Only include URLs that were actually found in search results. Do not generate or guess URLs. Ensure `citationUrl` is provided for each entry.`;
+CRITICAL: Only include URLs that were actually found in search results. Do not generate or guess URLs. Ensure citationUrl is provided for each entry.`;
 
   try {
     const requestBody = {
