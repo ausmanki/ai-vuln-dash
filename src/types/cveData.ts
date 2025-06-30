@@ -1,196 +1,447 @@
 // src/types/cveData.ts
 
-// Settings for agents
-export interface AgentSettings {
-  nvdApiKey?: string;
-  geminiApiKey?: string;
-  geminiModel?: string;
-  darkMode?: boolean;
-  // Add any other settings that agents might need
+export interface CVSSV2 {
+  source: string;
+  type: string;
+  cvssData: {
+    version: string;
+    vectorString: string;
+    accessVector: string;
+    accessComplexity: string;
+    authentication: string;
+    confidentialityImpact: string;
+    integrityImpact: string;
+    availabilityImpact: string;
+    baseScore: number;
+  };
+  baseSeverity: string;
+  exploitabilityScore: number;
+  impactScore: number;
+  acInsufInfo: boolean;
+  obtainAllPrivilege: boolean;
+  obtainUserPrivilege: boolean;
+  obtainOtherPrivilege: boolean;
+  userInteractionRequired: boolean;
 }
 
-// Data structure for EPSS information
+export interface CVSSV3 {
+  source: string;
+  type: string;
+  cvssData: {
+    version: string;
+    vectorString: string;
+    attackVector: string;
+    attackComplexity: string;
+    privilegesRequired: string;
+    userInteraction: string;
+    scope: string;
+    confidentialityImpact: string;
+    integrityImpact: string;
+    availabilityImpact: string;
+    baseScore: number;
+    baseSeverity: string;
+  };
+  exploitabilityScore: number;
+  impactScore: number;
+}
+
+export interface Reference {
+  url: string;
+  source: string;
+  tags?: string[];
+}
+
+export interface Weakness {
+  source: string;
+  type: string;
+  description: Array<{
+    lang: string;
+    value: string;
+  }>;
+}
+
+export interface ConfigurationNode {
+  operator: string;
+  negate: boolean;
+  cpeMatch: Array<{
+    vulnerable: boolean;
+    criteria: string;
+    matchCriteriaId: string;
+    versionStartIncluding?: string;
+    versionEndExcluding?: string;
+    versionEndIncluding?: string;
+  }>;
+}
+
+export interface CVE {
+  id: string;
+  sourceIdentifier: string;
+  published: string;
+  lastModified: string;
+  vulnStatus: string;
+  descriptions: Array<{
+    lang: string;
+    value: string;
+  }>;
+  metrics: {
+    cvssMetricV2?: CVSSV2[];
+    cvssMetricV31?: CVSSV3[];
+    cvssMetricV30?: CVSSV3[];
+  };
+  weaknesses?: Weakness[];
+  configurations?: Array<{
+    nodes: ConfigurationNode[];
+  }>;
+  references: Reference[];
+  evaluatorComment?: string;
+  evaluatorImpact?: string;
+  evaluatorSolution?: string;
+  cisaExploitAdd?: string;
+  cisaActionDue?: string;
+  cisaRequiredAction?: string;
+  cisaVulnerabilityName?: string;
+}
+
+export interface BaseCVEInfo {
+  cve: CVE;
+  cvssV2?: CVSSV2['cvssData'] & { baseSeverity?: string };
+  cvssV3?: CVSSV3['cvssData'] & { baseSeverity?: string };
+}
+
+
 export interface EPSSData {
   cve: string;
-  epss: string; // Consider making this number if it's always numeric
-  percentile: string; // Consider making this number
-  epssFloat?: number; // Already number in some uses
-  percentileFloat?: number; // Already number in some uses
-  epssPercentage: string; // e.g., "X.XXX%"
+  epss: string; // Store as string, convert to number when needed
+  percentile: string; // Store as string, convert to number when needed
   date: string;
-  model_version?: string;
+  epssPercentage?: number; // Calculated field
+  percentilePercentage?: number; // Calculated field
 }
 
-// Details for CISA KEV catalog entries
 export interface CisaKevDetails {
-  listed: boolean;
-  details?: string;
-  source?: string;
+  catalogVersion?: string;
+  dateAdded?: string;
   dueDate?: string;
-  vendorProject?: string;
-  confidence?: string;
+  notes?: string;
+  requiredAction?: string;
+  vulnerabilityName?: string;
+  [key: string]: any; // Allow other properties from KEV data
+  listed?: boolean; // Custom field: is it listed in KEV?
+  details?: string; // Summary of KEV details
   aiDiscovered?: boolean;
-  validated?: boolean;
-  actualStatus?: string;
+  verified?: boolean;
+  actualStatus?: string; // From validation
 }
 
-// Details for individual exploits
-export interface ExploitDetails {
-  type?: string;
+export interface Exploit {
+  source: string; // e.g., 'Metasploit', 'ExploitDB', 'GitHub'
+  type: string; // e.g., 'PoC', 'Exploit Module', 'Tool'
   url?: string;
-  source?: string;
   description?: string;
-  reliability?: string;
-  citationUrl?: string;
+  date?: string; // Date exploit was published or found
+  reliability?: 'High' | 'Medium' | 'Low' | 'Unknown'; // Assessed reliability
+  verified?: boolean; // Has the exploit been verified to work?
+  tags?: string[]; // e.g., ['RCE', 'DoS', 'Privilege Escalation']
+  codeAvailable?: boolean; // Is the exploit code directly available?
+  githubRepo?: string; // If from GitHub
+  citationUrl?: string; // URL of the AI's source for this info
 }
 
-// Data structure for discovered exploits
+
 export interface ExploitDiscoveryData {
   found: boolean;
-  totalCount?: number;
-  exploits?: ExploitDetails[];
+  totalCount: number;
+  exploits?: Exploit[];
+  sourcesChecked?: string[]; // Which sources were actively checked
+  summary?: string; // AI-generated summary of exploit availability
   githubRepos?: number;
-  exploitDbEntries?: number;
   metasploitModules?: number;
+  exploitDBEntries?: number;
   validated?: boolean;
   verifiedCount?: number;
-  // Summary fields that might be part of the raw AI response
-  confidence?: string;
 }
 
 
-// Details for vendor advisories or patches
-export interface VendorAdvisoryDetails {
-  vendor?: string;
-  product?: string; // Affected product
-  patchVersion?: string;
-  downloadUrl?: string; // Actual download URL for a patch
-  advisoryUrl?: string; // URL of the vendor advisory page
+export interface VendorAdvisory {
+  vendor: string;
+  product?: string; // Specific product if mentioned
+  url: string;
+  title?: string;
+  date?: string; // Advisory publication date
+  severity?: string; // Severity as rated by vendor
+  patchAvailable?: boolean;
+  cwe?: string; // CWE if mentioned in advisory
+  summary?: string; // Brief summary of the advisory content
+  source?: string; // Where this advisory was found (e.g., 'AI Web Search', 'Vendor X Security Page')
+  citationUrl?: string; // URL of the AI's source for this info
+}
+
+export interface VendorAdvisoryData {
+  found: boolean;
+  count: number;
+  advisories?: VendorAdvisory[];
+  sourcesChecked?: string[];
+  summary?: string; // AI-generated summary
+  validated?: boolean;
+}
+
+export interface PatchInfo {
+  vendor: string;
+  product?: string;
+  patchVersion?: string; // Version that includes the fix
+  downloadUrl?: string;
+  advisoryUrl?: string; // Link to advisory detailing the patch
   releaseDate?: string;
   description?: string;
-  confidence?: string; // AI's confidence in this finding
-  patchType?: string; // e.g., Security Update, Hotfix
-  citationUrl?: string; // Source URL confirming this specific info
-  title?: string; // Advisory title
-  patchAvailable?: boolean; // Explicitly stated patch availability
-  severity?: string; // Advisory severity
-  source?: string; // Publishing organization (for advisories)
-  type?: string; // Type of advisory (e.g., Security Advisory, Bulletin)
-  advisoryId?: string; // e.g. RHSA-XXXX:XXXX
-  publishDate?: string; // for advisories
+  source?: string; // e.g., 'AI Web Search', 'Vendor X Patch Notes'
+  citationUrl?: string; // URL of the AI's source for this info
 }
 
-// Data structure for patches and advisories search results
+export interface PatchSearchSummary {
+  patchesFound: number;
+  advisoriesFound: number;
+  vendorsSearched: string[]; // List of vendors AI attempted to search for
+  directDownloads: number; // Number of direct patch download links found
+  requiresLogin: number; // Number of patches that require login to download
+}
+
 export interface PatchData {
-  patches?: VendorAdvisoryDetails[];
-  advisories?: VendorAdvisoryDetails[];
-  searchSummary?: {
-    patchesFound?: number;
-    advisoriesFound?: number;
-    vendorsSearched?: string[];
-    searchTimestamp?: string;
-    enhancedWithHeuristics?: boolean;
-    totalPatchesFound?: number;
-    totalAdvisoriesFound?: number;
-  };
+  patches?: PatchInfo[];
+  advisories?: VendorAdvisory[]; // Advisories specifically about patches or fixes
+  searchSummary?: PatchSearchSummary;
+  summary?: string; // Overall summary of patch availability
 }
 
-// Data structure for active exploitation information
+export interface TechnicalAnalysisData {
+  text?: string; // In-depth technical explanation of the vulnerability
+  attackVector?: string; // How the vulnerability is exploited
+  impact?: string; // Potential impact of exploitation
+  mitigationSteps?: string[]; // Suggested mitigation steps
+  codeSnippets?: Array<{ language: string; code: string; description?: string }>; // Relevant code examples
+  source?: string; // Where this analysis came from (e.g., 'AI Generated', 'Researcher Blog URL')
+}
+
+export interface ThreatActorActivity {
+  actorName?: string; // Name of the threat actor/group
+  description?: string; // Description of their activity related to this CVE
+  targets?: string[]; // Industries or regions targeted
+  ttps?: string[]; // Tactics, Techniques, and Procedures used
+  source?: string; // Source of this information (e.g., 'Threat Intel Report URL', 'AI Web Search')
+  firstSeen?: string; // Date first seen
+  lastSeen?: string; // Date last seen
+}
+
 export interface ActiveExploitationData {
-  confirmed: boolean;
-  details?: string;
-  sources?: string[]; // List of credible sources confirming exploitation
-  threatActors?: string[];
-  confidence?: string;
-  aiDiscovered?: boolean;
+  confirmed: boolean; // Is active exploitation confirmed?
+  details?: string; // Summary of exploitation activity
+  sources?: string[]; // Sources confirming exploitation (e.g., 'CISA KEV', 'News Article URL')
+  threatActors?: ThreatActorActivity[];
+  firstSeen?: string;
+  lastSeen?: string;
+  validated?: boolean;
 }
 
-// Data structure for AI-generated analysis/summary
-export interface AISummaryData {
-  analysis: string;
-  ragUsed?: boolean;
-  ragDocuments?: number;
-  ragSources?: string[];
-  webGrounded?: boolean;
-  model?: string;
-  analysisTimestamp?: string;
-  // Include other relevant fields from the actual generateAIAnalysis response
+export interface ThreatIntelligenceData {
+  summary?: string; // Overall threat intelligence summary
+  activeExploitation?: ActiveExploitationData;
+  exploitAvailability?: ExploitDiscoveryData; // Could be part of this or separate
+  targetedSectors?: string[];
+  threatActors?: ThreatActorActivity[];
+  malwareUsed?: string[];
+  potentialImpact?: string;
+  confidence?: 'High' | 'Medium' | 'Low';
+  source?: string; // e.g., AI-generated, specific feed
 }
 
-// Details for a single dispute in CVE validation
-export interface CVEValidationDispute {
+export interface GithubData {
+  found: boolean;
+  count: number; // Total relevant repos/commits/etc.
+  repositories?: Array<{
+    name: string;
+    url: string;
+    description?: string;
+    stars?: number;
+    forks?: number;
+    lastPush?: string;
+    type?: 'PoC' | 'Exploit' | 'VulnerableCode' | 'Discussion' | 'Patch';
+  }>;
+  summary?: string;
+}
+
+export interface IntelligenceSummary {
+  sourcesAnalyzed: number;
+  exploitsFound: number;
+  vendorAdvisoriesFound: number;
+  activeExploitation: boolean;
+  cisaKevListed: boolean;
+  threatLevel: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
+  dataFreshness: 'REAL_TIME' | 'HOURLY' | 'DAILY' | 'AI_WEB_SEARCH' | 'STATIC';
+  analysisMethod: 'AUTOMATED_CORRELATION' | 'AI_ENHANCED' | 'AI_WEB_SEARCH' | 'MANUAL_REVIEW' | 'GROUNDING_INFO_ONLY' | 'AI_WEB_SEARCH_VALIDATED';
+  confidenceLevel: 'HIGH' | 'MEDIUM' | 'LOW';
+  aiEnhanced: boolean;
+  validated: boolean; // New field: overall validation status of the AI findings
+  searchQueries?: string[]; // Queries AI used for web search
+}
+
+export interface HallucinationFlag {
+  field: string; // Which field might be a hallucination
+  suspectedReason: string; // Why it's suspected (e.g., "contradicts NVD", "unlikely claim")
+  confidence: 'High' | 'Medium' | 'Low'; // Confidence in it being a hallucination
+  details?: string; // More details
+}
+
+export interface ExtractionMetadata {
+  sourceType: 'NVD' | 'EPSS' | 'AI_WEB_SEARCH' | 'VENDOR_API';
+  query?: string; // Query used if applicable (e.g., for AI web search)
+  timestamp: string;
+  confidence?: number; // 0-1, confidence in the extraction from this source
+  errors?: string[]; // Any errors during extraction from this source
+}
+
+
+// --- CVEValidationData for Legitimacy Analysis ---
+export interface AdvisoryInfo { // Duplicated for now, consider moving to a shared types location if not already
   source: string;
-  date?: string;
-  reason: string;
   url?: string;
+  title?: string;
 }
 
-// Data structure for CVE validation results
 export interface CVEValidationData {
-  recommendation?: 'VALID' | 'FALSE_POSITIVE' | 'DISPUTED' | 'NEEDS_VERIFICATION' | 'REJECTED' | string; // string for flexibility if new values appear
-  confidence?: 'HIGH' | 'MEDIUM' | 'LOW' | string;
-  summary?: string; // AI-generated summary of the validation process
+  cveId: string;
+  status?: 'VALID' | 'INVALID' | 'DISPUTED' | 'NEEDS_VERIFICATION' | 'REJECTED' | 'UNKNOWN';
+  recommendation?: string;
+  summary?: string; // This can be the AI-generated summary of validation points.
+  confidence?: string; // e.g., "High", "Medium", "Low" for the overall validation assessment.
+  validationSources?: string[]; // List of sources used for this validation (e.g., NVD, AI Web Search, Vendor X)
+  lastUpdated?: string;
+
+  // New structured fields for Legitimacy Analysis
+  vendorDispute?: {
+    hasDispute: boolean;
+    source?: string;
+    details?: string;
+  } | null;
+
+  falsePositive?: {
+    isFalsePositive: boolean;
+    reason?: string;
+    source?: string;
+  } | null;
+
+  vendorConfirmation?: {
+    hasConfirmation: boolean;
+    patches?: PatchInfo[]; // Using existing PatchInfo
+    advisories?: AdvisoryInfo[]; // Using existing AdvisoryInfo (or a refined version)
+    details?: string; // Summary of confirmations
+  } | null;
+
+  researcherValidation?: {
+    consensus?: 'Positive' | 'Negative' | 'Mixed' | 'Unknown';
+    evidence?: Array<{
+      text?: string;
+      url?: string;
+      source?: string; // Name of researcher or organization
+    }>;
+    summary?: string;
+  } | null;
+
+  legitimacySummary?: string; // Overall textual summary from ValidationService addressing the four points.
+  legitimacyScore?: number | null; // Optional: 0-100 score.
+
+  // Retaining for detailed evidence or backward compatibility
   legitimacyEvidence?: string[];
   falsePositiveIndicators?: string[];
-  disputes?: CVEValidationDispute[];
-  validationSources?: string[]; // e.g., ['NVD', 'Vendor X', 'Researcher Y']
-  isValid?: boolean; // Simplified boolean, true if recommendation is 'VALID'
-  // other fields from ValidationService output
+  disputes?: Array<{
+      source: string;
+      reason: string;
+      date?: string;
+      url?: string;
+  }>;
 }
 
-// Basic NVD CVE Information
-export interface CVSSV2Data {
-  baseScore: number;
-  severity: string;
-  vectorString?: string;
-  // ... other CVSSv2 fields
-}
-export interface CVSSV3Data {
-  baseScore: number;
-  baseSeverity: string;
-  vectorString?: string;
-  // ... other CVSSv3 fields
-}
-export interface BaseCVEInfo {
-  id: string;
-  description?: string; // Often from NVD description
-  cvssV2?: CVSSV2Data;
-  cvssV3?: CVSSV3Data;
-  publishedDate?: string;
-  lastModifiedDate?: string;
-  // Potentially more fields from NVD's CVE structure
-}
 
-// Comprehensive Vulnerability Data Object (like the one from ResearchAgent)
 export interface EnhancedVulnerabilityData {
-  cve: BaseCVEInfo; // Core NVD data
-  epss?: EPSSData;
-  kev?: CisaKevDetails; // CISA KEV status
-  exploits?: ExploitDiscoveryData; // Public exploit info (summary, not links)
-  patchesAndAdvisories?: PatchData; // Renamed from vendorAdvisories to be more encompassing
-  cveValidation?: CVEValidationData; // Legitimacy analysis
-  activeExploitation?: ActiveExploitationData; // Active exploitation in the wild
+  cve: BaseCVEInfo | null;
+  epss?: EPSSData | null;
+  kev?: CisaKevDetails | null;
+  exploits?: ExploitDiscoveryData | null;
+  vendorAdvisories?: VendorAdvisoryData | null;
+  cveValidation?: CVEValidationData | null; // Updated to new structure
+  technicalAnalysis?: TechnicalAnalysisData | null;
+  github?: GithubData | null; // Info from GitHub (PoCs, discussions)
+  activeExploitation?: ActiveExploitationData | null; // More focused than full ThreatIntel
+  threatIntelligence?: ThreatIntelligenceData | null; // Broader threat context
 
-  // AI generated summaries / threat levels
+  intelligenceSummary?: IntelligenceSummary | null; // Summary of how this data was gathered/analyzed
+
+  patches?: PatchInfo[]; // Direct patch info
+  advisories?: VendorAdvisory[]; // Direct advisory info (might be duplicated if also in vendorAdvisories)
+  patchSearchSummary?: PatchSearchSummary;
+
+  sources?: Array<{name: string; url?: string; type?: string; [key: string]: any}>; // List of all information sources used
+  discoveredSources?: string[]; // Names of sources AI found data in
+
   summary?: string; // Overall AI-generated summary of the CVE
-  threatLevel?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO' | string;
-  aiAnalysis?: AISummaryData; // Detailed narrative AI analysis
+  threatLevel?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
+  dataFreshness?: string; // e.g., 'Real-time', 'Daily', 'As of YYYY-MM-DD'
+  lastUpdated: string; // When this enhanced record was created/updated
+  searchTimestamp?: string; // When the AI search was performed for this CVE
 
-  // Metadata
-  sources?: Array<{name: string, url?: string, type?: string, [key: string]: any}>; // List of information sources used
-  discoveredSources?: string[];
-  lastUpdated?: string;
-  confidence?: any; // TODO: Define a proper confidence score object structure
-  validation?: any; // TODO: Define a proper overall validation object from ValidationService more fully
-  // ... any other fields that ResearchAgent aggregates
+  ragEnhanced?: boolean; // Was this data enhanced by RAG?
+  aiSearchPerformed?: boolean; // Was an AI web search performed?
+  aiWebGrounded?: boolean; // Were AI results grounded with web search?
+
+  // Fields for advanced validation and confidence scoring
+  enhancedSources?: string[];
+  analysisMethod?: string;
+  validation?: any; // Placeholder for a more structured validation object if needed beyond cveValidation
+  confidence?: { // Overall confidence in this entire enhanced record
+      overall: 'HIGH' | 'MEDIUM' | 'LOW';
+      score?: number; // 0-100
+      factors?: Record<string, 'HIGH' | 'MEDIUM' | 'LOW' | number>; // Confidence in specific parts
+      [key: string]: any;
+  };
+  hallucinationFlags?: HallucinationFlag[];
+  extractionMetadata?: ExtractionMetadata[];
+  validationTimestamp?: string;
+  enhancedWithValidation?: boolean;
 }
 
-// Generic Chat Response interface, can be typed with specific data
+
+export interface AISummaryData {
+  cveId: string;
+  summary: string;
+  technicalSummary?: string;
+  exploitStatus?: string;
+  patchStatus?: string;
+  threatContext?: string;
+  recommendations?: string[];
+  confidenceScore?: number; // 0-1
+  sourcesConsidered?: string[];
+  error?: string;
+  analysis?: string; // General purpose field for AI analysis text
+}
+
+
+export interface AgentSettings {
+  geminiApiKey?: string;
+  nvdApiKey?: string;
+  geminiModel?: string;
+  [key: string]: any; // Allow other settings
+}
+
 export interface ChatResponse<T = any> {
   text: string;
-  data?: T;
-  error?: string;
-  // Fields below are more for ChatHistory's Message interface, but can be here for flexibility
-  sender?: 'user' | 'bot' | 'system';
+  data?: T; // Optional structured data
+  error?: string; // Optional error message
+  // For UserAssistantAgent
   id?: string;
+  sender?: 'user' | 'bot' | 'system';
+}
+
+export interface BulkAnalysisResult {
+  cveId: string;
+  data?: EnhancedVulnerabilityData;
+  error?: string;
+  status: 'Pending' | 'Processing' | 'Complete' | 'Error';
 }
