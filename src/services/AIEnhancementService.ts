@@ -554,3 +554,29 @@ export async function generateAIAnalysis(vulnerability, apiKey, model, settings 
     return generateEnhancedFallbackAnalysis(vulnerability, error);
   }
 }
+
+export async function fetchGeneralAnswer(query: string, settings: any, fetchWithFallbackFn: any) {
+  if (!settings.geminiApiKey) {
+    throw new Error("Gemini API key required for AI responses");
+  }
+  const model = settings.geminiModel || "gemini-2.5-flash";
+  const requestBody = {
+    contents: [{ parts: [{ text: query }] }],
+    generationConfig: { temperature: 0.3, topK: 1, topP: 0.8, maxOutputTokens: 1024, candidateCount: 1 },
+    tools: [{ google_search: {} }]
+  };
+  const response = await fetchWithFallbackFn(`${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(requestBody)
+  });
+  if (!response.ok) {
+    throw new Error(`General AI query error: ${response.status}`);
+  }
+  const data = await response.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error("Invalid AI response");
+  }
+  return { answer: text };
+}
