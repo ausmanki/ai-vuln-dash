@@ -1,5 +1,5 @@
 import { APIService } from '../services/APIService';
-import { AppContext } // Assuming settings might come from AppContext
+import { AppContext } from '../contexts/AppContext'; // Assuming settings might come from AppContext
 // We might need to import specific types for vulnerability data if we strongly type responses.
 // For now, we'll keep it simple and return strings or simple objects.
 
