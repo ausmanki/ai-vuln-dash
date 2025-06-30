@@ -265,7 +265,10 @@ const App = () => {
             overflow: 'hidden', // To ensure ChatInterface respects border radius
             // Background will be handled by ChatInterface itself via styles.card.background
           }}>
-            <ChatInterface initialCveId={vulnerabilities[0]?.cve?.id || null} />
+            <ChatInterface
+              initialCveId={vulnerabilities[0]?.cve?.id || null}
+              bulkAnalysisResults={bulkAnalysisResults} // Pass bulk results
+            />
           </div>
         )}
 

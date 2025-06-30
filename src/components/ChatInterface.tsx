@@ -16,9 +16,10 @@ interface Message {
 
 interface ChatInterfaceProps {
   initialCveId?: string | null;
+  bulkAnalysisResults?: Array<{cveId: string, data?: any, error?: string}>; // Added prop
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId, bulkAnalysisResults }) => {
   const { settings, addNotification } = useContext(AppContext);
   const styles = createStyles(settings.darkMode); // Assuming createStyles is memoized or lightweight
 
@@ -92,7 +93,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId }) => {
     setIsLoading(true);
 
     try {
-      const botResponse = await agent.handleQuery(inputMessage); // currentCveId removed
+      // Pass bulkAnalysisResults to the agent's handleQuery method
+      const botResponse = await agent.handleQuery(inputMessage, bulkAnalysisResults);
       const responseMessage: Message = {
         id: `bot-${Date.now()}`,
         text: botResponse.text,
@@ -112,7 +114,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId }) => {
     } finally {
       setIsLoading(false);
     }
-  }, [inputMessage, agent, addNotification]); // currentCveId removed from dependencies
+  }, [inputMessage, agent, addNotification, bulkAnalysisResults]); // Added bulkAnalysisResults to dependencies
 
 
   return (
@@ -131,7 +133,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId }) => {
         </h2>
         {/* Removed CVE ID input section; context is handled by agent via natural language queries */}
         <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.9rem', color: styles.subtitle.color }}>
-          Ask me about a CVE (e.g., "Tell me about CVE-2023-1234")
+          Ask about a CVE or type '/bulk_summary' for the latest bulk report.
         </div>
       </div>
 
@@ -190,7 +192,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId }) => {
           type="text"
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
-          placeholder="Ask about a CVE or a previous topic..."
+          placeholder="Ask about a CVE or type '/bulk_summary'..."
           style={{ ...styles.input, flexGrow: 1, minHeight: '48px' }}
           onKeyPress={(e) => e.key === 'Enter' && !isLoading && handleSendMessage()}
           disabled={isLoading || !agent}

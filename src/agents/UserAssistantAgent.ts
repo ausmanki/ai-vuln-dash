@@ -34,26 +34,121 @@ export class UserAssistantAgent {
     return null; // No change or invalid CVE
   }
 
-  public async handleQuery(query: string): Promise<ChatResponse> {
-    const lowerQuery = query.toLowerCase();
-    const cveMatch = query.match(CVE_REGEX);
+  public async generateBulkAnalysisSummary(
+    bulkResults: Array<{cveId: string, data?: any, error?: string}>
+  ): Promise<ChatResponse> {
+    if (!bulkResults || bulkResults.length === 0) {
+      return { text: "There are no bulk analysis results to summarize. Please perform a bulk analysis first." };
+    }
 
+    let totalCVEs = bulkResults.length;
+    let successfullyAnalyzed = 0;
+    let failedAnalysis = 0;
+
+    const severityCounts = { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, UNKNOWN: 0 };
+    const kevListedCVEs: string[] = [];
+    const highEpssCVEs: { cveId: string, score: string }[] = [];
+
+    for (const result of bulkResults) {
+      if (result.error || !result.data) {
+        failedAnalysis++;
+        continue;
+      }
+      successfullyAnalyzed++;
+      const cveData = result.data.cve;
+      const epssData = result.data.epss;
+      const kevData = result.data.kev;
+
+      // Severity
+      let severity = "UNKNOWN";
+      if (cveData?.cvssV3?.baseSeverity) {
+        severity = cveData.cvssV3.baseSeverity.toUpperCase();
+      } else if (cveData?.cvssV2?.severity) {
+        severity = cveData.cvssV2.severity.toUpperCase();
+      }
+      severityCounts[severity]++;
+
+      // KEV
+      if (kevData?.listed) {
+        kevListedCVEs.push(result.cveId);
+      }
+
+      // EPSS
+      if (epssData?.epssFloat && epssData.epssFloat > 0.75) { // Threshold for "high" EPSS, adjust as needed
+        highEpssCVEs.push({ cveId: result.cveId, score: epssData.epssPercentage });
+      }
+    }
+
+    let summaryText = `**Bulk Analysis Report Summary**\n\n`;
+    summaryText += `Total CVEs Processed: ${totalCVEs}\n`;
+    summaryText += `Successfully Analyzed: ${successfullyAnalyzed}\n`;
+    summaryText += `Failed to Analyze: ${failedAnalysis}\n\n`;
+
+    summaryText += `**Severity Distribution:**\n`;
+    summaryText += `- Critical: ${severityCounts.CRITICAL}\n`;
+    summaryText += `- High: ${severityCounts.HIGH}\n`;
+    summaryText += `- Medium: ${severityCounts.MEDIUM}\n`;
+    summaryText += `- Low: ${severityCounts.LOW}\n`;
+    summaryText += `- Unknown: ${severityCounts.UNKNOWN}\n\n`;
+
+    if (kevListedCVEs.length > 0) {
+      summaryText += `**CISA KEV (Known Exploited Vulnerabilities):**\n`;
+      summaryText += `- ${kevListedCVEs.length} CVE(s) are listed: ${kevListedCVEs.join(', ')}\n\n`;
+    } else {
+      summaryText += `**CISA KEV:** No CVEs in this report are currently listed in the CISA KEV catalog.\n\n`;
+    }
+
+    if (highEpssCVEs.length > 0) {
+      summaryText += `**High EPSS Scores (Predicted Exploitable > 75%):**\n`;
+      highEpssCVEs.forEach(item => {
+        summaryText += `- ${item.cveId} (EPSS: ${item.score}%)\n`;
+      });
+      summaryText += `\n`;
+    } else {
+      summaryText += `**High EPSS Scores:** No CVEs in this report have an EPSS score above 75%.\n\n`;
+    }
+
+    summaryText += `This summary provides a high-level overview. For detailed findings, please refer to the individual CVE results in the Bulk Analysis tab.`;
+
+    return {
+      text: summaryText,
+      data: {
+        totalCVEs,
+        successfullyAnalyzed,
+        failedAnalysis,
+        severityCounts,
+        kevListedCVEs,
+        highEpssCVEs
+      }
+    };
+  }
+
+  public async handleQuery(query: string, bulkResults?: Array<{cveId: string, data?: any, error?: string}> ): Promise<ChatResponse> {
+    const lowerQuery = query.toLowerCase();
+
+    // Check for bulk summary command first
+    if (lowerQuery.includes("/summarize_bulk") || lowerQuery.includes("/bulksummary") || lowerQuery.includes("/bulk_summary")) {
+      if (bulkResults) {
+        return this.generateBulkAnalysisSummary(bulkResults);
+      } else {
+        return { text: "Bulk analysis data is not available to summarize. Please ensure a bulk analysis has been run and results are loaded."};
+      }
+    }
+
+    const cveMatch = query.match(CVE_REGEX);
     let operationalCveId: string | null = null;
 
     if (cveMatch) {
       operationalCveId = cveMatch[0].toUpperCase();
       this.currentCveIdForSession = operationalCveId; // Update session CVE if one is in the query
-      // Provide feedback if CVE context changes
-      // return { text: `Okay, focusing on ${operationalCveId}. What specifically about it?`};
     } else {
       operationalCveId = this.currentCveIdForSession;
     }
 
     if (!operationalCveId) {
-      return { text: "Please specify a CVE ID in your query (e.g., 'What about CVE-2023-1234?') or ask me to focus on one first." };
+      return { text: "Please specify a CVE ID in your query (e.g., 'What about CVE-2023-1234?'), ask me to focus on one, or use '/bulk_summary' for the latest bulk report." };
     }
 
-    // If CVE was just set, and query is just the CVE ID, ask for more details.
     if (cveMatch && query.trim().toUpperCase() === operationalCveId) {
         return { text: `Okay, I'm now focused on ${operationalCveId}. What would you like to know about it? (e.g., summary, EPSS score, patches)` };
     }
@@ -64,15 +159,23 @@ export class UserAssistantAgent {
       } else if (lowerQuery.includes("exploit") || lowerQuery.includes("exploited")) {
         return this.getExploitInfo(operationalCveId);
       } else if (lowerQuery.includes("summarize") || lowerQuery.includes("summary") || lowerQuery.includes("overview") || lowerQuery.includes("tell me about")) {
-        return this.getSummary(operationalCveId);
+        // Ensure "summary" here doesn't clash with "/bulk_summary" if no CVE is specified
+        if (!cveMatch && this.currentCveIdForSession !== operationalCveId) {
+          // If query is just "summary" and no CVE is in query, but we have a session CVE.
+           return this.getSummary(operationalCveId);
+        } else if (cveMatch || this.currentCveIdForSession === operationalCveId) {
+           return this.getSummary(operationalCveId);
+        }
+        // Fallthrough if it was "summary" but not specific enough for a single CVE.
+        // This case should ideally be handled by the initial operationalCveId check.
       } else if (lowerQuery.includes("patch") || lowerQuery.includes("patches") || lowerQuery.includes("advisory") || lowerQuery.includes("advisories")) {
         return this.getPatchAndAdvisoryInfo(operationalCveId);
       } else if (lowerQuery.includes("validate") || lowerQuery.includes("validity") || lowerQuery.includes("legitimacy") || lowerQuery.includes("is valid")) {
         return this.getValidationInfo(operationalCveId);
       }
-      else {
-        return { text: "I'm not sure how to answer that. You can ask about EPSS scores, exploit information (high-level), summaries, patches, or CVE validation." };
-      }
+      // If it wasn't a bulk command and wasn't a recognized single CVE command
+      return { text: "I'm not sure how to answer that. You can ask about a specific CVE (e.g., EPSS scores, summary, patches) or use '/bulk_summary' for the latest bulk report." };
+
     } catch (error) {
       console.error("Error handling query:", error);
       return { text: `Sorry, I encountered an error trying to answer that: ${error.message}`, error: error.message };
