@@ -54,26 +54,59 @@ export class ValidationService {
       return { ...validationResults, verified: true, confidence: 'HIGH' };
     }
 
-    // Validate URLs without actually fetching (to avoid security risks)
+    // Validate URLs without actually fetching (to avoid security risks in client-side)
     for (const exploit of aiExploitFindings.exploits) {
-      if (exploit.url) {
-        const urlValidation = this.validateExploitUrl(exploit.url, cveId);
-        if (urlValidation.likely_valid) {
-          validationResults.verifiedExploits.push({
-            ...exploit,
-            urlValidation: urlValidation
-          });
-        } else {
+      const urlsToValidate = [exploit.url, exploit.citationUrl].filter(Boolean);
+      let allUrlsValid = true;
+      const urlValidationResults = {};
+
+      if (urlsToValidate.length === 0) {
+        // If no URL is provided at all, consider it not verifiable for this purpose
+        allUrlsValid = false;
+        validationResults.invalidUrls.push({
+          url: 'No URL provided',
+          reason: 'No URL or citationUrl for exploit entry'
+        });
+      }
+
+      for (const currentUrl of urlsToValidate) {
+        const validation = this.validateExploitUrl(currentUrl, cveId);
+        urlValidationResults[currentUrl] = validation;
+        // Placeholder for future HEAD request:
+        // if (validation.likely_valid) {
+        //   try {
+        //     // const headResponse = await fetchWithFallback(currentUrl, { method: 'HEAD', mode: 'cors' });
+        //     // validation.live = headResponse.ok;
+        //     // validation.liveStatus = headResponse.status;
+        //   } catch (e) {
+        //     validation.live = false;
+        //     validation.liveError = e.message;
+        //   }
+        // }
+        if (!validation.likely_valid /* || !validation.live */) {
+          allUrlsValid = false;
           validationResults.invalidUrls.push({
-            url: exploit.url,
-            reason: urlValidation.reason
+            url: currentUrl,
+            reason: validation.reason // + (validation.live === false ? ' Liveness check failed.' : '')
           });
         }
       }
+
+      if (allUrlsValid && urlsToValidate.length > 0) {
+        validationResults.verifiedExploits.push({
+          ...exploit,
+          urlValidationResults: urlValidationResults // Store all results
+        });
+      } else if (urlsToValidate.length > 0) { // If some URLs were present but not all valid
+        // Already added to invalidUrls if any specific URL failed
+      }
     }
 
-    const verificationRate = validationResults.verifiedExploits.length /
-                           aiExploitFindings.exploits.length;
+    // Adjust verification rate calculation if needed, e.g., based on primary URL vs. citation
+    const totalExploitsWithAttemptedValidation = aiExploitFindings.exploits?.length || 0;
+    const verificationRate = totalExploitsWithAttemptedValidation > 0
+                           ? validationResults.verifiedExploits.length / totalExploitsWithAttemptedValidation
+                           : 1; // If no exploits, consider it 100% verified (no false claims)
 
     validationResults.verified = verificationRate >= 0.5;
     validationResults.confidence = verificationRate >= 0.8 ? 'HIGH' :

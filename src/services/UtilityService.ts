@@ -70,9 +70,13 @@ export function parsePatchAndAdvisoryResponse(aiResponseOrMetadata, cveId) {
       const jsonMatch = aiResponseOrMetadata.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
+        const processEntries = (entries, type) => (entries || []).map(entry => ({
+          ...entry,
+          citationUrl: entry.citationUrl || entry.url // Ensure citationUrl is populated
+        }));
         return {
-          patches: parsed.patches || [],
-          advisories: parsed.advisories || [],
+          patches: processEntries(parsed.patches, 'patch'),
+          advisories: processEntries(parsed.advisories, 'advisory'),
           searchSummary: { ...parsed.searchSummary, searchMethod: parsed.searchSummary?.searchMethod || 'JSON_PARSED' } || { searchMethod: 'JSON_PARSED' }
         };
       }
@@ -456,14 +460,14 @@ export function normalizeAIFindings(parsed, cveId) {
     exploitDiscovery: {
       found: parsed.exploitDiscovery?.found || false,
       totalCount: Math.min(parsed.exploitDiscovery?.totalCount || 0, 10), // Cap at 10
-      exploits: parsed.exploitDiscovery?.exploits || [],
+      exploits: (parsed.exploitDiscovery?.exploits || []).map(e => ({ ...e, citationUrl: e.citationUrl || e.url })),
       confidence: parsed.exploitDiscovery?.confidence || 'LOW',
       aiDiscovered: true
     },
     vendorAdvisories: {
       found: parsed.vendorAdvisories?.found || false,
       count: parsed.vendorAdvisories?.count || 0,
-      advisories: parsed.vendorAdvisories?.advisories || [],
+      advisories: (parsed.vendorAdvisories?.advisories || []).map(a => ({ ...a, citationUrl: a.citationUrl || a.url })),
       aiDiscovered: true
     },
     intelligenceSummary: {

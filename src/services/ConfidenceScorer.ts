@@ -18,12 +18,54 @@ export class ConfidenceScorer {
       scores.crossReferenceScore * 0.1
     );
 
+    const consistencyFlags = this.performConsistencyChecks(aiFindings, validationResults);
+    const currentFlags = this.generateConfidenceFlags(scores, aiFindings);
+
     return {
       overall: this.normalizeConfidence(weightedScore),
       breakdown: scores,
       recommendation: this.generateConfidenceRecommendation(weightedScore),
-      flags: this.generateConfidenceFlags(scores, aiFindings)
+      flags: [...new Set([...currentFlags, ...consistencyFlags])] // Merge and deduplicate flags
     };
+  }
+
+  static performConsistencyChecks(aiFindings, validationResults) {
+    const flags = [];
+    if (!aiFindings) return flags;
+
+    // Check 1: KEV listed but no confirmed active exploitation (could be okay, but flag)
+    if (aiFindings.cisaKev?.listed && !aiFindings.activeExploitation?.confirmed) {
+      flags.push('KEV_LISTED_NO_EXPLICIT_ACTIVE_EXPLOITATION_CONFIRMED');
+    }
+
+    // Check 2: Exploits found, but CISA KEV is not listed (common, but good to be aware)
+    if (aiFindings.exploitDiscovery?.found && !aiFindings.cisaKev?.listed) {
+      flags.push('EXPLOITS_FOUND_NOT_IN_KEV');
+    }
+
+    // Check 3: Vendor advisory claims patch, but exploit still listed as highly reliable and recent
+    // This is more complex and might require date comparisons if available. For a basic check:
+    if (aiFindings.vendorAdvisories?.advisories?.some(advisory => advisory.patchAvailable) &&
+        aiFindings.exploitDiscovery?.exploits?.some(exploit => exploit.reliability === 'HIGH')) {
+      // Further refinement: check if exploit discovery date is after patch date
+      flags.push('PATCH_AVAILABLE_HIGH_RELIABILITY_EXPLOIT_LISTED');
+    }
+
+    // Check 4: AI claims high confidence for CISA KEV, but validation (if it were direct) fails
+    // This is partially handled by scoreValidationAlignment, but a direct flag can be useful
+    if (validationResults?.cisaKev && aiFindings.cisaKev?.confidence === 'HIGH' && !validationResults.cisaKev.verified && validationResults.cisaKev.validationMethod !== 'AI_WEB_SEARCH') {
+        flags.push('AI_HIGH_CONFIDENCE_KEV_NOT_VERIFIED');
+    }
+
+    // Check 5: Overall threat level seems inconsistent with key indicators
+    if (aiFindings.overallThreatLevel === 'LOW' && (aiFindings.cisaKev?.listed || aiFindings.activeExploitation?.confirmed)) {
+        flags.push('LOW_THREAT_LEVEL_WITH_CRITICAL_INDICATORS');
+    }
+    if (aiFindings.overallThreatLevel === 'CRITICAL' && !aiFindings.cisaKev?.listed && !aiFindings.activeExploitation?.confirmed) {
+        flags.push('CRITICAL_THREAT_LEVEL_WITHOUT_KEV_OR_ACTIVE_EXPLOITATION');
+    }
+
+    return flags;
   }
 
   static scoreSourceCredibility(sourceMetadata) {
