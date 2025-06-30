@@ -267,6 +267,57 @@ export class APIService {
         `✅ Enhanced analysis complete: ${discoveredSources.length} sources analyzed, ${threatLevel} threat level, ${confidence.overall} confidence`
       ]);
 
+      // Further Leverage RAG for 'Learning'
+      if (ragDatabase?.initialized && (confidence.overall === 'HIGH' || confidence.overall === 'MEDIUM')) {
+        let ragDocContent = `Refined AI Summary for ${cveId}:\nOverall Threat: ${threatLevel}\nSummary: ${summary}\n`;
+        if (aiThreatIntel.cisaKev?.listed) ragDocContent += `CISA KEV: Listed. Details: ${aiThreatIntel.cisaKev.details}\n`;
+        if (aiThreatIntel.activeExploitation?.confirmed) ragDocContent += `Active Exploitation: Confirmed. Details: ${aiThreatIntel.activeExploitation.details}\n`;
+        if (aiThreatIntel.exploitDiscovery?.found && aiThreatIntel.exploitDiscovery.exploits.length > 0) {
+          ragDocContent += `Public Exploits (${aiThreatIntel.exploitDiscovery.totalCount}):\n`;
+          aiThreatIntel.exploitDiscovery.exploits.slice(0, 2).forEach(ex => { // Store details for a couple of exploits
+            ragDocContent += `- Type: ${ex.type}, Source: ${ex.source}, Reliability: ${ex.reliability}, URL: ${ex.url}\n Description: ${ex.description?.substring(0,100)}...\n`;
+          });
+        }
+        if (patchAdvisoryData.patches?.length > 0) {
+            ragDocContent += `Patches (${patchAdvisoryData.patches.length}):\n`;
+            patchAdvisoryData.patches.slice(0,1).forEach(p => {
+                 ragDocContent += `- Vendor: ${p.vendor}, Product: ${p.product}, Version: ${p.patchVersion}, URL: ${p.downloadUrl}\n`;
+            });
+        }
+        // Simple idempotency: check if a similar document was added recently (e.g., in the last day)
+        // This is a basic check; a more robust system might use checksums or versioning.
+        const existingDocs = await ragDatabase.search(`Refined AI Summary for ${cveId}`, 1, { cveId: cveId, source: 'self-ai-refined-summary' });
+        let shouldAdd = true;
+        if (existingDocs.length > 0 && existingDocs[0].metadata?.timestamp) {
+            const lastAddedTime = new Date(existingDocs[0].metadata.timestamp).getTime();
+            if ((new Date().getTime() - lastAddedTime) < 24 * 60 * 60 * 1000) { // 24 hours
+                 console.log(`Skipping RAG update for ${cveId}, recent summary exists.`);
+                 shouldAdd = false;
+            }
+        }
+
+        if (shouldAdd) {
+            try {
+                await ragDatabase.addDocument(
+                    ragDocContent,
+                    {
+                        title: `Refined AI Analysis - ${cveId} (${confidence.overall} Confidence)`,
+                        category: 'ai-refined-summary',
+                        tags: ['ai-refined', cveId.toLowerCase(), threatLevel.toLowerCase(), confidence.overall.toLowerCase()],
+                        source: 'self-ai-refined-summary',
+                        cveId: cveId,
+                        timestamp: new Date().toISOString(),
+                        confidence: confidence.overall,
+                        threatLevel: threatLevel
+                    }
+                );
+                console.log(`Stored refined AI summary for ${cveId} in RAG database.`);
+            } catch (ragError) {
+                console.error(`Failed to store refined AI summary for ${cveId} in RAG:`, ragError);
+            }
+        }
+      }
+
       return enhancedVulnerability;
 
     } catch (error) {

@@ -44,11 +44,17 @@ CVE Details:
 - Affected Products: Extract from description
 
 EXTRACTION REQUIREMENTS:
-- Find ACTUAL patch download URLs (not search pages)
-- Extract vendor security advisory links
-- Get patch version numbers and release dates
-- Identify affected product versions
-- Note patch availability status
+- Find ACTUAL patch download URLs (not search pages or general vendor pages).
+- Extract vendor security advisory links that are specific to the CVE.
+- Get patch version numbers and release dates if available.
+- Identify affected product versions if specified in the advisory.
+- Note patch availability status (e.g., "Available", "Superseded", "Unavailable").
+- For each patch and advisory, provide a `citationUrl` which is the direct URL of the page confirming the information.
+
+NEGATIVE CONSTRAINTS:
+- Do not invent URLs or patch details not found in sources.
+- Do not list a patch if a direct link to its official announcement or download page is not discovered.
+- Do not list general vendor security pages as advisories unless they specifically mention the CVE.
 
 Return JSON with actual findings:
 {
@@ -57,25 +63,27 @@ Return JSON with actual findings:
       "vendor": "vendor name",
       "product": "affected product",
       "patchVersion": "patch version",
-      "downloadUrl": "ACTUAL download URL found",
-      "advisoryUrl": "vendor advisory URL",
+      "downloadUrl": "ACTUAL download URL found for the patch",
+      "advisoryUrl": "URL of the vendor advisory page for this patch",
       "releaseDate": "patch release date",
       "description": "patch description",
-      "confidence": "HIGH/MEDIUM/LOW",
-      "patchType": "Security Update/Hotfix/Critical Patch"
+      "confidence": "HIGH/MEDIUM/LOW based on source directness",
+      "patchType": "Security Update/Hotfix/Critical Patch",
+      "citationUrl": "URL of the page confirming this specific patch information"
     }
   ],
   "advisories": [
     {
-      "source": "source organization",
+      "source": "source organization (e.g. Microsoft, CERT)",
       "advisoryId": "advisory ID (CVE, RHSA, etc)",
       "title": "advisory title",
-      "url": "direct advisory URL",
+      "url": "direct advisory URL for this CVE",
       "severity": "advisory severity",
       "publishDate": "publish date",
       "description": "advisory description",
-      "confidence": "HIGH/MEDIUM/LOW",
-      "type": "Security Advisory/Bulletin/Alert"
+      "confidence": "HIGH/MEDIUM/LOW based on source directness",
+      "type": "Security Advisory/Bulletin/Alert",
+      "citationUrl": "URL of the page confirming this specific advisory"
     }
   ],
   "searchSummary": {
@@ -86,7 +94,7 @@ Return JSON with actual findings:
   }
 }
 
-CRITICAL: Only include URLs that were actually found in search results. Do not generate or guess URLs.`;
+CRITICAL: Only include URLs that were actually found in search results. Do not generate or guess URLs. Ensure `citationUrl` is provided for each entry.`;
 
   try {
     const requestBody = {
@@ -194,6 +202,7 @@ EXTRACTION RULES:
 - DO NOT make predictions or estimates
 - ONLY report findings with source attribution
 - For CISA KEV: MUST find explicit confirmation in official CISA sources
+- Do not invent URLs, technical details, or threat actor names not found directly in sources.
 
 REQUIRED SEARCHES:
 1. **CISA KEV Verification (MANDATORY)**:
@@ -255,9 +264,10 @@ Return findings in JSON format with HIGH confidence only for verified sources:
       {
         "type": "extracted exploit type",
         "url": "actual URL found in search results or empty",
-        "source": "source name where found",
-        "description": "extracted description",
-        "reliability": "HIGH/MEDIUM/LOW"
+        "source": "source name where found (e.g., GitHub, Exploit-DB)",
+        "description": "extracted description of the exploit",
+        "reliability": "HIGH/MEDIUM/LOW based on source and details",
+        "citationUrl": "URL of the page confirming this specific exploit"
       }
     ],
     "githubRepos": number (actual count from search),
@@ -272,9 +282,10 @@ Return findings in JSON format with HIGH confidence only for verified sources:
       {
         "vendor": "extracted vendor name",
         "title": "extracted advisory title",
+        "url": "URL to the specific advisory page",
         "patchAvailable": boolean (only if explicitly stated),
         "severity": "extracted severity rating",
-        "source": "source where found"
+        "source": "source organization that published the advisory (e.g., Microsoft, Red Hat)"
       }
     ],
     "confidence": "HIGH/MEDIUM/LOW",
