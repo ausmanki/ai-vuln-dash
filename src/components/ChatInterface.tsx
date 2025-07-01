@@ -175,10 +175,14 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId }) => {
                 )}
               </div>
             </div>
-             {msg.sender === 'bot' && msg.data && (
+            {msg.sender === 'bot' && msg.data && (
               <div style={{ fontSize: '0.8rem', color: (settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText) || '#888', marginLeft: '32px', marginTop: '4px' }}>
-                {/* Potentially render some structured data here, or offer actions */}
-                {/* Example: <button onClick={() => alert(JSON.stringify(msg.data))}>View Raw Data</button> */}
+                {typeof msg.data.legitimacyScore === 'number' && (
+                  <span>Legitimacy Score: {msg.data.legitimacyScore}/100 </span>
+                )}
+                {msg.data.confidence && (
+                  <span style={{ marginLeft: '8px' }}>Confidence: {msg.data.confidence}</span>
+                )}
               </div>
             )}
           </div>
