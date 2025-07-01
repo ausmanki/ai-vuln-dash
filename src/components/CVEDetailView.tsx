@@ -820,14 +820,19 @@ const CVEDetailView = ({ vulnerability }) => {
                                 Legitimacy Score: {validation.legitimacyScore ?? 'N/A'} / 100
                                 {' • '}
                                 Confidence: {validation.confidence || 'N/A'}
-                                {validation.validationSources?.length > 0 && ` • ${validation.validationSources.length} sources checked`}
+                                {validation.validationSources?.length > 0 && ` • Sources: ${validation.validationSources.join(', ')}`}
                               </p>
                             </div>
                           </div>
-                          <div style={{ fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '12px' }}>
+                           <div style={{ fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '12px' }}>
                              <strong>Summary:</strong> {validation.legitimacySummary || validation.recommendation || 'No detailed summary available.'}
-                          </div>
-                           <div style={{ fontSize: '0.8rem', color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
+                           </div>
+                           {validation.status === 'DISPUTED' && (
+                             <div style={{ fontSize: '0.9rem', color: COLORS.yellow, marginBottom: '8px' }}>
+                               ⚠ This vulnerability is disputed
+                             </div>
+                           )}
+                            <div style={{ fontSize: '0.8rem', color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
                              Last Assessed: {validation.lastUpdated ? new Date(validation.lastUpdated).toLocaleString() : 'N/A'}
                            </div>
                         </div>
@@ -916,6 +921,19 @@ const CVEDetailView = ({ vulnerability }) => {
                            <div style={{...styles.card, background: settings.darkMode ? COLORS.dark.background : COLORS.light.background, marginTop: '20px'}}>
                               <h4 style={{fontSize: '1rem', fontWeight: '600', color: COLORS.red}}>Original Dispute Records</h4>
                               {validation.disputes.map((d, i) => <p key={i} style={{fontSize:'0.85rem'}}>Source: {d.source}, Reason: {d.reason}</p>)}
+                           </div>
+                        )}
+
+                        {vulnerability.hallucinationFlags && vulnerability.hallucinationFlags.length > 0 && (
+                           <div style={{...styles.card, background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface, marginTop: '20px'}}>
+                              <h4 style={{fontSize: '1rem', fontWeight: '600', color: COLORS.yellow}}>AI Hallucination Flags</h4>
+                              <ul style={{margin: '4px 0 0 20px', padding: 0, fontSize: '0.85rem', lineHeight: '1.6'}}>
+                                {vulnerability.hallucinationFlags.map((flag, i) => (
+                                  <li key={i}>
+                                    <strong>{flag.field || 'Field'}:</strong> {flag.suspectedReason || 'Potential issue'}{flag.confidence ? ` (Confidence: ${flag.confidence})` : ''}{flag.details ? ` - ${flag.details}` : ''}
+                                  </li>
+                                ))}
+                              </ul>
                            </div>
                         )}
                        </>
