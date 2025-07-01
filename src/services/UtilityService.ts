@@ -382,18 +382,20 @@ export function parseAIThreatIntelligence(aiResponseOrMetadata, cveId, setLoadin
     // Handle groundingMetadata object
     updateStepsParse(prev => [...prev, `ℹ️ Processing grounding metadata for ${cveId}`]);
     const searchQueries = aiResponseOrMetadata.searchQueries || [];
-    const keywordStop = ['cve', 'vulnerability', 'patch', 'exploits', 'and', 'the', 'for', 'with'];
+    const stopWords = ['cve', 'vulnerability', 'patch', 'exploits', 'and', 'the', 'for', 'with'];
     const keywords = Array.from(
       new Set(
         searchQueries
           .flatMap(q => q.toLowerCase().split(/\W+/))
-          .filter(w => w.length > 3 && !keywordStop.includes(w))
+          .filter(w => w.length > 3 && !stopWords.includes(w))
       )
     ).slice(0, 5);
-    const keywordSummary = keywords.length ? `focusing on ${keywords.join(', ')}` : 'for relevant information';
+
     const searchCount = searchQueries.length;
+    const queryWord = searchCount === 1 ? 'query' : 'queries';
+    const keywordSummary = keywords.length ? ` focusing on ${keywords.join(', ')}` : ' for relevant information';
     const noSummaryText = searchCount > 0
-      ? `AI performed ${searchCount} search ${searchCount === 1 ? 'query' : 'queries'} ${keywordSummary} but did not return a textual summary.`
+      ? `AI performed ${searchCount} search ${queryWord}${keywordSummary} but did not return a textual summary.`
       : 'AI search performed but no textual summary returned.';
     return {
       cisaKev: { listed: false, details: 'No direct AI summary, grounding info only.', source: '', confidence: 'LOW', aiDiscovered: true },
