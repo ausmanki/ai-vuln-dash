@@ -259,6 +259,12 @@ CVE Input → API Aggregation → AI Analysis → Risk Scoring → Decision Supp
 - **Web Grounding**: Real-time threat intelligence from across the internet
 - **Continuous Learning**: System improves with each analysis
 
+### 🤖 AI Agents
+- **ResearchAgent**: Performs in-depth CVE analysis and updates the RAG database.
+- **UserAssistantAgent**: Chatbot interface that answers security questions.
+- **RAGCuratorAgent**: Triggers re-analysis and maintains knowledge freshness.
+- **ValidationAgent**: Runs legitimacy checks and stores results for later retrieval.
+
 ### **🔌 API Integrations**
 - **NIST NVD**: Official CVE database
 - **FIRST EPSS**: Exploitation probability
