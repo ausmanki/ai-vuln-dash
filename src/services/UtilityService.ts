@@ -117,7 +117,7 @@ export function parsePatchAndAdvisoryResponse(aiResponseOrMetadata, cveId) {
         searchMethod: 'GROUNDING_INFO_ONLY',
         searchTimestamp: new Date().toISOString(),
         searchQueries: searchQueries,
-        note: 'AI did not provide a textual summary for patches/advisories. Displaying search queries performed.'
+        note: 'AI did not return a textual summary. Generated a brief overview from search context.'
       }
     };
   } else {
@@ -398,7 +398,7 @@ export function parseAIThreatIntelligence(aiResponseOrMetadata, cveId, setLoadin
         aiEnhanced: true,
         extractionBased: false, // No text was extracted
         searchQueries: searchQueries,
-        note: 'AI did not provide a textual summary. Displaying search queries performed.'
+        note: 'AI did not return a textual summary. Generated a brief overview from search context.'
       },
       overallThreatLevel: 'UNKNOWN', // Or 'LOW' as it's unconfirmed
       lastUpdated: new Date().toISOString(),
