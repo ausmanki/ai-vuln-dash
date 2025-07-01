@@ -1,4 +1,5 @@
 import { APIService } from '../services/APIService';
+import { ValidationAgent } from './ValidationAgent';
 import {
   AgentSettings,
   ChatResponse,
@@ -418,10 +419,15 @@ export class UserAssistantAgent {
 
   private async getValidationInfo(cveId: string): Promise<ChatResponse<CVEValidationData | null>> {
     try {
-      // This call should now return EnhancedVulnerabilityData with the *new* CVEValidationData structure
-      const vulnerabilityData = await APIService.fetchVulnerabilityDataWithAI(cveId, () => {}, { nvd: this.settings?.nvdApiKey }, this.settings) as EnhancedVulnerabilityData | null;
+      // Retrieve vulnerability data to supply context for validation
+      const vulnerabilityData = await APIService.fetchVulnerabilityDataWithAI(
+        cveId,
+        () => {},
+        { nvd: this.settings?.nvdApiKey },
+        this.settings
+      ) as EnhancedVulnerabilityData | null;
 
-      if (!vulnerabilityData || !vulnerabilityData.cveValidation) {
+      if (!vulnerabilityData) {
         return {
           text: `I couldn't retrieve detailed validation and legitimacy information for ${cveId}. Basic CVE data might be missing or validation could not be performed.`,
           sender: 'bot',
@@ -431,7 +437,27 @@ export class UserAssistantAgent {
         };
       }
 
-      const validation = vulnerabilityData.cveValidation; // This should be our new detailed CVEValidationData
+      const validationAgent = new ValidationAgent();
+      const validation = await validationAgent.validateCVE(
+        cveId,
+        vulnerabilityData.cve,
+        {
+          cisaKev: vulnerabilityData.kev as CisaKevDetails,
+          activeExploitation: vulnerabilityData.activeExploitation as ActiveExploitationData,
+          exploitDiscovery: vulnerabilityData.exploits as ExploitDiscoveryData,
+          vendorAdvisories: vulnerabilityData.vendorAdvisories,
+          technicalAnalysis: vulnerabilityData.technicalAnalysis,
+          threatIntelligence: vulnerabilityData.threatIntelligence,
+          intelligenceSummary: vulnerabilityData.intelligenceSummary,
+          overallThreatLevel: vulnerabilityData.threatLevel,
+          hallucinationFlags: vulnerabilityData.hallucinationFlags,
+          extractionMetadata: vulnerabilityData.extractionMetadata,
+        } as AIThreatIntelData,
+        {
+          patches: vulnerabilityData.patches,
+          advisories: vulnerabilityData.advisories,
+        } as PatchData
+      );
       let responseText = `**Legitimacy Analysis for ${cveId}**:\n\n`;
 
       // Use the new legitimacySummary if available and informative
