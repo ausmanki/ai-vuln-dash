@@ -38,6 +38,7 @@ You are a senior cybersecurity analyst with 20 years of experience. Your task is
 ## Input Format
 \`\`\`
 CVE ID: CVE-<insert_ID_here>
+BDSA ID: BDSA-<insert_ID_here> (Optional)
 Context Sources:
 <context_chunk_1>
 {source 1}
@@ -55,6 +56,7 @@ Context Sources:
 
 \`\`\`markdown
 # CVE-<insert_ID_here> Technical Brief
+[BDSA Reference: https://openhub.net/vulnerabilities/bdsa/<insert_BDSA_ID_here>] (If BDSA ID provided)
 
 <!-- SCHEMA_VALIDATION_START -->
 **Status**: [ENUM: Patch Available|In Progress|No Fix] (Released: [DATE: YYYY-MM-DD|Not specified])  
@@ -101,6 +103,7 @@ Context Sources:
 - **Quality**: [ENUM: High|Medium|Low] – [STRING: # authoritative sources vs community sources]
 - **Agreement**: [ENUM: Complete|Partial conflicts|Major disputes]
 - **Recency**: [DATE: Most recent source date YYYY-MM-DD or "Stale data"]
+- **BDSA Reference**: [URL: https://openhub.net/vulnerabilities/bdsa/<BDSA_ID> or "Not applicable"]
 - **Source Links Used**:
   - [STRING: URL or name of Source 1]
   - [STRING: URL or name of Source 2]
@@ -151,7 +154,7 @@ Context Sources:
 - [ ] PATCH_INFO_COMPLETE: All 5 patch information fields filled
 - [ ] TECHNICAL_COMPLETE: All 4 technical detail fields filled
 - [ ] MISSING_INFO_ACKNOWLEDGED: Section present (can be empty)
-- [ ] SOURCE_ASSESSMENT_COMPLETE: All 4 assessment fields filled
+ - [ ] SOURCE_ASSESSMENT_COMPLETE: All 5 assessment fields filled
 - [ ] NO_FABRICATED_DATA: All claims backed by provided context
 - [ ] ENUM_VALUES_VALID: All enum fields use exact specified values
 - [ ] DATES_FORMATTED: All dates in YYYY-MM-DD or specified alternative
@@ -225,6 +228,7 @@ Context Sources:
 **Schema-Compliant Example**:
 \`\`\`markdown
 # CVE-2024-1234 Technical Brief
+[BDSA Reference: https://openhub.net/vulnerabilities/bdsa/2024-1234-example]
 
 <!-- SCHEMA_VALIDATION_START -->
 **Status**: Patch Available (Released: 2024-01-20)  
@@ -271,6 +275,7 @@ Context Sources:
 - **Quality**: High – 2 authoritative sources, 1 vendor advisory
 - **Agreement**: Complete
 - **Recency**: 2024-01-20
+- **BDSA Reference**: https://openhub.net/vulnerabilities/bdsa/2024-1234-example
 - **Source Links Used**:
   - nginx.com security advisory
   - NVD CVE database entry
@@ -285,7 +290,7 @@ Context Sources:
 - [x] PATCH_INFO_COMPLETE: All 5 patch information fields filled
 - [x] TECHNICAL_COMPLETE: All 4 technical detail fields filled
 - [x] MISSING_INFO_ACKNOWLEDGED: Section present with 2 items
-- [x] SOURCE_ASSESSMENT_COMPLETE: All 4 assessment fields filled
+ - [x] SOURCE_ASSESSMENT_COMPLETE: All 5 assessment fields filled
 - [x] NO_FABRICATED_DATA: All claims backed by provided context
 - [x] ENUM_VALUES_VALID: All enum fields use exact specified values
 - [x] DATES_FORMATTED: All dates in YYYY-MM-DD format
