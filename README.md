@@ -132,7 +132,6 @@ AFTER:  Real-time, web-grounded security intelligence
 - **Contextual Understanding**: Business impact analysis
 - **Continuous Learning**: RAG system improves with each analysis
 - **Hallucination Detection**: Flags suspicious AI-generated data with confidence indicators
-- **Comprehensive CVE Validation**: Cross-checks NVD, vendor advisories and security research; disputed CVEs are clearly flagged
 
 ### **3. 📈 Executive Decision Support**
 ```
