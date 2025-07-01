@@ -1,20 +1,27 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { UserAssistantAgent } from './UserAssistantAgent';
+import { APIService } from '../services/APIService';
+import { ValidationService } from '../services/ValidationService';
 
-// This test performs a full validation flow without mocking any API calls.
-// It invokes the private getValidationInfo method to ensure the agent can
-// retrieve real validation data using the underlying services.
+// Unit test with mocked dependencies to avoid real network calls.
 
-describe('UserAssistantAgent.getValidationInfo (integration)', () => {
-  it(
-    'retrieves validation info for a real CVE',
-    async () => {
-      const agent = new UserAssistantAgent({});
-      const resp = await (agent as any).getValidationInfo('CVE-2021-34527');
+describe('UserAssistantAgent.getValidationInfo', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
-      expect(resp.data?.cveId).toBe('CVE-2021-34527');
-      expect(resp.data?.status).toBeDefined();
-    },
-    30000,
-  );
+  it('returns validation info using service results', async () => {
+    vi.spyOn(APIService, 'fetchCVEData').mockResolvedValue({} as any);
+    vi.spyOn(APIService, 'fetchEPSSData').mockResolvedValue({} as any);
+    vi.spyOn(APIService, 'fetchAIThreatIntelligence').mockResolvedValue(null);
+    vi.spyOn(APIService, 'fetchPatchesAndAdvisories').mockResolvedValue(null);
+
+    const validationResult = { cveId: 'CVE-2021-1234', status: 'VALID' } as any;
+    vi.spyOn(ValidationService, 'validateAIFindings').mockResolvedValue(validationResult);
+
+    const agent = new UserAssistantAgent({});
+    const resp = await (agent as any).getValidationInfo('CVE-2021-1234');
+
+    expect(resp.data).toEqual(validationResult);
+  });
 });

@@ -1,30 +1,22 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { ValidationAgent } from './ValidationAgent';
-import { APIService } from '../services/APIService';
+import { ValidationService } from '../services/ValidationService';
 
-// This integration test performs real API requests to validate a known CVE.
-// It does not mock the ValidationService so that the agent uses the actual
-// network responses from the APIService helpers.
+describe('ValidationAgent.validateCVE', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
-describe('ValidationAgent.validateCVE (integration)', () => {
-  it(
-    'fetches real vulnerability data and returns a validation result',
-    async () => {
-      const cveId = 'CVE-2021-34527';
-      const nvdData = await APIService.fetchCVEData(cveId, undefined, () => {});
-      const patchData = await APIService.fetchPatchesAndAdvisories(
-        cveId,
-        nvdData,
-        {},
-        () => {},
-      );
+  it('delegates to ValidationService and returns its result', async () => {
+    const mockResult = { cveId: 'CVE-1234-5678', status: 'VALID' } as any;
+    const spy = vi
+      .spyOn(ValidationService, 'validateAIFindings')
+      .mockResolvedValue(mockResult);
 
-      const agent = new ValidationAgent();
-      const result = await agent.validateCVE(cveId, nvdData, null, patchData);
+    const agent = new ValidationAgent();
+    const result = await agent.validateCVE('CVE-1234-5678', null, null, null);
 
-      expect(result.cveId).toBe(cveId);
-      expect(result.status).toBeDefined();
-    },
-    30000,
-  );
+    expect(spy).toHaveBeenCalled();
+    expect(result).toBe(mockResult);
+  });
 });

@@ -16,7 +16,6 @@ export class ValidationAgent {
     aiIntel: AIThreatIntelData | null,
     patchData: PatchData | null,
   ): Promise<CVEValidationData> {
-    console.log(`ValidationAgent: validating ${cveId}...`);
     const result = await ValidationService.validateAIFindings(cveId, nvdData, aiIntel, patchData);
 
     if (ragDatabase?.initialized) {
