@@ -1,0 +1,3 @@
+# Ignore temporary logs
+*.log
+__pycache__/
