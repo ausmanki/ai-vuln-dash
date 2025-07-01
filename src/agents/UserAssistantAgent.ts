@@ -1,4 +1,5 @@
 import { APIService } from '../services/APIService';
+import { ValidationAgent } from './ValidationAgent';
 import {
   AgentSettings,
   ChatResponse,
@@ -418,20 +419,36 @@ export class UserAssistantAgent {
 
   private async getValidationInfo(cveId: string): Promise<ChatResponse<CVEValidationData | null>> {
     try {
-      // This call should now return EnhancedVulnerabilityData with the *new* CVEValidationData structure
-      const vulnerabilityData = await APIService.fetchVulnerabilityDataWithAI(cveId, () => {}, { nvd: this.settings?.nvdApiKey }, this.settings) as EnhancedVulnerabilityData | null;
-
-      if (!vulnerabilityData || !vulnerabilityData.cveValidation) {
+      const cveData = await APIService.fetchCVEData(cveId, this.settings?.nvdApiKey, () => {}) as BaseCVEInfo | null;
+      if (!cveData) {
         return {
-          text: `I couldn't retrieve detailed validation and legitimacy information for ${cveId}. Basic CVE data might be missing or validation could not be performed.`,
+          text: `Could not retrieve basic data for ${cveId} to perform validation.`,
           sender: 'bot',
           id: Date.now().toString(),
-          error: "Validation data fetch failed or incomplete",
+          error: "CVE data fetch failed",
           data: null
         };
       }
 
-      const validation = vulnerabilityData.cveValidation; // This should be our new detailed CVEValidationData
+      const epssData = await APIService.fetchEPSSData(cveId, () => {});
+      const aiIntel = await APIService.fetchAIThreatIntelligence(
+        cveId,
+        cveData,
+        epssData as EPSSData | null,
+        this.settings,
+        () => {}
+      ) as AIThreatIntelData | null;
+
+      const patchAdvisoryData = await APIService.fetchPatchesAndAdvisories(
+        cveId,
+        cveData,
+        this.settings,
+        () => {}
+      ) as PatchData | null;
+
+      const validator = new ValidationAgent(this.settings);
+      const validation = await validator.validateCVE(cveId, cveData, aiIntel, patchAdvisoryData);
+
       let responseText = `**Legitimacy Analysis for ${cveId}**:\n\n`;
 
       // Use the new legitimacySummary if available and informative
