@@ -382,6 +382,19 @@ export function parseAIThreatIntelligence(aiResponseOrMetadata, cveId, setLoadin
     // Handle groundingMetadata object
     updateStepsParse(prev => [...prev, `ℹ️ Processing grounding metadata for ${cveId}`]);
     const searchQueries = aiResponseOrMetadata.searchQueries || [];
+    const keywordStop = ['cve', 'vulnerability', 'patch', 'exploits', 'and', 'the', 'for', 'with'];
+    const keywords = Array.from(
+      new Set(
+        searchQueries
+          .flatMap(q => q.toLowerCase().split(/\W+/))
+          .filter(w => w.length > 3 && !keywordStop.includes(w))
+      )
+    ).slice(0, 5);
+    const keywordSummary = keywords.length ? `focusing on ${keywords.join(', ')}` : 'for relevant information';
+    const searchCount = searchQueries.length;
+    const noSummaryText = searchCount > 0
+      ? `AI performed ${searchCount} search ${searchCount === 1 ? 'query' : 'queries'} ${keywordSummary} but did not return a textual summary.`
+      : 'AI search performed but no textual summary returned.';
     return {
       cisaKev: { listed: false, details: 'No direct AI summary, grounding info only.', source: '', confidence: 'LOW', aiDiscovered: true },
       activeExploitation: { confirmed: false, details: 'No direct AI summary, grounding info only.', sources: [], aiDiscovered: true },
@@ -394,11 +407,11 @@ export function parseAIThreatIntelligence(aiResponseOrMetadata, cveId, setLoadin
         aiEnhanced: true,
         extractionBased: false, // No text was extracted
         searchQueries: searchQueries,
-        note: 'AI did not provide a textual summary. Displaying search queries performed.'
+        note: 'AI did not return a textual summary. Generated a brief overview from search context.'
       },
       overallThreatLevel: 'UNKNOWN', // Or 'LOW' as it's unconfirmed
       lastUpdated: new Date().toISOString(),
-      summary: 'AI analysis did not yield a direct textual summary. Grounding searches were performed.',
+      summary: noSummaryText,
       hallucinationFlags: ['NO_TEXTUAL_AI_SUMMARY']
     };
   } else {
