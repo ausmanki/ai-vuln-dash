@@ -382,6 +382,7 @@ export function parseAIThreatIntelligence(aiResponseOrMetadata, cveId, setLoadin
     // Handle groundingMetadata object
     updateStepsParse(prev => [...prev, `ℹ️ Processing grounding metadata for ${cveId}`]);
     const searchQueries = aiResponseOrMetadata.searchQueries || [];
+    // Build a concise fallback summary from search query keywords
     const stopWords = ['cve', 'vulnerability', 'patch', 'exploits', 'and', 'the', 'for', 'with'];
     const keywords = Array.from(
       new Set(
