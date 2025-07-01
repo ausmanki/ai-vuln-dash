@@ -2,6 +2,298 @@
 import { utils } from '../utils/helpers';
 import { CONSTANTS } from '../utils/constants';
 
+// Unified prompt used for CVE analysis requests
+export const TECHNICAL_BRIEF_PROMPT = String.raw`# CVE Technical Brief Generation Prompt – Engineering Focus
+
+You are a senior cybersecurity analyst with 20 years of experience. Your task is to generate a concise, accurate, and actionable technical brief for a single CVE ID. This brief is for product teams, engineering leads, BU security champions, and product security engineers.
+
+## Core Guidelines
+- Communicate as a technical peer, not a vendor
+- Avoid filler, hype, or generalized language  
+- Focus on decision-making, not speculation
+- Confidence levels must be justified
+- Only use information explicitly found in the provided context
+- **NEVER fabricate or infer information not explicitly stated in context**
+- If data is missing, write "Not specified" - do not estimate or assume
+
+## Priority Definitions
+- **P0**: Active exploitation + high business impact (patch within 24h)
+- **P1**: Public exploit available + medium-high impact (patch within 72h)  
+- **P2**: PoC exists + moderate impact (patch next cycle)
+- **P3**: Theoretical risk + low impact (address in maintenance)
+
+## Language Standards
+### ❌ Security Theater Language
+- "Critical vulnerability could allow attackers to completely compromise systems"
+- "Sophisticated threat actors are actively exploiting this flaw"
+- "Immediate patching is essential across all environments"
+- "Could lead to devastating business impact"
+
+### ✅ Engineering Language
+- "Remote code execution via malformed HTTP headers, no auth required"
+- "Buffer overflow in parser, public exploit available since 2024-01-15"
+- "Update to version 2.1.3 within 72h for internet-facing systems"
+- "Affects authentication module, enables privilege escalation"
+
+## Input Format
+\`\`\`
+CVE ID: CVE-<insert_ID_here>
+Context Sources:
+<context_chunk_1>
+{source 1}
+</context_chunk_1>
+<context_chunk_2>
+{source 2}
+</context_chunk_2>
+\`\`\`
+
+## Output Schema Enforcement
+
+**CRITICAL**: Your response must follow this exact structure with all required fields. Missing or improperly formatted sections will be rejected.
+
+### Required Output Format
+
+\`\`\`markdown
+# CVE-<insert_ID_here> Technical Brief
+
+<!-- SCHEMA_VALIDATION_START -->
+**Status**: [ENUM: Patch Available|In Progress|No Fix] (Released: [DATE: YYYY-MM-DD|Not specified])  
+**Priority**: [ENUM: P0|P1|P2|P3] – [STRING: Specific remediation timeframe]  
+**Confidence**: [ENUM: High|Medium|Low] – [STRING: # sources, agreement level, vendor confirmation Y/N]
+
+## Core Facts
+- **Component**: [STRING: Exact affected software/version ranges or "Not specified"]
+- **Attack Vector**: [ENUM: Network|Local|Physical] + [Auth Required: ENUM: Y|N|Not specified]
+- **Exploitation**: [ENUM: Confirmed in wild|PoC available|Theoretical only|Not specified]
+- **Exploit Published**: [DATE: YYYY-MM-DD|Not published|Not specified]
+- **Real-world Usage**: [Active attacks: ENUM: Y|N|Not specified] | [CISA KEV: ENUM: Y|N]
+- **Complexity**: [ENUM: Trivial|Moderate|High|Not specified] skill required
+
+## Business Impact
+- **Technical Effect**: [STRING: Specific consequence - RCE, DoS, privilege escalation, data access]
+- **Realistic Scenario**: [STRING: What actually happens during exploitation - be specific]
+- **Scope**: [STRING: Number/percentage of affected systems or "Not specified"]
+
+## Actions Required
+1. **Immediate** ([STRING: specific timeframe]): [STRING: Measurable task - inventory, restrict access, alert teams]
+2. **Short-term** ([STRING: specific timeframe]): [STRING: Exact patch version or config change]
+3. **Detection**: [STRING: Specific command or method to identify vulnerable systems]
+4. **Verification**: [STRING: Exact steps to confirm patch/config was applied successfully]
+
+## Patch Information
+- **Patch Status**: [ENUM: Available|In Development|No Fix Planned|Not specified]
+- **Fixed Version(s)**: [STRING: Specific version numbers that resolve the issue or "Not specified"]
+- **Patch Source**: [STRING: Direct URL to patch/update or vendor advisory or "Not specified"]
+- **Release Notes**: [STRING: Link to changelog/release notes or "Not specified"]
+- **Backport Status**: [STRING: Whether fixes are available for older supported versions or "Not specified"]
+
+## Technical Details
+- **Root Cause**: [STRING: Buffer overflow, logic flaw, injection, etc. or "Not specified"]
+- **Trigger**: [STRING: How the vulnerability is activated or "Not specified"]
+- **Prerequisites**: [STRING: Specific conditions needed to exploit or "Not specified"]
+- **Exploit Reliability**: [ENUM: Consistent|Intermittent|PoC only|Not specified]
+
+## Missing Information
+- [ARRAY: List of key unknowns that impact remediation decisions]
+- [STRING: Note how missing info affects risk assessment or prioritization]
+
+## Source Assessment  
+- **Quality**: [ENUM: High|Medium|Low] – [STRING: # authoritative sources vs community sources]
+- **Agreement**: [ENUM: Complete|Partial conflicts|Major disputes]
+- **Recency**: [DATE: Most recent source date YYYY-MM-DD or "Stale data"]
+- **Source Links Used**:
+  - [STRING: URL or name of Source 1]
+  - [STRING: URL or name of Source 2]
+<!-- SCHEMA_VALIDATION_END -->
+\`\`\`
+
+### Field Validation Rules
+
+**Status Section** (ALL REQUIRED):
+- `Status`: Must be exactly one of: "Patch Available", "In Progress", "No Fix"
+- `Released date`: Must be YYYY-MM-DD format or "Not specified"
+- `Priority`: Must be exactly P0, P1, P2, or P3
+- `Priority rationale`: Must include specific timeframe (e.g., "within 24h", "next sprint")
+- `Confidence`: Must be exactly "High", "Medium", or "Low"
+- `Confidence rationale`: Must include number of sources and agreement level
+
+**Core Facts Section** (ALL REQUIRED):
+- `Component`: Cannot be empty - use "Not specified" if unknown
+- `Attack Vector`: Must be exactly "Network", "Local", or "Physical"
+- `Auth Required`: Must be exactly "Y", "N", or "Not specified"
+- `Exploitation`: Must be one of the four specified enums
+- `Exploit Published`: Must be date format or specified alternatives
+- `Active attacks`: Must be exactly "Y", "N", or "Not specified"
+- `CISA KEV`: Must be exactly "Y" or "N"
+- `Complexity`: Must be one of the four specified enums
+
+**Actions Required Section** (ALL 4 REQUIRED):
+- Each action must include specific timeframe in parentheses
+- Actions must be measurable and specific, not generic
+- Detection method must be executable command or specific process
+- Verification must be concrete steps, not vague guidance
+
+**Patch Information Section** (ALL 5 REQUIRED):
+- `Patch Status`: Must be exactly one of: "Available", "In Development", "No Fix Planned", "Not specified"
+- `Fixed Version(s)`: Must include specific version numbers when available
+- `Patch Source`: Must be direct URL or specific source reference
+- `Release Notes`: Must be URL or specific reference to changelog
+- `Backport Status`: Must address older version support status
+
+**Completeness Validation Checklist**:
+\`\`\`markdown
+<!-- VALIDATION_CHECKLIST -->
+- [ ] CVE_ID: Properly formatted (CVE-YYYY-NNNNN)
+- [ ] STATUS_COMPLETE: All 5 status fields filled
+- [ ] CORE_FACTS_COMPLETE: All 6 core facts fields filled  
+- [ ] IMPACT_COMPLETE: All 3 business impact fields filled
+- [ ] ACTIONS_COMPLETE: All 4 action items with timeframes
+- [ ] PATCH_INFO_COMPLETE: All 5 patch information fields filled
+- [ ] TECHNICAL_COMPLETE: All 4 technical detail fields filled
+- [ ] MISSING_INFO_ACKNOWLEDGED: Section present (can be empty)
+- [ ] SOURCE_ASSESSMENT_COMPLETE: All 4 assessment fields filled
+- [ ] NO_FABRICATED_DATA: All claims backed by provided context
+- [ ] ENUM_VALUES_VALID: All enum fields use exact specified values
+- [ ] DATES_FORMATTED: All dates in YYYY-MM-DD or specified alternative
+- [ ] TIMEFRAMES_SPECIFIC: All action timeframes include duration
+<!-- END_VALIDATION_CHECKLIST -->
+\`\`\`
+
+### Data Type Enforcement
+- **Dates**: Must be YYYY-MM-DD format or exactly "Not specified", "Not published", or "Stale data"
+- **Enums**: Must use EXACT text from specified options - no variations or synonyms
+- **Booleans**: Must be exactly "Y", "N", or "Not specified" - no "Yes/No" or "True/False"
+- **Timeframes**: Must include specific duration (e.g., "Within 24h", "Next sprint", "End of month")
+- **Strings**: Cannot be empty - use "Not specified" for missing data
+- **URLs**: Must be complete URLs when available, or "Not specified" if missing
+
+### Quality Gates
+**REJECT OUTPUT IF**:
+- Any required field is missing or empty
+- Enum values don't match exactly (case-sensitive)
+- Dates are not in proper format
+- Actions lack specific timeframes
+- Confidence rationale doesn't include source count
+- Patch information section is incomplete
+- Any section uses placeholder text like "TBD" or "TODO"
+
+## Critical Constraints
+🚫 **NEVER**:
+- Fabricate CVSS scores, dates, version numbers, or technical details
+- Use marketing language or threat vendor terminology
+- Reference other CVEs or make comparisons
+- Include general security advice unrelated to this specific CVE
+- Assume impact, complexity, or remediation beyond stated facts
+- Write "typically" or "usually" - stick to this CVE only
+- Skip required fields or sections
+- Use enum values not in the specified list
+- Fabricate patch URLs or download links
+
+✅ **ALWAYS**:
+- Write "Not specified" for any missing data points
+- Use exact version numbers and dates when provided
+- Include specific timelines for all action items
+- Quantify scope and impact when data is available
+- Lead with most actionable information
+- Justify priority rating with specific facts
+- Complete every required field in the schema
+- Use exact enum values as specified
+- Include direct patch sources when available in context
+
+## Confidence Calibration Guide
+- **High**: 3+ authoritative sources in complete agreement + vendor confirmation
+- **Medium**: 2+ sources with minor conflicts OR single authoritative source
+- **Low**: Single community source OR major conflicts between sources OR incomplete data
+
+## Final Validation Before Submission
+**Your output will be automatically validated against the schema. Ensure**:
+1. Every required field is completed
+2. All enum values match exactly
+3. All dates are properly formatted
+4. All action items have specific timeframes
+5. No fabricated information is included
+6. Confidence rationale includes source assessment
+7. Priority is justified by concrete facts
+8. Missing information is explicitly acknowledged
+9. Patch information section is complete with all 5 fields
+10. Patch sources are direct URLs when available in context
+
+**If validation fails, the entire brief must be regenerated.**
+
+---
+
+**Schema-Compliant Example**:
+\`\`\`markdown
+# CVE-2024-1234 Technical Brief
+
+<!-- SCHEMA_VALIDATION_START -->
+**Status**: Patch Available (Released: 2024-01-20)  
+**Priority**: P1 – Patch within 72h for internet-facing systems  
+**Confidence**: High – 3 sources, complete agreement, vendor confirmation Y
+
+## Core Facts
+- **Component**: nginx 1.20.0 through 1.22.1
+- **Attack Vector**: Network + Auth Required: N
+- **Exploitation**: PoC available
+- **Exploit Published**: 2024-01-18
+- **Real-world Usage**: Active attacks: N | CISA KEV: N
+- **Complexity**: Moderate skill required
+
+## Business Impact
+- **Technical Effect**: Remote code execution via HTTP header buffer overflow
+- **Realistic Scenario**: Attacker sends crafted HTTP request to trigger memory corruption and execute arbitrary code
+- **Scope**: Not specified
+
+## Actions Required
+1. **Immediate** (Within 24h): Run \`nginx -v\` inventory across all web servers
+2. **Short-term** (Within 72h): Update to nginx 1.22.2+ on internet-facing systems
+3. **Detection**: Execute \`find /etc -name "nginx.conf" -exec nginx -t \\;\` on all systems
+4. **Verification**: Confirm \`nginx -v\` shows version 1.22.2+ after service restart
+
+## Patch Information
+- **Patch Status**: Available
+- **Fixed Version(s)**: nginx 1.22.2, 1.23.1
+- **Patch Source**: https://nginx.org/download/nginx-1.22.2.tar.gz
+- **Release Notes**: https://nginx.org/en/CHANGES-1.22
+- **Backport Status**: Fixes available for 1.20.x series in version 1.20.3
+
+## Technical Details
+- **Root Cause**: Buffer overflow in HTTP header parsing function
+- **Trigger**: Malformed Content-Length header with oversized value
+- **Prerequisites**: Network access to HTTP service port
+- **Exploit Reliability**: Consistent
+
+## Missing Information
+- Number of affected systems in current environment
+- CVSS score not provided in available sources
+
+## Source Assessment  
+- **Quality**: High – 2 authoritative sources, 1 vendor advisory
+- **Agreement**: Complete
+- **Recency**: 2024-01-20
+- **Source Links Used**:
+  - nginx.com security advisory
+  - NVD CVE database entry
+<!-- SCHEMA_VALIDATION_END -->
+
+<!-- VALIDATION_CHECKLIST -->
+- [x] CVE_ID: Properly formatted (CVE-2024-1234)
+- [x] STATUS_COMPLETE: All 5 status fields filled
+- [x] CORE_FACTS_COMPLETE: All 6 core facts fields filled  
+- [x] IMPACT_COMPLETE: All 3 business impact fields filled
+- [x] ACTIONS_COMPLETE: All 4 action items with timeframes
+- [x] PATCH_INFO_COMPLETE: All 5 patch information fields filled
+- [x] TECHNICAL_COMPLETE: All 4 technical detail fields filled
+- [x] MISSING_INFO_ACKNOWLEDGED: Section present with 2 items
+- [x] SOURCE_ASSESSMENT_COMPLETE: All 4 assessment fields filled
+- [x] NO_FABRICATED_DATA: All claims backed by provided context
+- [x] ENUM_VALUES_VALID: All enum fields use exact specified values
+- [x] DATES_FORMATTED: All dates in YYYY-MM-DD format
+- [x] TIMEFRAMES_SPECIFIC: All action timeframes include duration
+<!-- END_VALIDATION_CHECKLIST -->
+\`\`\`
+`;
+
 export async function fetchWithFallback(url, options = {}) {
   try {
     return await fetch(url, options);
@@ -690,63 +982,13 @@ export function buildEnhancedAnalysisPrompt(
   const confidenceLevel = vulnerability.confidence?.overall || 'UNKNOWN';
   const classification = vulnerability.validation?.status || 'Unknown';
 
-  return `You are a senior cybersecurity analyst assistant. Your task is to analyze and summarize vulnerability intelligence retrieved from multiple authoritative sources.
+  return `${TECHNICAL_BRIEF_PROMPT}
 
-Here is the retrieved context:
+CVE ID: ${cveId}
+Context Sources:
+<context_chunk_1>
 ${ragContext}
-
----
-
-Using only the information provided above, write a professional, human-readable vulnerability analysis report intended for cybersecurity teams and SOC analysts.
-
-Write the report using the following structured format, including all sections:
-
-### RAG-Enhanced Security Analysis
-
-#### Executive Summary
-Summarize the vulnerability briefly. Include:
-- CVE ID(s): ${cveId}
-- CVSS score and severity: ${cvssScore} (${severity})
-- EPSS score and whether active exploitation is confirmed: ${epssScore}; Active exploitation ${exploitation}
-- CISA KEV listing status: ${kevStatus}
-- Vulnerability classification: ${classification}
-- Overall impact
-- Confidence level in findings: ${confidenceLevel}
-
-#### Technical Details and Attack Vectors
-Describe what component is affected and how it may be exploited.
-- If exploitation vectors are unconfirmed, clearly state that.
-
-#### Impact Assessment and Consequences
-Explain the potential damage (e.g., privilege escalation, data theft, system compromise).
-- Include known or inferred real-world consequences if available.
-
-#### Exploitability and Exposure
-Report the following:
-- Exploits Found: ${vulnerability.exploits?.found ? 'Yes' : 'No'}
-- Public Proof of Concept: ${vulnerability.exploits?.poc || 'Not available'}
-- EPSS Score: ${epssScore}
-- Active Exploitation: ${exploitation}
-- CISA KEV Status: ${kevStatus}
-- Vendor Advisories: ${vulnerability.advisories?.length || 0}
-
-#### Affected Products and Versions
-List all affected software or hardware and relevant version ranges.
-
-#### Patch Availability and Mitigation
-Mention whether a patch is available.
-- Include official advisory links or GitHub commits
-- If not patched, summarize known mitigation steps
-
-#### Confidence Assessment and Sources
-- Number of sources used: ${ragDocCount}
-- Agreement or conflicts between sources
-- Confidence level in key details: ${confidenceLevel}
-- Classification status:
-  - False Positive: ${classification === 'INVALID' ? 'Yes' : 'No'}
-  - Disputed: ${classification === 'DISPUTED' ? 'Yes' : 'No'}
-  - Reserved / Under Review: ${classification === 'RESERVED' ? 'Yes' : 'No'}
-- List key sources by name or URL`;
+</context_chunk_1>`;
 }
 
 export function generateEnhancedFallbackAnalysis(vulnerability, error) {
@@ -758,123 +1000,21 @@ export function generateEnhancedFallbackAnalysis(vulnerability, error) {
   const confidenceLevel = vulnerability.confidence?.overall || 'UNKNOWN';
 
   return {
-    analysis: `# Enhanced Security Analysis: ${cveId}
+    analysis: `# CVE-${cveId} Technical Brief
 
-## Executive Summary
-${kevStatus.includes('Yes') ? `🚨 **CRITICAL PRIORITY** - This vulnerability is actively exploited according to CISA KEV catalog${kevValidated}. ${vulnerability.kev?.validated ? 'This has been verified against official CISA data.' : 'This claim requires manual verification.'}` :
-  vulnerability.exploits?.found ? `💣 **HIGH RISK** - ${vulnerability.exploits.count} exploit(s) detected with ${vulnerability.exploits.confidence} confidence level${vulnerability.exploits?.validated ? ' (VALIDATED)' : ' (UNVALIDATED)'}.` :
-  `This vulnerability has a CVSS score of ${cvssScore} with an EPSS exploitation probability of ${epssScore}.`}
+_Fallback analysis due to error: ${error.message}_
 
-**Overall Confidence Level:** ${confidenceLevel}
-${vulnerability.confidence?.recommendation ? `**Recommendation:** ${vulnerability.confidence.recommendation}` : ''}
+**Status**: ${vulnerability.patches?.length ? 'Patch Available' : 'No Fix'} | **Priority**: P2
+**Confidence**: ${confidenceLevel} - Limited data
 
-${vulnerability.exploits?.found ? `💣 **PUBLIC EXPLOITS AVAILABLE** - ${vulnerability.exploits.count} exploit(s) detected with ${vulnerability.exploits.confidence} confidence level${vulnerability.exploits?.validated ? ' (URL patterns verified)' : ' (requires manual verification)'}.` : ''}
+## Core Facts
+- **Component**: ${vulnerability.cve.sourceIdentifier || 'Not specified'}
+- **Attack Vector**: ${vulnerability.cve.cvssV3?.attackVector || 'Unknown'} + Auth Required: ${vulnerability.cve.cvssV3?.privilegesRequired || 'Unknown'}
+- **Exploitation**: ${vulnerability.exploits?.found ? 'PoC available' : 'Theoretical only'}
+- **Real-world Usage**: Active attacks: ${vulnerability.activeExploitation?.confirmed ? 'Y' : 'N'} | CISA KEV: ${vulnerability.kev?.listed ? 'Y' : 'N'}
+- **Complexity**: ${vulnerability.cve.cvssV3?.attackComplexity || 'Unknown'}
 
-## Vulnerability Details
-**CVE ID:** ${cveId}
-**CVSS Score:** ${cvssScore}
-**EPSS Score:** ${epssScore}
-**CISA KEV Status:** ${kevStatus}${kevValidated}
-
-**Description:** ${vulnerability.cve.description}
-
-## Patches and Advisories
-${vulnerability.patches?.length ? `**Available Patches:** ${vulnerability.patches.length} patch(es) identified
-${vulnerability.patches.map(p => `- ${p.vendor} ${p.patchType}: ${p.description}`).join('\n')}` : 'No specific patches identified through automated search'}
-
-${vulnerability.advisories?.length ? `**Security Advisories:** ${vulnerability.advisories.length} advisory(ies) found
-${vulnerability.advisories.slice(0, 5).map(a => `- ${a.source}: ${a.title || a.description}`).join('\n')}` : 'Limited security advisory coverage found'}
-
-## Data Quality Assessment
-**Validation Status:** ${vulnerability.validation ? 'Performed' : 'Not performed'}
-${vulnerability.validation ? `
-- **CISA KEV Validation:** ${vulnerability.validation.cisaKev?.verified ? '✅ VERIFIED' : '❌ UNVERIFIED'}
-- **Exploit Validation:** ${vulnerability.validation.exploits?.verified ? '✅ VERIFIED' : '❌ UNVERIFIED'}
-- **Vendor Advisory Validation:** ${vulnerability.validation.vendorAdvisories?.verified ? '✅ VERIFIED' : '❌ UNVERIFIED'}
-- **Overall Validation Confidence:** ${vulnerability.validation.confidence}
-` : ''}
-
-**Confidence Flags:** ${vulnerability.confidence?.flags?.join(', ') || 'None detected'}
-**Hallucination Flags:** ${vulnerability.hallucinationFlags?.join(', ') || 'None detected'}
-
-## Real-Time Threat Intelligence Summary
-${vulnerability.kev?.listed ? `- ⚠️ **ACTIVE EXPLOITATION**: ${vulnerability.kev?.validated ? 'VERIFIED' : 'UNVERIFIED'} - ${vulnerability.kev?.validated ? 'Confirmed in CISA Known Exploited Vulnerabilities catalog' : 'Claimed in AI analysis but not validated'}` : '- No confirmed active exploitation in CISA KEV catalog'}
-${vulnerability.exploits?.found ? `- 💣 **PUBLIC EXPLOITS**: ${vulnerability.exploits?.validated ? 'VERIFIED' : 'UNVERIFIED'} - ${vulnerability.exploits.count} exploit(s) with ${vulnerability.exploits.confidence} confidence` : '- No high-confidence public exploits identified'}
-${vulnerability.github?.found ? `- 🔍 **SECURITY COVERAGE**: ${vulnerability.github.count} GitHub security references found` : '- Limited GitHub security advisory coverage'}
-${vulnerability.activeExploitation?.confirmed ? '- 🚨 **ACTIVE EXPLOITATION**: Confirmed exploitation detected in threat intelligence' : '- No confirmed active exploitation detected'}
-
-## Risk Assessment
-**Exploitation Probability:** ${epssScore} (EPSS)
-**Attack Vector:** ${vulnerability.cve.cvssV3?.attackVector || 'Unknown'}
-**Attack Complexity:** ${vulnerability.cve.cvssV3?.attackComplexity || 'Unknown'}
-**Privileges Required:** ${vulnerability.cve.cvssV3?.privilegesRequired || 'Unknown'}
-**Impact Level:** ${vulnerability.cve.cvssV3?.baseSeverity || 'Unknown'}
-
-## Validation-Based Recommendations
-
-### Immediate Actions
-1. **${kevStatus.includes('Yes') ? (vulnerability.kev?.validated ? 'URGENT: Apply patches immediately - KEV status verified' : 'VERIFY KEV STATUS: Check CISA catalog directly before emergency actions') : 'Review and prioritize patching based on CVSS score and environment exposure'}**
-
-2. **${vulnerability.exploits?.found ? (vulnerability.exploits?.validated ? 'Implement additional monitoring - verified public exploits available' : 'Verify exploit availability through security research before implementing emergency controls') : 'Monitor for unusual activity patterns'}**
-
-3. **Review access controls and authentication mechanisms**
-
-4. **${vulnerability.kev?.listed ? (vulnerability.kev?.validated ? 'Follow CISA emergency directive timelines' : 'Manually verify CISA KEV status before following emergency timelines') : 'Consider temporary compensating controls if patches unavailable'}**
-
-### Patch Management
-${vulnerability.patches?.length ? `**Available Patches:**
-${vulnerability.patches.slice(0, 3).map(p => `- **${p.vendor}**: ${p.description} (Confidence: ${p.confidence})`).join('\n')}
-${vulnerability.patches.length > 3 ? `- *... and ${vulnerability.patches.length - 3} additional patch sources*` : ''}
-
-**Patch Priority:** ${vulnerability.kev?.listed ? 'CRITICAL - Emergency deployment' : vulnerability.exploits?.found ? 'HIGH - Expedited testing and deployment' : 'STANDARD - Normal patch cycle'}` : `**Patch Status:** No specific patches identified through automated search
-- Check vendor security advisories manually
-- Review CVE references for patch information
-- Monitor vendor security bulletins for updates`}
-
-### Data Quality Actions
-${vulnerability.confidence?.overall === 'LOW' || vulnerability.confidence?.overall === 'VERY_LOW' ? `
-**⚠️ LOW CONFIDENCE DATA DETECTED**
-- Manually verify all AI-generated findings before taking action
-- Cross-reference with official security advisories
-- Consider requesting additional threat intelligence sources
-` : ''}
-
-${vulnerability.validation?.cisaKev && !vulnerability.validation.cisaKev.verified ? `
-**❌ CISA KEV VALIDATION FAILED**
-- AI claimed KEV listing but validation failed
-- Manually check CISA KEV catalog: https://www.cisa.gov/known-exploited-vulnerabilities-catalog
-- Do not follow emergency KEV procedures until verified
-` : ''}
-
-${vulnerability.validation?.exploits && !vulnerability.validation.exploits.verified ? `
-**❌ EXPLOIT VALIDATION FAILED**
-- AI claimed ${vulnerability.exploits?.count || 0} exploits but validation failed
-- Manually verify through security research and trusted sources
-- Do not implement emergency monitoring based on unverified exploit claims
-` : ''}
-
-## Mitigation Strategies
-- **Patch Management**: ${kevStatus.includes('Yes') ? (vulnerability.kev?.validated ? 'Emergency patching within CISA timeline' : 'Verify KEV status before emergency patching') : 'Standard patch testing and deployment'}
-- **Network Controls**: Implement input validation and filtering
-- **Access Controls**: Review and restrict privileged access
-- **Monitoring**: Deploy detection rules for exploitation attempts
-
-## Data Sources Analyzed
-${vulnerability.discoveredSources?.join(', ') || 'NVD, EPSS'} (${vulnerability.discoveredSources?.length || 2} sources)
-
-## Intelligence Assessment
-- **Data Freshness**: Real-time (${new Date().toLocaleString()})
-- **Confidence Level**: ${vulnerability.confidence?.overall || 'UNKNOWN'} based on validation results
-- **Validation Performed**: ${vulnerability.validation ? 'Yes' : 'No'}
-- **Threat Landscape**: ${vulnerability.threatLevel || 'STANDARD'} risk environment
-- **AI Enhancement**: ${vulnerability.extractionMetadata ? 'Extractive approach used' : 'Standard AI approach'}
-
-## Verification Recommendations
-${vulnerability.confidence?.recommendations ? vulnerability.confidence.recommendations.map(rec => `- ${rec}`).join('\n') : 'No specific verification recommendations available'}
-
-**⚠️ Important Disclaimer:** This analysis includes AI-generated findings. ${vulnerability.validation ? `Validation was performed with ${vulnerability.validation.confidence} confidence.` : 'No validation was performed.'} Always verify critical security decisions with official sources.
-
-*Enhanced analysis with validation layer. AI service temporarily unavailable due to: ${error.message}*`,
+_Detailed sections omitted due to fallback mode._`,
     ragUsed: false,
     ragDocuments: 0,
     ragSources: [],
