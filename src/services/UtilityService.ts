@@ -670,88 +670,83 @@ export async function performHeuristicAnalysis(cveId, cveData, epssData, setLoad
   };
 }
 
-export function buildEnhancedAnalysisPrompt(vulnerability, ragContext, ragDocCount = 0) {
+export function buildEnhancedAnalysisPrompt(
+  vulnerability,
+  ragContext,
+  ragDocCount = 0
+) {
   const cveId = vulnerability.cve.id;
-  const cvssScore = vulnerability.cve.cvssV3?.baseScore || vulnerability.cve.cvssV2?.baseScore || 'N/A';
+  const cvssScore =
+    vulnerability.cve.cvssV3?.baseScore ||
+    vulnerability.cve.cvssV2?.baseScore ||
+    'N/A';
+  const severity =
+    vulnerability.cve.cvssV3?.baseSeverity ||
+    vulnerability.cve.cvssV2?.severity ||
+    'N/A';
   const epssScore = vulnerability.epss ? vulnerability.epss.epssPercentage : 'N/A';
-  const kevStatus = vulnerability.kev?.listed ? 'Yes - ACTIVE EXPLOITATION CONFIRMED' : 'No';
-  const kevValidated = vulnerability.kev?.validated ? ' (VALIDATED)' : ' (UNVALIDATED)';
+  const kevStatus = vulnerability.kev?.listed ? 'Listed' : 'Not Listed';
+  const exploitation = vulnerability.activeExploitation?.confirmed ? 'Yes' : 'No';
   const confidenceLevel = vulnerability.confidence?.overall || 'UNKNOWN';
+  const classification = vulnerability.validation?.status || 'Unknown';
 
-  return `You are a senior cybersecurity analyst providing comprehensive vulnerability assessment for ${cveId}.
+  return `You are a senior cybersecurity analyst assistant. Your task is to analyze and summarize vulnerability intelligence retrieved from multiple authoritative sources.
 
-VULNERABILITY DETAILS:
-- CVE ID: ${cveId}
-- CVSS Score: ${cvssScore}
-- EPSS Score: ${epssScore}
-- CISA KEV Status: ${kevStatus}${kevValidated}
-- Overall Confidence: ${confidenceLevel}
-- Description: ${vulnerability.cve.description.substring(0, 800)}
-
-VALIDATION STATUS:
-- Data Validated: ${vulnerability.validation ? 'Yes' : 'No'}
-- Confidence Flags: ${vulnerability.confidence?.flags?.join(', ') || 'None'}
-- Hallucination Flags: ${vulnerability.hallucinationFlags?.join(', ') || 'None'}
-
-REAL-TIME THREAT INTELLIGENCE:
-${vulnerability.kev?.listed ? `⚠️ CRITICAL: This vulnerability is actively exploited according to CISA KEV catalog${kevValidated}.` : ''}
-${vulnerability.exploits?.found ? `💣 PUBLIC EXPLOITS: ${vulnerability.exploits.count} exploit(s) found with ${vulnerability.exploits.confidence || 'MEDIUM'} confidence${vulnerability.exploits?.validated ? ' (VALIDATED)' : ' (UNVALIDATED)'}.` : ''}
-${vulnerability.github?.found ? `🔍 GITHUB REFS: ${vulnerability.github.count} security-related repositories found.` : ''}
-${vulnerability.activeExploitation?.confirmed ? `🚨 ACTIVE EXPLOITATION: Confirmed exploitation in the wild.` : ''}
-
-PATCHES AND ADVISORIES:
-${vulnerability.patches?.length ? `🔧 PATCHES FOUND: ${vulnerability.patches.length} patch(es) available from ${[...new Set(vulnerability.patches.map(p => p.vendor))].join(', ')}` : 'No specific patches identified'}
-${vulnerability.advisories?.length ? `📋 ADVISORIES: ${vulnerability.advisories.length} security advisory(ies) from ${[...new Set(vulnerability.advisories.map(a => a.source))].join(', ')}` : 'Limited advisory coverage'}
-
-SECURITY KNOWLEDGE BASE (${ragDocCount} relevant documents retrieved):
+Here is the retrieved context:
 ${ragContext}
 
-DATA SOURCES ANALYZED:
-${vulnerability.discoveredSources?.join(', ') || 'NVD, EPSS'}
+---
 
-VALIDATION SUMMARY:
-${vulnerability.validation ? `
-- CISA KEV Validation: ${vulnerability.validation.cisaKev?.verified ? 'VERIFIED' : 'UNVERIFIED'}
-- Exploit Validation: ${vulnerability.validation.exploits?.verified ? 'VERIFIED' : 'UNVERIFIED'}
-- Vendor Advisory Validation: ${vulnerability.validation.vendorAdvisories?.verified ? 'VERIFIED' : 'UNVERIFIED'}
-- Overall Validation Confidence: ${vulnerability.validation.confidence}
-` : 'No validation performed'}
+Using only the information provided above, write a professional, human-readable vulnerability analysis report intended for cybersecurity teams and SOC analysts.
 
-You have access to ${ragDocCount} relevant security documents from the knowledge base. Use this contextual information to provide enhanced insights beyond standard vulnerability analysis.
+Write the report using the following structured format, including all sections:
 
-ANALYSIS REQUIREMENTS:
-1. **Clearly distinguish between validated and unvalidated claims**
-2. **Highlight confidence levels for all findings**
-3. **Note any hallucination flags or inconsistencies**
-4. **Prioritize validated information over AI-generated content**
-5. **Provide actionable recommendations based on confidence levels**
-6. **Include patch and advisory information in recommendations**
+### RAG-Enhanced Security Analysis
 
-Provide a comprehensive vulnerability analysis including:
-1. Executive Summary with immediate actions needed (noting confidence levels)
-2. Technical details and attack vectors (validated vs unvalidated)
-3. Impact assessment and potential consequences
-4. Patch availability and vendor advisory status
-5. Mitigation strategies and remediation guidance
-6. Affected systems and software components
-7. Current exploitation status and threat landscape (with validation status)
-8. Priority recommendations based on validated threat intelligence
-9. Lessons learned from similar vulnerabilities (use knowledge base context)
-10. Data quality assessment and recommendation reliability
+#### Executive Summary
+Summarize the vulnerability briefly. Include:
+- CVE ID(s): ${cveId}
+- CVSS score and severity: ${cvssScore} (${severity})
+- EPSS score and whether active exploitation is confirmed: ${epssScore}; Active exploitation ${exploitation}
+- CISA KEV listing status: ${kevStatus}
+- Vulnerability classification: ${classification}
+- Overall impact
+- Confidence level in findings: ${confidenceLevel}
 
-Format your response in clear sections with detailed analysis. Leverage the security knowledge base context and validated threat intelligence to provide enhanced insights that go beyond basic CVE information.
+#### Technical Details and Attack Vectors
+Describe what component is affected and how it may be exploited.
+- If exploitation vectors are unconfirmed, clearly state that.
 
-${vulnerability.kev?.listed ? `EMPHASIZE THE CRITICAL NATURE DUE TO ${vulnerability.kev?.validated ? 'VALIDATED' : 'UNVALIDATED'} ACTIVE EXPLOITATION CLAIMS.` : ''}
-${vulnerability.exploits?.found && vulnerability.exploits.confidence === 'HIGH' ? `HIGHLIGHT THE AVAILABILITY OF ${vulnerability.exploits?.validated ? 'VALIDATED' : 'UNVALIDATED'} PUBLIC EXPLOITS.` : ''}
+#### Impact Assessment and Consequences
+Explain the potential damage (e.g., privilege escalation, data theft, system compromise).
+- Include known or inferred real-world consequences if available.
 
-**Important Guidelines**:
-- Reference insights from the security knowledge base when relevant
-- Clearly mark validated vs unvalidated information with confidence indicators
-- DO NOT include citation numbers like [1], [2], [3] or any bracketed numbers
-- Write in clear, natural language without citation markers
-- Always note the reliability of each piece of information
-- Provide specific recommendations for low-confidence findings
-- Include patch and advisory information where applicable`;
+#### Exploitability and Exposure
+Report the following:
+- Exploits Found: ${vulnerability.exploits?.found ? 'Yes' : 'No'}
+- Public Proof of Concept: ${vulnerability.exploits?.poc || 'Not available'}
+- EPSS Score: ${epssScore}
+- Active Exploitation: ${exploitation}
+- CISA KEV Status: ${kevStatus}
+- Vendor Advisories: ${vulnerability.advisories?.length || 0}
+
+#### Affected Products and Versions
+List all affected software or hardware and relevant version ranges.
+
+#### Patch Availability and Mitigation
+Mention whether a patch is available.
+- Include official advisory links or GitHub commits
+- If not patched, summarize known mitigation steps
+
+#### Confidence Assessment and Sources
+- Number of sources used: ${ragDocCount}
+- Agreement or conflicts between sources
+- Confidence level in key details: ${confidenceLevel}
+- Classification status:
+  - False Positive: ${classification === 'INVALID' ? 'Yes' : 'No'}
+  - Disputed: ${classification === 'DISPUTED' ? 'Yes' : 'No'}
+  - Reserved / Under Review: ${classification === 'RESERVED' ? 'Yes' : 'No'}
+- List key sources by name or URL`;
 }
 
 export function generateEnhancedFallbackAnalysis(vulnerability, error) {
