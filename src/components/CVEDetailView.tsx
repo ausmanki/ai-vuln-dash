@@ -6,7 +6,6 @@ import { createStyles } from '../utils/styles';
 import { COLORS, CONSTANTS } from '../utils/constants';
 import CVSSDisplay from './CVSSDisplay';
 import { Brain, Database, Globe, Info, Loader2, Copy, RefreshCw, Package, CheckCircle, XCircle, AlertTriangle, Target, ChevronRight } from 'lucide-react';
-import ScoreChart from './ScoreChart';
 
 const CVEDetailView = ({ vulnerability }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -268,7 +267,7 @@ const CVEDetailView = ({ vulnerability }) => {
           gap: '4px',
           flexWrap: 'wrap'
         }}>
-          {['overview', 'ai-sources', 'analysis'].map((tab) => (
+          {['overview', 'analysis'].map((tab) => (
             <button
               key={tab}
               style={{
@@ -292,10 +291,8 @@ const CVEDetailView = ({ vulnerability }) => {
               onClick={() => setActiveTab(tab)}
             >
               {tab === 'overview' && <Info size={16} />}
-              {tab === 'ai-sources' && <Globe size={16} />}
               {tab === 'analysis' && <Brain size={16} />}
-              {tab === 'ai-sources' ? 'AI Sources' :
-               tab === 'analysis' ? 'RAG Analysis' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === 'analysis' ? 'RAG Analysis' : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </div>
@@ -353,17 +350,7 @@ const CVEDetailView = ({ vulnerability }) => {
                 </div>
               )}
 
-              {vulnerability.epss && (
-                <div style={{ marginBottom: '24px' }}>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '12px' }}>
-                    CVSS vs EPSS
-                  </h3>
-                  <ScoreChart
-                    cvss={cvssScore}
-                    epss={vulnerability.epss.epssFloat * 100}
-                  />
-                </div>
-              )}
+
 
               <div style={{ textAlign: 'center', marginTop: '32px', paddingTop: '24px', borderTop: `1px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}` }}>
                 <button
@@ -399,317 +386,7 @@ const CVEDetailView = ({ vulnerability }) => {
             </div>
           )}
 
-          {activeTab === 'ai-sources' && (
-            <div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '24px' }}>
-                AI-Discovered Intelligence Sources
-              </h2>
 
-              {(!vulnerability.sources || vulnerability.sources.length === 0) && (!vulnerability.discoveredSources || vulnerability.discoveredSources.length === 0) ? (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '48px',
-                  color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText
-                }}>
-                  <Brain size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
-                  <p>AI source discovery not yet performed</p>
-                  <p style={{ fontSize: '0.875rem', marginTop: '8px' }}>
-                    {settings.geminiApiKey
-                      ? 'AI will automatically discover sources during search'
-                      : 'Configure Gemini API key to enable AI source discovery'}
-                  </p>
-                </div>
-              ) : (
-                <div>
-                  <div style={{
-                    ...styles.card,
-                    marginBottom: '24px',
-                    background: settings.darkMode ? COLORS.dark.background : COLORS.light.background
-                  }}>
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      marginBottom: '16px'
-                    }}>
-                      <Brain size={24} color={COLORS.purple} />
-                      <div>
-                        <h3 style={{
-                          fontSize: '1.125rem',
-                          fontWeight: '600',
-                          margin: 0
-                        }}>
-                          AI Analysis Summary
-                        </h3>
-                        <p style={{
-                          margin: '4px 0 0 0',
-                          fontSize: '0.875rem',
-                          color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText
-                        }}>
-                          {vulnerability.analysisSummary || vulnerability.summary || `AI searched ${vulnerability.discoveredSources?.length || 2} security sources`}
-                        </p>
-                      </div>
-                    </div>
-
-                    {(vulnerability.kev?.listed || vulnerability.exploits?.found || vulnerability.activeExploitation?.confirmed) && (
-                      <div style={{
-                        background: `rgba(${utils.hexToRgb(COLORS.red)}, 0.1)`,
-                        borderWidth: '1px',
-                        borderStyle: 'solid',
-                        borderColor: `rgba(${utils.hexToRgb(COLORS.red)}, 0.3)`,
-                        borderRadius: '8px',
-                        padding: '12px',
-                        marginBottom: '16px'
-                      }}>
-                        {vulnerability.kev?.listed && (
-                          <div style={{ marginBottom: '8px' }}>
-                            <strong style={{ color: COLORS.red }}>🚨 CISA KEV:</strong> {vulnerability.kev.details}
-                          </div>
-                        )}
-                        {vulnerability.exploits?.found && (
-                          <div style={{ marginBottom: '8px' }}>
-                            <strong style={{ color: COLORS.red }}>💣 Public Exploits:</strong> Found {vulnerability.exploits.count} exploit(s)
-                          </div>
-                        )}
-                        {vulnerability.activeExploitation?.confirmed && (
-                          <div>
-                            <strong style={{ color: COLORS.red }}>🔍 Active Exploitation:</strong> {vulnerability.activeExploitation.details}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    <div>
-                      <h4 style={{
-                        fontSize: '1rem',
-                        fontWeight: '600',
-                        marginBottom: '12px'
-                      }}>
-                        Sources Analyzed
-                      </h4>
-                      {vulnerability.discoveredSources && vulnerability.discoveredSources.length > 0 ? (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                          {vulnerability.discoveredSources.map((source, index) => (
-                            <span
-                              key={index}
-                              style={{
-                                padding: '4px 8px',
-                                background: `rgba(${utils.hexToRgb(COLORS.blue)}, 0.15)`,
-                                color: COLORS.blue,
-                                borderWidth: '1px',
-                                borderStyle: 'solid',
-                                borderColor: `rgba(${utils.hexToRgb(COLORS.blue)}, 0.3)`,
-                                borderRadius: '6px',
-                                fontSize: '0.75rem',
-                                fontWeight: '600'
-                              }}
-                            >
-                              {source}
-                            </span>
-                          ))}
-                        </div>
-                    ) : (
-                      <p style={{
-                        fontSize: '0.875rem',
-                        color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText
-                      }}>
-                        No sources identified.
-                      </p>
-                    )}
-                  </div>
-
-                  <div style={{ marginTop: '16px' }}>
-                    <h4 style={{
-                      fontSize: '1rem',
-                      fontWeight: '600',
-                      marginBottom: '8px'
-                    }}>
-                      Patch Summary
-                    </h4>
-                    {vulnerability.patchSearchSummary ? (
-                      <p style={{ fontSize: '0.875rem' }}>
-                        {vulnerability.patchSearchSummary.patchesFound > 0
-                          ? `${vulnerability.patchSearchSummary.patchesFound} patch(es) found across ${vulnerability.patchSearchSummary.vendorsSearched?.length || 0} vendor(s).`
-                          : 'No patches identified in initial sources.'}
-                      </p>
-                    ) : (
-                      <p style={{ fontSize: '0.875rem' }}>
-                        {vulnerability.patches && vulnerability.patches.length > 0
-                          ? `${vulnerability.patches.length} patch(es) discovered.`
-                          : 'No patch data available.'}
-                      </p>
-                    )}
-                  </div>
-
-                    <div style={{ marginTop: '24px' }}>
-                      <h4 style={{
-                        fontSize: '1rem',
-                        fontWeight: '600',
-                        marginBottom: '12px'
-                      }}>
-                        Source Links & Details
-                      </h4>
-                      {vulnerability.sources && vulnerability.sources.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          {vulnerability.sources.map((source, index) => (
-                            <div
-                              key={index}
-                              style={{
-                                ...styles.card,
-                                padding: '12px 16px',
-                                background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                gap: '12px'
-                              }}
-                            >
-                              <div style={{ flex: 1 }}>
-                                <div style={{
-                                  fontWeight: '600',
-                                  fontSize: '0.9rem',
-                                  marginBottom: '4px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '8px'
-                                }}>
-                                  {source.name}
-                                  {source.aiDiscovered && (
-                                    <span style={{
-                                      padding: '2px 6px',
-                                      background: `rgba(${utils.hexToRgb(COLORS.purple)}, 0.15)`,
-                                      color: COLORS.purple,
-                                      borderRadius: '4px',
-                                      fontSize: '0.7rem',
-                                      fontWeight: '500'
-                                    }}>
-                                      AI Found
-                                    </span>
-                                  )}
-                                  {source.reliability && (
-                                    <span style={{
-                                      padding: '2px 6px',
-                                      background: source.reliability === 'HIGH'
-                                        ? `rgba(${utils.hexToRgb(COLORS.green)}, 0.15)`
-                                        : source.reliability === 'MEDIUM'
-                                        ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.15)`
-                                        : `rgba(${utils.hexToRgb(COLORS.red)}, 0.15)`,
-                                      color: source.reliability === 'HIGH'
-                                        ? COLORS.green
-                                        : source.reliability === 'MEDIUM'
-                                        ? COLORS.yellow
-                                        : COLORS.red,
-                                      borderRadius: '4px',
-                                      fontSize: '0.7rem',
-                                      fontWeight: '500'
-                                    }}>
-                                      {source.reliability}
-                                    </span>
-                                  )}
-                                </div>
-                                {source.description && (
-                                  <div style={{
-                                    fontSize: '0.8rem',
-                                    color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText,
-                                    marginBottom: '4px'
-                                  }}>
-                                    {source.description}
-                                  </div>
-                                )}
-                                {source.patchAvailable && (
-                                  <div style={{
-                                    fontSize: '0.8rem',
-                                    color: COLORS.green,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '4px'
-                                  }}>
-                                    <CheckCircle size={12} />
-                                    Patch Available
-                                    {source.severity && ` - ${source.severity}`}
-                                  </div>
-                                )}
-                              </div>
-                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                {source.patchUrl && source.patchUrl.startsWith('http') && (
-                                  <a
-                                    href={source.patchUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{
-                                      ...styles.button,
-                                      ...styles.buttonPrimary,
-                                      padding: '6px 12px',
-                                      fontSize: '0.8rem',
-                                      textDecoration: 'none'
-                                    }}
-                                  >
-                                    Get Patch
-                                  </a>
-                                )}
-                                {source.url && source.url.startsWith('http') ? (
-                                  <a
-                                    href={source.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{
-                                      ...styles.button,
-                                      ...styles.buttonSecondary,
-                                      padding: '6px 12px',
-                                      fontSize: '0.8rem',
-                                      textDecoration: 'none'
-                                    }}
-                                  >
-                                    View Source →
-                                  </a>
-                                ) : (
-                                  <button
-                                    onClick={() => {
-                                      const sourceUrls = {
-                                        'NVD': utils.getVulnerabilityUrl(vulnerability.cve?.id),
-                                        'EPSS': `https://api.first.org/data/v1/epss?cve=${vulnerability.cve?.id}`,
-                                        'CISA KEV': 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog',
-                                        'Microsoft Advisory': `https://msrc.microsoft.com/update-guide/en-US/vulnerability/${vulnerability.cve?.id}`,
-                                        'Red Hat Advisory': `https://access.redhat.com/security/cve/${vulnerability.cve?.id}`,
-                                      };
-                                      let url = sourceUrls[source.name];
-                                      if (!url && source.name.includes(' Advisory')) {
-                                        const vendorName = source.name.replace(' Advisory', '');
-                                        url = sourceUrls[vendorName];
-                                      }
-                                      if (!url) {
-                                        url = `https://www.cvedetails.com/cve/${vulnerability.cve?.id}/`;
-                                      }
-                                      window.open(url, '_blank', 'noopener,noreferrer');
-                                    }}
-                                    style={{
-                                      ...styles.button,
-                                      ...styles.buttonSecondary,
-                                      padding: '6px 12px',
-                                      fontSize: '0.8rem'
-                                    }}
-                                  >
-                                    View Details →
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p style={{
-                          fontSize: '0.875rem',
-                          color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText
-                        }}>
-                          No additional source links found.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
 
           {activeTab === 'analysis' && (
             <div>
