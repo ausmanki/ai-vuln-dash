@@ -1,3 +1,83 @@
+// Fetch CISA KEV catalog data for a given CVE
+export async function fetchCISAKEVData(cveId: string, setLoadingSteps: any, ragDatabase: any, fetchWithFallback: any) {
+  const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
+  updateSteps(prev => [...prev, `🏛️ Checking CISA KEV catalog for ${cveId}...`]);
+
+  try {
+    // CISA KEV catalog endpoint
+    const url = 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json';
+    const response = await fetchWithFallback(url, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'VulnerabilityIntelligence/1.0'
+      }
+    });
+
+    if (!response.ok) {
+      updateSteps(prev => [...prev, `⚠️ CISA KEV catalog unavailable (status: ${response.status})`]);
+      return null;
+    }
+
+    const data = await response.json();
+    
+    // Find the CVE in the KEV catalog
+    const kevEntry = data.vulnerabilities?.find((vuln: any) => 
+      vuln.cveID === cveId
+    );
+
+    if (kevEntry) {
+      updateSteps(prev => [...prev, `🚨 ${cveId} found in CISA KEV catalog - ACTIVELY EXPLOITED`]);
+      
+      const kevData = {
+        cve: cveId,
+        listed: true,
+        dateAdded: kevEntry.dateAdded,
+        shortDescription: kevEntry.shortDescription,
+        requiredAction: kevEntry.requiredAction,
+        dueDate: kevEntry.dueDate,
+        knownRansomwareCampaignUse: kevEntry.knownRansomwareCampaignUse || 'Unknown',
+        notes: kevEntry.notes || '',
+        vendorProject: kevEntry.vendorProject,
+        product: kevEntry.product,
+        vulnerabilityName: kevEntry.vulnerabilityName,
+        catalogVersion: data.catalogVersion,
+        catalogDate: data.dateReleased
+      };
+
+      // Store in RAG database
+      if (ragDatabase?.initialized) {
+        await ragDatabase.addDocument(
+          `CISA KEV Entry for ${cveId}: ${kevEntry.shortDescription}. Required Action: ${kevEntry.requiredAction}. Due Date: ${kevEntry.dueDate}. Known Ransomware Use: ${kevEntry.knownRansomwareCampaignUse}. This CVE is actively exploited in the wild and is on the CISA Known Exploited Vulnerabilities catalog.`,
+          {
+            title: `CISA KEV - ${cveId}`,
+            category: 'cisa-kev',
+            tags: ['cisa', 'kev', 'actively-exploited', cveId.toLowerCase(), 'government-source'],
+            source: 'cisa-kev-catalog',
+            cveId: cveId,
+            dateAdded: kevEntry.dateAdded,
+            priority: 'CRITICAL'
+          }
+        );
+      }
+
+      return kevData;
+    } else {
+      updateSteps(prev => [...prev, `✅ ${cveId} not found in CISA KEV catalog (not actively exploited)`]);
+      return {
+        cve: cveId,
+        listed: false,
+        catalogVersion: data.catalogVersion,
+        catalogDate: data.dateReleased,
+        lastChecked: new Date().toISOString()
+      };
+    }
+
+  } catch (error) {
+    console.error(`CISA KEV fetch error for ${cveId}:`, error);
+    updateSteps(prev => [...prev, `❌ Failed to check CISA KEV catalog: ${error.message}`]);
+    return null;
+  }
+}
 import { CONSTANTS } from '../utils/constants';
 
 export async function fetchCVEData(cveId, apiKey, setLoadingSteps, ragDatabase, fetchWithFallback, processCVEData) {
