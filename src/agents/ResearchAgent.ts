@@ -6,6 +6,7 @@ import { ragDatabase } from '../db/EnhancedVectorDatabase'; // Direct import for
 import {
   fetchCVEData,
   fetchEPSSData,
+  fetchCISAKEVData,
 } from '../services/DataFetchingService';
 import {
   fetchPatchesAndAdvisories,
@@ -65,9 +66,11 @@ export class ResearchAgent {
 
     console.log(`CVE Result:`, cveResult);
     console.log(`EPSS Result:`, epssResult);
+    console.log(`CISA KEV Result:`, kevResult);
     
     const cve = cveResult.status === 'fulfilled' ? cveResult.value : null;
     const epss = epssResult.status === 'fulfilled' ? epssResult.value : null;
+    const cisaKev = kevResult.status === 'fulfilled' ? kevResult.value : null;
 
     if (!cve) {
         const errorDetails = cveResult.status === 'rejected' ? cveResult.reason : 'Unknown error';
@@ -141,6 +144,18 @@ export class ResearchAgent {
     if (epss) {
         discoveredSources.push('EPSS/FIRST');
         sources.push({ name: 'EPSS', url: `https://api.first.org/data/v1/epss?cve=${cveId}`, aiDiscovered: false });
+    }
+    
+    if (cisaKev) {
+        discoveredSources.push('CISA KEV');
+        sources.push({ 
+          name: 'CISA KEV', 
+          url: 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog', 
+          aiDiscovered: false,
+          kevListed: cisaKev.listed,
+          dateAdded: cisaKev.dateAdded,
+          priority: cisaKev.listed ? 'CRITICAL' : 'INFO'
+        });
     }
     if (aiThreatIntel.intelligenceSummary?.analysisMethod === 'GROUNDING_INFO_ONLY' && aiThreatIntel.intelligenceSummary.searchQueries?.length > 0) {
         discoveredSources.push('AI Performed Searches');
@@ -258,7 +273,8 @@ export class ResearchAgent {
     const enhancedVulnerability = {
         cve,
         epss,
-        kev: { ...aiThreatIntel.cisaKev, validated: validation.cisaKev?.verified || false, actualStatus: validation.cisaKev?.actualStatus },
+        cisaKev: cisaKev || { listed: false, lastChecked: new Date().toISOString() },
+        kev: { ...aiThreatIntel.cisaKev, validated: validation.cisaKev?.verified || false, actualStatus: validation.cisaKev?.actualStatus, officialKev: cisaKev },
         exploits: { ...aiThreatIntel.exploitDiscovery, validated: validation.exploits?.verified || false, verifiedCount: validation.exploits?.verifiedExploits?.length || 0 },
         vendorAdvisories: { ...aiThreatIntel.vendorAdvisories, validated: validation.vendorAdvisories?.verified || false },
         cveValidation: validation,
