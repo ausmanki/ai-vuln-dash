@@ -63,11 +63,11 @@ const CVEDetailView = ({ vulnerability }) => {
       );
 
       setAiAnalysis(result);
-      setActiveTab('analysis');
+      setActiveTab('brief');
 
       addNotification({
         type: 'success',
-        title: 'RAG Analysis Complete',
+        title: 'AI Analysis Complete',
         message: `Enhanced analysis generated using ${result.ragDocuments} knowledge sources and real-time intelligence`
       });
     } catch (error) {
@@ -269,7 +269,7 @@ const CVEDetailView = ({ vulnerability }) => {
           gap: '4px',
           flexWrap: 'wrap'
         }}>
-          {['overview', 'ai-sources', 'patches', 'analysis', 'brief'].map((tab) => (
+          {['overview', 'ai-sources', 'patches', 'brief'].map((tab) => (
             <button
               key={tab}
               style={{
@@ -295,14 +295,11 @@ const CVEDetailView = ({ vulnerability }) => {
               {tab === 'overview' && <Info size={16} />}
               {tab === 'ai-sources' && <Globe size={16} />}
               {tab === 'patches' && <Package size={16} />}
-              {tab === 'analysis' && <Brain size={16} />}
               {tab === 'brief' && <FileText size={16} />}
               {tab === 'ai-sources'
                 ? 'AI Sources'
                 : tab === 'patches'
                 ? 'Patches'
-                : tab === 'analysis'
-                ? 'RAG Analysis'
                 : tab === 'brief'
                 ? 'Tech Brief'
                 : tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -390,19 +387,19 @@ const CVEDetailView = ({ vulnerability }) => {
                   {aiLoading ? (
                     <>
                       <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
-                      {!vulnerability.aiSearchPerformed ? 'Running Full AI Analysis...' : 'Generating RAG-Enhanced Analysis...'}
+                      {!vulnerability.aiSearchPerformed ? 'Running Full AI Analysis...' : 'Generating AI Analysis...'}
                     </>
                   ) : (
                     <>
                       <Brain size={20} />
                       <Database size={16} style={{ marginLeft: '4px' }} />
-                      {!vulnerability.aiSearchPerformed ? 'Generate Full AI Analysis' : 'Generate RAG-Powered Analysis'}
+                      {!vulnerability.aiSearchPerformed ? 'Generate Full AI Analysis' : 'Generate AI Analysis'}
                     </>
                   )}
                 </button>
                 {!settings.geminiApiKey && (
                   <p style={{ fontSize: '0.9rem', color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText, marginTop: '12px' }}>
-                    Configure Gemini API key in settings to enable RAG-enhanced threat intelligence
+                    Configure Gemini API key in settings to enable AI-powered threat intelligence
                   </p>
                 )}
               </div>
@@ -631,6 +628,16 @@ const CVEDetailView = ({ vulnerability }) => {
                           View Advisory →
                         </a>
                       )}
+                      {!patch.downloadUrl && !patch.advisoryUrl && patch.citationUrl && patch.citationUrl.startsWith('http') && (
+                        <a
+                          href={patch.citationUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ ...styles.button, ...styles.buttonSecondary, padding: '6px 12px', fontSize: '0.8rem', textDecoration: 'none' }}
+                        >
+                          View Source →
+                        </a>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -642,115 +649,6 @@ const CVEDetailView = ({ vulnerability }) => {
             </div>
           )}
 
-          {activeTab === 'analysis' && (
-            <div>
-              {aiAnalysis ? (
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                    <h2 style={{ fontSize: '1.5rem', fontWeight: '700', margin: 0 }}>
-                      RAG-Enhanced Security Analysis
-                    </h2>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      {aiAnalysis.webGrounded && (
-                        <span style={{
-                          padding: '4px 8px',
-                          background: 'rgba(34, 197, 94, 0.15)',
-                          color: '#22c55e',
-                          borderWidth: '1px',
-                          borderStyle: 'solid',
-                          borderColor: 'rgba(34, 197, 94, 0.3)',
-                          borderRadius: '6px',
-                          fontSize: '0.75rem',
-                          fontWeight: '600',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}>
-                          <Globe size={12} />
-                          REAL-TIME
-                        </span>
-                      )}
-                      {aiAnalysis.ragUsed && (
-                        <span style={{
-                          ...styles.badge,
-                          background: `rgba(${utils.hexToRgb(COLORS.purple)}, 0.15)`,
-                          color: COLORS.purple,
-                          borderWidth: '1px',
-                          borderStyle: 'solid',
-                          borderColor: `rgba(${utils.hexToRgb(COLORS.purple)}, 0.3)`
-                        }}>
-                          <Database size={12} />
-                          RAG ENHANCED
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div style={{
-                    ...styles.card,
-                    marginBottom: '24px',
-                    background: settings.darkMode ? COLORS.dark.background : COLORS.light.background
-                  }}>
-                    <div style={{
-                      fontSize: '1rem',
-                      lineHeight: '1.7',
-                      whiteSpace: 'pre-wrap'
-                    }}>
-                      {aiAnalysis.analysis}
-                    </div>
-                  </div>
-
-                  <div style={{
-                    background: settings.darkMode ? COLORS.dark.surface : COLORS.light.background,
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
-                    borderColor: settings.darkMode ? COLORS.dark.border : COLORS.light.border,
-                    borderRadius: '12px',
-                    padding: '16px 20px',
-                    fontSize: '0.8rem',
-                    color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText
-                  }}>
-                    <div style={{ fontWeight: '600', marginBottom: '10px' }}>
-                      Enhanced Analysis Metadata:
-                    </div>
-                    <ul style={{ margin: 0, paddingLeft: '20px' }}>
-                      <li>Data Sources: {aiAnalysis.enhancedSources?.join(', ') || 'NVD, EPSS, AI-Discovery'}</li>
-                      {aiAnalysis.ragUsed && (
-                        <>
-                          <li>Knowledge Base: {aiAnalysis.ragDocuments} relevant security documents retrieved</li>
-                          <li>RAG Sources: {aiAnalysis.ragSources?.slice(0,3).join(', ') || 'Security knowledge base'}</li>
-                        </>
-                      )}
-                      {aiAnalysis.webGrounded && (
-                        <li>Real-time Intelligence: Current threat landscape data via web search</li>
-                      )}
-                      <li>Model Used: {aiAnalysis.model || 'Gemini-2.5-flash'}</li>
-                      <li>Generated: {utils.formatDate(aiAnalysis.analysisTimestamp)}</li>
-                      <li>RAG Database: {aiAnalysis.ragDatabaseSize || 0} total documents</li>
-                      {aiAnalysis.embeddingType && (
-                        <li>Embeddings: {aiAnalysis.embeddingType} ({aiAnalysis.geminiEmbeddingsCount || 0} Gemini embeddings)</li>
-                      )}
-                      {aiAnalysis.realTimeData && (
-                        <>
-                          <li>CISA KEV: {aiAnalysis.realTimeData.cisaKev ? 'Listed' : 'Not Listed'}</li>
-                          <li>Exploits Found: {aiAnalysis.realTimeData.exploitsFound || 0}</li>
-                          <li>Threat Level: {aiAnalysis.realTimeData.threatLevel || 'Standard'}</li>
-                        </>
-                      )}
-                    </ul>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '48px 32px' }}>
-                  <Brain size={40} color={settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText} />
-                  <h3 style={{ margin: '16px 0 8px 0' }}>No AI Analysis Available</h3>
-                  <p style={{ margin: 0, color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
-                    Generate RAG-enhanced analysis to see structured insights
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
 
           {activeTab === 'brief' && (
             <div>
@@ -761,7 +659,7 @@ const CVEDetailView = ({ vulnerability }) => {
                   <FileText size={40} color={settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText} />
                   <h3 style={{ margin: '16px 0 8px 0' }}>No Technical Brief Available</h3>
                   <p style={{ margin: 0, color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
-                    Generate RAG-enhanced analysis to view the technical brief
+                    Generate AI analysis to view the technical brief
                   </p>
                 </div>
               )}
@@ -911,7 +809,7 @@ const CVEDetailView = ({ vulnerability }) => {
         }}>
           <Brain size={12} />
           <Database size={12} />
-          Powered by AI + RAG
+          Powered by AI
         </div>
       </div>
     </div>

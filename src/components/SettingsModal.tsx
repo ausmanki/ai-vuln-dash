@@ -150,7 +150,7 @@ const SettingsModal = ({ isOpen, onClose }) => {
                 onChange={(e) => setLocalSettings(prev => ({ ...prev, enableRAG: e.target.checked }))}
                 style={{ width: '16px', height: '16px', accentColor: COLORS.blue }}
               />
-              Enable RAG-Enhanced Analysis
+              Enable AI-Enhanced Analysis
             </label>
           </div>
         </div>
