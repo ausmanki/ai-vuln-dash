@@ -2,6 +2,7 @@ import React, { useState, useCallback, useContext, useMemo } from 'react';
 import { Search, Brain, Loader2 } from 'lucide-react';
 import { AppContext } from '../contexts/AppContext';
 import { APIService } from '../services/APIService';
+import { setGlobalAISettings } from '../services/DataFetchingService';
 import { utils } from '../utils/helpers';
 import { createStyles } from '../utils/styles';
 import { COLORS } from '../utils/constants';
@@ -33,32 +34,55 @@ const SearchComponent = () => {
       return;
     }
 
+    // Initialize AI settings for web search fallbacks
+    if (settings.geminiApiKey) {
+      setGlobalAISettings({
+        geminiApiKey: settings.geminiApiKey,
+        geminiModel: settings.geminiModel || 'gemini-1.5-flash'
+      });
+      console.log('🤖 AI settings initialized for web search fallbacks');
+    } else {
+      console.warn('⚠️ No Gemini API key found - AI web search fallbacks will not be available');
+    }
+
+    // Initialize loading state and steps
     setLoading(true);
-    setLoadingSteps([]);
+    setLoadingSteps(['🔍 Starting AI-enhanced vulnerability analysis...']);
+    setVulnerabilities([]); // Clear previous results
 
     try {
       // Use the enhanced AI-powered search with multi-source discovery
       const vulnerability = await APIService.fetchVulnerabilityDataWithAI(
         cveId,
         setLoadingSteps,
-        { nvd: settings.nvdApiKey },
+        { nvd: settings.nvdApiKey, geminiApiKey: settings.geminiApiKey },
         settings
       );
 
       setVulnerabilities([vulnerability]);
       setSearchHistory(prev => [...new Set([cveId, ...prev])].slice(0, 5));
 
+      // Enhanced completion message with AI attribution
+      const aiEnhancedSources = vulnerability.discoveredSources?.length || 0;
+      const isAIEnhanced = vulnerability.aiSearchPerformed || vulnerability.ragEnhanced;
+      
+      setLoadingSteps(prev => [...prev, '✅ Analysis complete!']);
+
       addNotification({
         type: 'success',
-        title: 'Analysis Complete',
-        message: `Successfully analyzed ${cveId} with ${vulnerability.discoveredSources?.length || 0} sources`
+        title: 'AI Analysis Complete',
+        message: `Successfully analyzed ${cveId} with ${aiEnhancedSources} sources${isAIEnhanced ? ' (AI-enhanced)' : ''}`
       });
 
-    } catch (error) {
+    } catch (error: any) {
+      console.error('Search failed:', error);
+      
+      setLoadingSteps(prev => [...prev, `❌ Error: ${error.message}`]);
+      
       addNotification({
         type: 'error',
         title: 'Search Failed',
-        message: error.message
+        message: error.message || 'An error occurred while searching'
       });
     } finally {
       setLoading(false);
@@ -72,6 +96,13 @@ const SearchComponent = () => {
       handleSearch();
     }
   }, [handleSearch]);
+
+  // Handle clicking on search history items
+  const handleHistoryClick = useCallback((cve) => {
+    setSearchTerm(cve);
+    // Optionally auto-search when clicking history
+    // handleSearch();
+  }, []);
 
   return (
     <div style={{
@@ -137,28 +168,45 @@ const SearchComponent = () => {
               right: '8px',
               top: '50%',
               transform: 'translateY(-50%)',
-              opacity: loading || !searchTerm.trim() ? 0.6 : 1
+              opacity: loading || !searchTerm.trim() ? 0.6 : 1,
+              minWidth: '120px'
             }}
           >
-            {loading ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Brain size={18} />}
-            {loading ? 'Analyzing...' : 'AI Analyze'}
+            {loading ? (
+              <>
+                <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} />
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <Brain size={18} />
+                AI Analyze
+              </>
+            )}
           </button>
         </div>
 
+        {/* Search History */}
         {searchHistory.length > 0 && (
-          <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', flexWrap: 'wrap' }}>
+          <div style={{ 
+            display: 'flex', 
+            gap: '10px', 
+            justifyContent: 'center', 
+            flexWrap: 'wrap',
+            alignItems: 'center'
+          }}>
             <span style={{
               fontSize: '0.875rem',
               color: settings.darkMode ? COLORS.dark.primaryText : COLORS.light.primaryText,
-              fontWeight: '500',
-              alignSelf: 'center'
+              fontWeight: '500'
             }}>
               Recent:
             </span>
             {searchHistory.map((cve, index) => (
               <button
                 key={index}
-                onClick={() => setSearchTerm(cve)}
+                onClick={() => handleHistoryClick(cve)}
+                disabled={loading}
                 style={{
                   ...styles.button,
                   padding: '6px 12px',
@@ -170,11 +218,52 @@ const SearchComponent = () => {
                   fontSize: '0.8rem',
                   color: COLORS.blue,
                   fontWeight: '500',
+                  opacity: loading ? 0.5 : 1,
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.2s ease-in-out'
                 }}
               >
                 {cve}
               </button>
             ))}
+          </div>
+        )}
+
+        {/* AI Status Indicator */}
+        {settings.geminiApiKey && (
+          <div style={{
+            marginTop: '24px',
+            padding: '12px 16px',
+            background: `rgba(${utils.hexToRgb(COLORS.green)}, 0.1)`,
+            borderRadius: '8px',
+            border: `1px solid rgba(${utils.hexToRgb(COLORS.green)}, 0.2)`,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '0.875rem',
+            color: COLORS.green,
+            fontWeight: '500'
+          }}>
+            <Brain size={16} />
+            AI Web Search Enabled - CORS Bypass Active
+          </div>
+        )}
+
+        {!settings.geminiApiKey && (
+          <div style={{
+            marginTop: '24px',
+            padding: '12px 16px',
+            background: `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)`,
+            borderRadius: '8px',
+            border: `1px solid rgba(${utils.hexToRgb(COLORS.yellow)}, 0.2)`,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '0.875rem',
+            color: COLORS.yellow,
+            fontWeight: '500'
+          }}>
+            ⚠️ Configure Gemini API Key for AI Web Search Fallbacks
           </div>
         )}
       </div>
