@@ -30,7 +30,13 @@ const CVEDetailView = ({ vulnerability }) => {
     try {
       let enhancedVulnerability = vulnerability;
 
-      if (!vulnerability.aiSearchPerformed || !vulnerability.sources || vulnerability.sources.length === 0) {
+      if (
+        !vulnerability.aiSearchPerformed ||
+        !vulnerability.sources ||
+        vulnerability.sources.length === 0 ||
+        !vulnerability.patches ||
+        vulnerability.patches.length === 0
+      ) {
         addNotification({
           type: 'info',
           title: 'Performing AI Discovery',
