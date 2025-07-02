@@ -539,18 +539,36 @@ const CVEDetailView = ({ vulnerability }) => {
                     <p style={{ fontSize: '0.875rem', marginBottom: '8px' }}>
                       {vulnerability.cve?.description || 'No description available.'}
                     </p>
-                    <ul style={{ fontSize: '0.875rem', paddingLeft: '20px', margin: 0 }}>
-                      <li>CVSS: {cvssScore?.toFixed(1) || 'N/A'} ({severity})</li>
-                      <li>EPSS: {vulnerability.epss?.epssPercentage || 'N/A'}</li>
-                      <li>CISA KEV: {vulnerability.kev?.listed ? 'Listed' : 'Not Listed'}</li>
-                      <li>Advisories: {vulnerability.vendorAdvisories?.count || 0}</li>
-                    </ul>
-                  </div>
-
-
-                  </div>
+                  <ul style={{ fontSize: '0.875rem', paddingLeft: '20px', margin: 0 }}>
+                    <li>CVSS: {cvssScore?.toFixed(1) || 'N/A'} ({severity})</li>
+                    <li>EPSS: {vulnerability.epss?.epssPercentage || 'N/A'}</li>
+                    <li>CISA KEV: {vulnerability.kev?.listed ? 'Listed' : 'Not Listed'}</li>
+                    <li>Advisories: {vulnerability.vendorAdvisories?.count || 0}</li>
+                  </ul>
                 </div>
-              )}
+
+                <div style={{ marginTop: '16px' }}>
+                  <h4 style={{
+                    fontSize: '1rem',
+                    fontWeight: '600',
+                    marginBottom: '8px'
+                  }}>
+                    Patch Summary
+                  </h4>
+                  {vulnerability.patches && vulnerability.patches.length > 0 ? (
+                    <p style={{ fontSize: '0.875rem' }}>
+                      {`${vulnerability.patches.length} patch(es) discovered.`}
+                    </p>
+                  ) : (
+                    <p style={{ fontSize: '0.875rem' }}>
+                      No patch data available.
+                    </p>
+                  )}
+                </div>
+
+                </div>
+              </div>
+            )}
             </div>
           )}
 
