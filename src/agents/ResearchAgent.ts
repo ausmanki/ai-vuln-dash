@@ -17,10 +17,10 @@ import { AIThreatIntelData } from '../types/aiThreatIntel';
 import {
     fetchWithFallback,
     processCVEData,
-    parsePatchAndAdvisoryResponse,
-    getHeuristicPatchesAndAdvisories,
     parseAIThreatIntelligence,
     performHeuristicAnalysis,
+    parsePatchAndAdvisoryResponse,
+    getHeuristicPatchesAndAdvisories,
 } from '../services/UtilityService';
 
 
@@ -51,16 +51,45 @@ export class ResearchAgent {
 
     this.updateSteps(`🔍 Agent fetching primary data (NVD, EPSS) for ${cveId}...`);
     const [cveResult, epssResult] = await Promise.allSettled([
-        fetchCVEData(cveId, apiKeys.nvd, this.setLoadingSteps, ragDatabase, fetchWithFallback, processCVEData),
-        fetchEPSSData(cveId, this.setLoadingSteps, ragDatabase, fetchWithFallback)
+        fetchCVEData(cveId, apiKeys.nvd, this.setLoadingSteps, ragDatabase, fetchWithFallback, processCVEData).catch(error => {
+            console.error(`CVE fetch error for ${cveId}:`, error);
+            this.updateSteps(`❌ CVE fetch failed: ${error.message}`);
+            throw error;
+        }),
+        fetchEPSSData(cveId, this.setLoadingSteps, ragDatabase, fetchWithFallback).catch(error => {
+            console.error(`EPSS fetch error for ${cveId}:`, error);
+            this.updateSteps(`⚠️ EPSS fetch failed: ${error.message}`);
+            return null; // EPSS is not critical, allow to continue
+        })
     ]);
 
+    console.log(`CVE Result:`, cveResult);
+    console.log(`EPSS Result:`, epssResult);
+    
     const cve = cveResult.status === 'fulfilled' ? cveResult.value : null;
     const epss = epssResult.status === 'fulfilled' ? epssResult.value : null;
 
     if (!cve) {
-        this.updateSteps(`❌ Agent failed to fetch critical CVE data for ${cveId}. Aborting further analysis.`);
-        throw new Error(`Agent: Failed to fetch CVE data for ${cveId}`);
+        const errorDetails = cveResult.status === 'rejected' ? cveResult.reason : 'Unknown error';
+        this.updateSteps(`❌ Agent failed to fetch critical CVE data for ${cveId}. Error: ${errorDetails?.message || errorDetails}`);
+        
+        // Check if CVE format is valid
+        const cvePattern = /^CVE-\d{4}-\d{4,}$/;
+        if (!cvePattern.test(cveId)) {
+            throw new Error(`Agent: Invalid CVE format for ${cveId}. Expected format: CVE-YYYY-NNNN`);
+        }
+        
+        // Check if CVE number is reasonable
+        const match = cveId.match(/^CVE-(\d{4})-(\d+)$/);
+        if (match) {
+            const year = parseInt(match[1]);
+            const number = parseInt(match[2]);
+            if (number > 50000) {
+                throw new Error(`Agent: CVE number ${number} seems unusually high for ${year}. Please verify this CVE exists.`);
+            }
+        }
+        
+        throw new Error(`Agent: CVE ${cveId} not found in NVD database. This CVE may not exist or may not be publicly available yet. Please verify the CVE ID.`);
     }
 
     this.updateSteps(`🤖 Agent fetching AI threat intelligence for ${cveId}...`);
