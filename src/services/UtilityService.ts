@@ -492,7 +492,24 @@ Percentile: ${vulnerability.epss.percentile || 'Not available'}
 Date: ${vulnerability.epss.date || 'Not available'}
 </context_chunk_2>` : ''}
 
-Please generate a comprehensive technical brief following the exact schema requirements. Use ONLY the information provided above - do not fabricate any details not explicitly stated.`;
+${vulnerability.cisaKev ? `<context_chunk_3>
+CISA KEV (Known Exploited Vulnerabilities) Data:
+Listed in CISA KEV: ${vulnerability.cisaKev.listed ? 'YES - ACTIVELY EXPLOITED' : 'NO'}
+${vulnerability.cisaKev.listed ? `Date Added to KEV: ${vulnerability.cisaKev.dateAdded || 'Not available'}
+Short Description: ${vulnerability.cisaKev.shortDescription || 'Not available'}
+Required Action: ${vulnerability.cisaKev.requiredAction || 'Not available'}
+Due Date: ${vulnerability.cisaKev.dueDate || 'Not available'}
+Known Ransomware Campaign Use: ${vulnerability.cisaKev.knownRansomwareCampaignUse || 'Unknown'}
+Vendor/Project: ${vulnerability.cisaKev.vendorProject || 'Not available'}
+Product: ${vulnerability.cisaKev.product || 'Not available'}
+Vulnerability Name: ${vulnerability.cisaKev.vulnerabilityName || 'Not available'}` : `Last Checked: ${vulnerability.cisaKev.lastChecked || 'Not available'}`}
+KEV Catalog Version: ${vulnerability.cisaKev.catalogVersion || 'Not available'}
+KEV Catalog Date: ${vulnerability.cisaKev.catalogDate || 'Not available'}
+</context_chunk_3>` : ''}
+
+Please generate a comprehensive technical brief following the exact schema requirements. Use ONLY the information provided above - do not fabricate any details not explicitly stated.
+
+IMPORTANT: If this CVE is listed in CISA KEV, this indicates ACTIVE EXPLOITATION in the wild and should significantly impact priority and business risk assessment.`;
 
   console.log('Generated AI prompt length:', prompt.length);
   console.log('AI prompt preview (first 500 chars):', prompt.substring(0, 500) + '...');
