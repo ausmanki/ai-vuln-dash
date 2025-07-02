@@ -5,7 +5,8 @@ import { utils } from '../utils/helpers';
 import { createStyles } from '../utils/styles';
 import { COLORS, CONSTANTS } from '../utils/constants';
 import CVSSDisplay from './CVSSDisplay';
-import { Brain, Database, Globe, Info, Loader2, Copy, RefreshCw, Package, CheckCircle, XCircle, AlertTriangle, Target, ChevronRight } from 'lucide-react';
+import { Brain, Database, Globe, Info, Loader2, Copy, RefreshCw, Package, CheckCircle, XCircle, AlertTriangle, Target, ChevronRight, FileText } from 'lucide-react';
+import TechnicalBrief from './TechnicalBrief';
 import ScoreChart from './ScoreChart';
 
 const CVEDetailView = ({ vulnerability }) => {
@@ -268,7 +269,7 @@ const CVEDetailView = ({ vulnerability }) => {
           gap: '4px',
           flexWrap: 'wrap'
         }}>
-          {['overview', 'ai-sources', 'analysis'].map((tab) => (
+          {['overview', 'ai-sources', 'analysis', 'brief'].map((tab) => (
             <button
               key={tab}
               style={{
@@ -294,8 +295,14 @@ const CVEDetailView = ({ vulnerability }) => {
               {tab === 'overview' && <Info size={16} />}
               {tab === 'ai-sources' && <Globe size={16} />}
               {tab === 'analysis' && <Brain size={16} />}
-              {tab === 'ai-sources' ? 'AI Sources' :
-               tab === 'analysis' ? 'RAG Analysis' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+              {tab === 'brief' && <FileText size={16} />}
+              {tab === 'ai-sources'
+                ? 'AI Sources'
+                : tab === 'analysis'
+                ? 'RAG Analysis'
+                : tab === 'brief'
+                ? 'Tech Brief'
+                : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
         </div>
@@ -815,6 +822,22 @@ const CVEDetailView = ({ vulnerability }) => {
                   <h3 style={{ margin: '16px 0 8px 0' }}>No AI Analysis Available</h3>
                   <p style={{ margin: 0, color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
                     Generate RAG-enhanced analysis to see structured insights
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'brief' && (
+            <div>
+              {aiAnalysis ? (
+                <TechnicalBrief brief={aiAnalysis.analysis} />
+              ) : (
+                <div style={{ textAlign: 'center', padding: '48px 32px' }}>
+                  <FileText size={40} color={settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText} />
+                  <h3 style={{ margin: '16px 0 8px 0' }}>No Technical Brief Available</h3>
+                  <p style={{ margin: 0, color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
+                    Generate RAG-enhanced analysis to view the technical brief
                   </p>
                 </div>
               )}
