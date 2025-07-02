@@ -163,7 +163,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId }) => {
                   <span>Legitimacy Score: {msg.data.legitimacyScore}/100 </span>
                 )}
                 {msg.data.confidence && (
-                  <span style={{ marginLeft: '8px' }}>Confidence: {msg.data.confidence}</span>
+                  <span style={{ marginLeft: '8px' }}>
+                    {typeof msg.data.confidence === 'object' ? (
+                      <>
+                        Confidence: {msg.data.confidence.overall || 'Unknown'}
+                        {msg.data.confidence.flags && msg.data.confidence.flags.length > 0 && (
+                          <span style={{ marginLeft: '8px', color: COLORS.yellow }}>
+                            ⚠️ {msg.data.confidence.flags.length} flag(s)
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      `Confidence: ${msg.data.confidence}`
+                    )}
+                  </span>
                 )}
               </div>
             )}
@@ -185,7 +198,17 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId }) => {
           value={inputMessage}
           onChange={(e) => setInputMessage(e.target.value)}
           placeholder="Ask about a CVE or a previous topic..."
-          style={{ ...styles.input, flexGrow: 1, minHeight: '48px' }}
+          style={{ 
+            ...styles.input, 
+            flexGrow: 1, 
+            minHeight: '48px',
+            color: settings.darkMode ? COLORS.dark.primaryText : COLORS.light.primaryText,
+            backgroundColor: settings.darkMode ? COLORS.dark.background : COLORS.light.background,
+            border: `1px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}`,
+            padding: '12px 16px',
+            borderRadius: '8px',
+            fontSize: '14px'
+          }}
           onKeyPress={(e) => e.key === 'Enter' && !isLoading && handleSendMessage()}
           disabled={isLoading || !agent}
         />
