@@ -14,10 +14,6 @@ import {
   AISummaryData,
   PatchInfo, // For vendorConfirmation
   AdvisoryInfo, // For vendorConfirmation
-  CisaKevDetails,
-  ActiveExploitationData,
-  ExploitDiscoveryData,
-  AISummaryData,
   BulkAnalysisResult // Added for bulk analysis
 } from '../types/cveData';
 import { AIThreatIntelData } from '../types/aiThreatIntel';
