@@ -1,6 +1,62 @@
-// This file will contain helper/utility methods
+// Updated UtilityService.ts - Remove duplicate fetchWithFallback and focus on other utilities
 import { utils } from '../utils/helpers';
 import { CONSTANTS } from '../utils/constants';
+
+// Enhanced fetch with retry and fallback mechanisms
+export async function fetchWithFallback(url: string, options: RequestInit = {}, retries: number = 3): Promise<Response> {
+  let lastError: Error;
+  
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        // Note: timeout is not a standard fetch option in browsers
+        // You might want to implement timeout using AbortController
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      return response;
+    } catch (error) {
+      lastError = error as Error;
+      console.warn(`Fetch attempt ${attempt}/${retries} failed for ${url}:`, error);
+      
+      if (attempt === retries) {
+        break;
+      }
+      
+      // Exponential backoff: wait longer between retries
+      const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  throw new Error(`Failed to fetch ${url} after ${retries} attempts. Last error: ${lastError.message}`);
+}
+
+// Enhanced fetch with timeout using AbortController (more robust)
+export async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutMs: number = 30000): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    return response;
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error(`Request timeout after ${timeoutMs}ms`);
+    }
+    throw error;
+  }
+}
 
 // Unified prompt used for CVE analysis requests
 export const TECHNICAL_BRIEF_PROMPT = String.raw`# CVE Technical Brief Generation Prompt – Multi-Audience Engineering Focus
@@ -188,26 +244,6 @@ Each section should consider:
 
 **Multi-audience success criteria**: Each team should be able to extract their specific action items and context without reading the entire brief.`;
 
-// Network utility function with CORS fallback
-export async function fetchWithFallback(url: string, options: RequestInit = {}): Promise<Response> {
-  try {
-    return await fetch(url, options);
-  } catch (corsError) {
-    console.log('CORS blocked, trying proxy...');
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
-    const response = await fetch(proxyUrl);
-
-    if (response.ok) {
-      const proxyData = await response.json();
-      return {
-        ok: true,
-        json: () => Promise.resolve(JSON.parse(proxyData.contents))
-      } as Response;
-    }
-    throw corsError;
-  }
-}
-
 // CVE Data Processing Functions
 export function processCVEData(cveData: any) {
   console.log('processCVEData received:', JSON.stringify(cveData, null, 2));
@@ -266,7 +302,8 @@ export function processCVEData(cveData: any) {
     cisaExploitAdd: cve.cisaExploitAdd,
     cisaActionDue: cve.cisaActionDue,
     cisaRequiredAction: cve.cisaRequiredAction,
-    cisaVulnerabilityName: cve.cisaVulnerabilityName
+    cisaVulnerabilityName: cve.cisaVulnerabilityName,
+    aiEnhanced: cve.aiParsed || false
   };
   
   console.log('Processed CVE data:', processedData);
@@ -483,6 +520,7 @@ Last Modified: ${cveData.lastModified || 'Not available'}
 Vulnerability Status: ${cveData.vulnStatus || 'Not available'}
 References: ${JSON.stringify(cveData.references || [])}
 Weaknesses (CWE): ${JSON.stringify(cveData.weaknesses || [])}
+${cveData.aiEnhanced ? 'Data Source: AI-Enhanced via Web Search' : 'Data Source: Direct API'}
 </context_chunk_1>
 
 ${vulnerability.epss ? `<context_chunk_2>
@@ -490,6 +528,7 @@ EPSS Data:
 Exploitation Probability Score: ${vulnerability.epss.epss || 'Not available'}
 Percentile: ${vulnerability.epss.percentile || 'Not available'}
 Date: ${vulnerability.epss.date || 'Not available'}
+${vulnerability.epss.aiParsed ? 'EPSS Source: AI-Enhanced via Web Search' : 'EPSS Source: Direct API'}
 </context_chunk_2>` : ''}
 
 ${vulnerability.cisaKev ? `<context_chunk_3>
@@ -505,11 +544,14 @@ Product: ${vulnerability.cisaKev.product || 'Not available'}
 Vulnerability Name: ${vulnerability.cisaKev.vulnerabilityName || 'Not available'}` : `Last Checked: ${vulnerability.cisaKev.lastChecked || 'Not available'}`}
 KEV Catalog Version: ${vulnerability.cisaKev.catalogVersion || 'Not available'}
 KEV Catalog Date: ${vulnerability.cisaKev.catalogDate || 'Not available'}
+${vulnerability.cisaKev.source === 'ai-web-search' ? 'KEV Source: AI-Enhanced via Web Search' : 'KEV Source: Direct API/Cache'}
 </context_chunk_3>` : ''}
 
 Please generate a comprehensive technical brief following the exact schema requirements. Use ONLY the information provided above - do not fabricate any details not explicitly stated.
 
-IMPORTANT: If this CVE is listed in CISA KEV, this indicates ACTIVE EXPLOITATION in the wild and should significantly impact priority and business risk assessment.`;
+IMPORTANT: If this CVE is listed in CISA KEV, this indicates ACTIVE EXPLOITATION in the wild and should significantly impact priority and business risk assessment.
+
+NOTE: Some data may have been enhanced via AI web search when direct APIs were unavailable. This is indicated in the source annotations above.`;
 
   console.log('Generated AI prompt length:', prompt.length);
   console.log('AI prompt preview (first 500 chars):', prompt.substring(0, 500) + '...');
@@ -653,3 +695,6 @@ export function countVerifiedFindings(validation: any): number {
   
   return count;
 }
+
+// Re-export functions from DataFetchingService for backward compatibility
+export { searchCISAKEVWithAI } from './DataFetchingService';
