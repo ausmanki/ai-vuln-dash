@@ -64,23 +64,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId }) => {
     // This effect should primarily react to initialCveId or agent availability.
   }, [initialCveId, agent]);
 
-
-  // const handleSetCveContext = () => { // Removed: Agent handles CVE context
-  //   if (!utils.validateCVE(cveId)) {
-  //     addNotification({
-  //       type: 'error',
-  //       title: 'Invalid CVE ID',
-  //       message: 'Please enter a valid CVE ID format (e.g., CVE-2023-12345).',
-  //     });
-  //     return;
-  //   }
-  //   setCurrentCveId(cveId.toUpperCase());
-  //   setChatHistory([
-  //     { id: Date.now().toString(), text: `Okay, let's talk about ${cveId.toUpperCase()}. What would you like to know?`, sender: 'system' }
-  //   ]);
-  //   setInputMessage(''); // Clear input for the actual question
-  // };
-
   const handleSendMessage = useCallback(async () => {
     if (!inputMessage.trim() || !agent) return; // currentCveId check removed
 
@@ -115,7 +98,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId }) => {
       setIsLoading(false);
     }
   }, [inputMessage, agent, addNotification]); // currentCveId removed from dependencies
-
 
   return (
     <div style={{
@@ -162,7 +144,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId }) => {
                     : (settings.darkMode ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.15)` : `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)`), // System message, non-error
                   padding: '10px 14px',
                   borderRadius: '12px',
-                  border: msg.error ? `1px solid ${settings.darkMode ? COLORS.red : utils.shadeColor(COLORS.red, -20)}`: 'none',
+                  border: msg.error ? `1px solid ${COLORS.red}` : 'none', // Fixed: removed shadeColor
                   color: msg.error ? (settings.darkMode ? COLORS.light.primaryText : COLORS.dark.primaryText) : styles.app.color,
                   whiteSpace: 'pre-wrap', // To respect newlines from bot
                   overflowWrap: 'break-word',
