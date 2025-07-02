@@ -6,6 +6,7 @@ import { createStyles } from '../utils/styles';
 import { COLORS, CONSTANTS } from '../utils/constants';
 import CVSSDisplay from './CVSSDisplay';
 import { Brain, Database, Globe, Info, Loader2, Copy, RefreshCw, Package, CheckCircle, XCircle, AlertTriangle, Target, ChevronRight } from 'lucide-react';
+import ScoreChart from './ScoreChart';
 
 const CVEDetailView = ({ vulnerability }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -349,6 +350,18 @@ const CVEDetailView = ({ vulnerability }) => {
                       </div>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {vulnerability.epss && (
+                <div style={{ marginBottom: '24px' }}>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '12px' }}>
+                    CVSS vs EPSS
+                  </h3>
+                  <ScoreChart
+                    cvss={cvssScore}
+                    epss={vulnerability.epss.epssFloat * 100}
+                  />
                 </div>
               )}
 

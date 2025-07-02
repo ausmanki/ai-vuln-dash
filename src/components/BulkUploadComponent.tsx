@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useContext } from 'react';
+import stylesModule from './BulkResults.module.css';
 import { UploadCloud, FileText, XCircle, Loader2, AlertTriangle, Zap, ExternalLink, Eye } from 'lucide-react'; // Added ExternalLink, Eye
 import { AppContext } from '../contexts/AppContext';
 import { createStyles } from '../utils/styles';
@@ -226,14 +227,14 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
                 return (
                   <div
                     key={cveId}
+                    className={stylesModule.resultCard}
                     style={{
                       ...styles.card,
-                      padding: '16px',
                       background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
-                      borderLeft: `5px solid ${error ? COLORS.red : severityColor}`
+                      borderLeftColor: error ? COLORS.red : severityColor
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                    <div className={stylesModule.resultHeader}>
                       <a
                         href={utils.getVulnerabilityUrl(cveId)}
                         target="_blank"
@@ -269,7 +270,7 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
                       <div style={{ fontSize: '0.9rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '10px' }}>
                         <div>
                           <strong>CVSS {cvssVersion}:</strong>
-                          <span style={{ color: severityColor, fontWeight: 'bold' }}> {cvssScore} ({cvssSeverity})</span>
+                          <span className={stylesModule.severityBadge} style={{ color: severityColor }}> {cvssScore} ({cvssSeverity})</span>
                         </div>
                         <div><strong>EPSS:</strong> {resultData.epss?.epssPercentage || 'N/A'}</div>
                         <div><strong>KEV:</strong> {resultData.kev?.listed ? <span style={{color: COLORS.red, fontWeight:'bold'}}>LISTED</span> : 'Not Listed'}</div>
