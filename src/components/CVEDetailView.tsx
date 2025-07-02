@@ -269,7 +269,7 @@ const CVEDetailView = ({ vulnerability }) => {
           gap: '4px',
           flexWrap: 'wrap'
         }}>
-          {['overview', 'ai-sources', 'analysis', 'brief'].map((tab) => (
+          {['overview', 'ai-sources', 'patches', 'analysis', 'brief'].map((tab) => (
             <button
               key={tab}
               style={{
@@ -294,10 +294,13 @@ const CVEDetailView = ({ vulnerability }) => {
             >
               {tab === 'overview' && <Info size={16} />}
               {tab === 'ai-sources' && <Globe size={16} />}
+              {tab === 'patches' && <Package size={16} />}
               {tab === 'analysis' && <Brain size={16} />}
               {tab === 'brief' && <FileText size={16} />}
               {tab === 'ai-sources'
                 ? 'AI Sources'
+                : tab === 'patches'
+                ? 'Patches'
                 : tab === 'analysis'
                 ? 'RAG Analysis'
                 : tab === 'brief'
@@ -531,189 +534,88 @@ const CVEDetailView = ({ vulnerability }) => {
                       fontWeight: '600',
                       marginBottom: '8px'
                     }}>
-                      Patch Summary
+                      Vulnerability Summary
                     </h4>
-                    {vulnerability.patchSearchSummary ? (
-                      <p style={{ fontSize: '0.875rem' }}>
-                        {vulnerability.patchSearchSummary.patchesFound > 0
-                          ? `${vulnerability.patchSearchSummary.patchesFound} patch(es) found across ${vulnerability.patchSearchSummary.vendorsSearched?.length || 0} vendor(s).`
-                          : 'No patches identified in initial sources.'}
-                      </p>
-                    ) : (
-                      <p style={{ fontSize: '0.875rem' }}>
-                        {vulnerability.patches && vulnerability.patches.length > 0
-                          ? `${vulnerability.patches.length} patch(es) discovered.`
-                          : 'No patch data available.'}
-                      </p>
-                    )}
+                    <p style={{ fontSize: '0.875rem', marginBottom: '8px' }}>
+                      {vulnerability.cve?.description || 'No description available.'}
+                    </p>
+                    <ul style={{ fontSize: '0.875rem', paddingLeft: '20px', margin: 0 }}>
+                      <li>CVSS: {cvssScore?.toFixed(1) || 'N/A'} ({severity})</li>
+                      <li>EPSS: {vulnerability.epss?.epssPercentage || 'N/A'}</li>
+                      <li>CISA KEV: {vulnerability.kev?.listed ? 'Listed' : 'Not Listed'}</li>
+                      <li>Advisories: {vulnerability.vendorAdvisories?.count || 0}</li>
+                    </ul>
                   </div>
 
-                    <div style={{ marginTop: '24px' }}>
-                      <h4 style={{
-                        fontSize: '1rem',
-                        fontWeight: '600',
-                        marginBottom: '12px'
-                      }}>
-                        Source Links & Details
-                      </h4>
-                      {vulnerability.sources && vulnerability.sources.length > 0 ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          {vulnerability.sources.map((source, index) => (
-                            <div
-                              key={index}
-                              style={{
-                                ...styles.card,
-                                padding: '12px 16px',
-                                background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                gap: '12px'
-                              }}
-                            >
-                              <div style={{ flex: 1 }}>
-                                <div style={{
-                                  fontWeight: '600',
-                                  fontSize: '0.9rem',
-                                  marginBottom: '4px',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '8px'
-                                }}>
-                                  {source.name}
-                                  {source.aiDiscovered && (
-                                    <span style={{
-                                      padding: '2px 6px',
-                                      background: `rgba(${utils.hexToRgb(COLORS.purple)}, 0.15)`,
-                                      color: COLORS.purple,
-                                      borderRadius: '4px',
-                                      fontSize: '0.7rem',
-                                      fontWeight: '500'
-                                    }}>
-                                      AI Found
-                                    </span>
-                                  )}
-                                  {source.reliability && (
-                                    <span style={{
-                                      padding: '2px 6px',
-                                      background: source.reliability === 'HIGH'
-                                        ? `rgba(${utils.hexToRgb(COLORS.green)}, 0.15)`
-                                        : source.reliability === 'MEDIUM'
-                                        ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.15)`
-                                        : `rgba(${utils.hexToRgb(COLORS.red)}, 0.15)`,
-                                      color: source.reliability === 'HIGH'
-                                        ? COLORS.green
-                                        : source.reliability === 'MEDIUM'
-                                        ? COLORS.yellow
-                                        : COLORS.red,
-                                      borderRadius: '4px',
-                                      fontSize: '0.7rem',
-                                      fontWeight: '500'
-                                    }}>
-                                      {source.reliability}
-                                    </span>
-                                  )}
-                                </div>
-                                {source.description && (
-                                  <div style={{
-                                    fontSize: '0.8rem',
-                                    color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText,
-                                    marginBottom: '4px'
-                                  }}>
-                                    {source.description}
-                                  </div>
-                                )}
-                                {source.patchAvailable && (
-                                  <div style={{
-                                    fontSize: '0.8rem',
-                                    color: COLORS.green,
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '4px'
-                                  }}>
-                                    <CheckCircle size={12} />
-                                    Patch Available
-                                    {source.severity && ` - ${source.severity}`}
-                                  </div>
-                                )}
-                              </div>
-                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                {source.patchUrl && source.patchUrl.startsWith('http') && (
-                                  <a
-                                    href={source.patchUrl}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{
-                                      ...styles.button,
-                                      ...styles.buttonPrimary,
-                                      padding: '6px 12px',
-                                      fontSize: '0.8rem',
-                                      textDecoration: 'none'
-                                    }}
-                                  >
-                                    Get Patch
-                                  </a>
-                                )}
-                                {source.url && source.url.startsWith('http') ? (
-                                  <a
-                                    href={source.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{
-                                      ...styles.button,
-                                      ...styles.buttonSecondary,
-                                      padding: '6px 12px',
-                                      fontSize: '0.8rem',
-                                      textDecoration: 'none'
-                                    }}
-                                  >
-                                    View Source →
-                                  </a>
-                                ) : (
-                                  <button
-                                    onClick={() => {
-                                      const sourceUrls = {
-                                        'NVD': utils.getVulnerabilityUrl(vulnerability.cve?.id),
-                                        'EPSS': `https://api.first.org/data/v1/epss?cve=${vulnerability.cve?.id}`,
-                                        'CISA KEV': 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog',
-                                        'Microsoft Advisory': `https://msrc.microsoft.com/update-guide/en-US/vulnerability/${vulnerability.cve?.id}`,
-                                        'Red Hat Advisory': `https://access.redhat.com/security/cve/${vulnerability.cve?.id}`,
-                                      };
-                                      let url = sourceUrls[source.name];
-                                      if (!url && source.name.includes(' Advisory')) {
-                                        const vendorName = source.name.replace(' Advisory', '');
-                                        url = sourceUrls[vendorName];
-                                      }
-                                      if (!url) {
-                                        url = `https://www.cvedetails.com/cve/${vulnerability.cve?.id}/`;
-                                      }
-                                      window.open(url, '_blank', 'noopener,noreferrer');
-                                    }}
-                                    style={{
-                                      ...styles.button,
-                                      ...styles.buttonSecondary,
-                                      padding: '6px 12px',
-                                      fontSize: '0.8rem'
-                                    }}
-                                  >
-                                    View Details →
-                                  </button>
-                                )}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <p style={{
-                          fontSize: '0.875rem',
-                          color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText
-                        }}>
-                          No additional source links found.
-                        </p>
-                      )}
-                    </div>
+
                   </div>
                 </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'patches' && (
+            <div>
+              <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '24px' }}>
+                Patches
+              </h2>
+              {vulnerability.patches && vulnerability.patches.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {vulnerability.patches.map((patch, index) => (
+                    <div
+                      key={index}
+                      style={{
+                        ...styles.card,
+                        padding: '12px 16px',
+                        background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        gap: '12px'
+                      }}
+                    >
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: '600', fontSize: '0.9rem', marginBottom: '4px' }}>
+                          {patch.vendor}{patch.product ? ` - ${patch.product}` : ''}
+                        </div>
+                        {patch.patchVersion && (
+                          <div style={{ fontSize: '0.8rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                            Version: {patch.patchVersion}
+                          </div>
+                        )}
+                        {patch.description && (
+                          <div style={{ fontSize: '0.8rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                            {patch.description}
+                          </div>
+                        )}
+                      </div>
+                      {patch.downloadUrl && patch.downloadUrl.startsWith('http') && (
+                        <a
+                          href={patch.downloadUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ ...styles.button, ...styles.buttonPrimary, padding: '6px 12px', fontSize: '0.8rem', textDecoration: 'none' }}
+                        >
+                          Get Patch
+                        </a>
+                      )}
+                      {!patch.downloadUrl && patch.advisoryUrl && patch.advisoryUrl.startsWith('http') && (
+                        <a
+                          href={patch.advisoryUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ ...styles.button, ...styles.buttonSecondary, padding: '6px 12px', fontSize: '0.8rem', textDecoration: 'none' }}
+                        >
+                          View Advisory →
+                        </a>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p style={{ fontSize: '0.875rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                  No patches available.
+                </p>
               )}
             </div>
           )}
