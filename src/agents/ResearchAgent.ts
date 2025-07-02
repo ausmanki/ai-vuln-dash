@@ -16,12 +16,12 @@ import {
 import { AgentSettings, InformationSource, PatchData } from '../types/cveData';
 import { AIThreatIntelData } from '../types/aiThreatIntel';
 import {
-    fetchWithFallback,
     processCVEData,
     parseAIThreatIntelligence,
     performHeuristicAnalysis,
     parsePatchAndAdvisoryResponse,
     getHeuristicPatchesAndAdvisories,
+    fetchWithFallback, // Add this import
 } from '../services/UtilityService';
 
 
@@ -47,30 +47,66 @@ export class ResearchAgent {
     if (ragDatabase && !ragDatabase.initialized) {
         this.updateSteps(`📚 Initializing RAG knowledge base (agent)...`);
         // Use the geminiApiKey from settings if available, as it's passed for AI calls
-        await ragDatabase.initialize(settings.geminiApiKey);
+        await ragDatabase.initialize(settings.geminiApiKey || apiKeys.geminiApiKey);
     }
 
-    this.updateSteps(`🔍 Agent fetching primary data (NVD, EPSS) for ${cveId}...`);
-    const [cveResult, epssResult] = await Promise.allSettled([
-        fetchCVEData(cveId, apiKeys.nvd, this.setLoadingSteps, ragDatabase, fetchWithFallback, processCVEData).catch(error => {
+    this.updateSteps(`🔍 Agent fetching primary data (NVD, EPSS, CISA KEV) for ${cveId}...`);
+    
+    // Create AI settings object for all data fetching operations
+    const aiSettingsForFetch = {
+        geminiApiKey: apiKeys.geminiApiKey || settings.geminiApiKey,
+        geminiModel: settings.geminiModel || 'gemini-1.5-flash'
+    };
+
+    this.updateSteps(`🤖 AI fallback configured with model: ${aiSettingsForFetch.geminiModel}`);
+
+    // Enhanced: Pass AI settings to ALL data fetching functions for web search fallback
+    const [cveResult, epssResult, cisaKevResult] = await Promise.allSettled([
+        fetchCVEData(cveId, apiKeys.nvd, this.setLoadingSteps, ragDatabase, aiSettingsForFetch).catch(error => {
             console.error(`CVE fetch error for ${cveId}:`, error);
             this.updateSteps(`❌ CVE fetch failed: ${error.message}`);
             throw error;
         }),
-        fetchEPSSData(cveId, this.setLoadingSteps, ragDatabase, fetchWithFallback).catch(error => {
+        fetchEPSSData(cveId, this.setLoadingSteps, ragDatabase, aiSettingsForFetch).catch(error => {
             console.error(`EPSS fetch error for ${cveId}:`, error);
             this.updateSteps(`⚠️ EPSS fetch failed: ${error.message}`);
             return null; // EPSS is not critical, allow to continue
+        }),
+        // Enhanced: Pass AI settings for web search fallback when direct API fails
+        fetchCISAKEVData(cveId, this.setLoadingSteps, ragDatabase, null, aiSettingsForFetch).catch(error => {
+            console.error(`CISA KEV fetch error for ${cveId}:`, error);
+            this.updateSteps(`⚠️ CISA KEV fetch failed: ${error.message}`);
+            return { 
+                listed: false, 
+                details: null, 
+                source: 'error', 
+                error: error.message,
+                lastChecked: new Date().toISOString()
+            }; // CISA KEV is not critical, allow to continue
         })
     ]);
 
     console.log(`CVE Result:`, cveResult);
     console.log(`EPSS Result:`, epssResult);
-    console.log(`CISA KEV Result:`, kevResult);
+    console.log(`CISA KEV Result:`, cisaKevResult);
     
     const cve = cveResult.status === 'fulfilled' ? cveResult.value : null;
     const epss = epssResult.status === 'fulfilled' ? epssResult.value : null;
-    const cisaKev = kevResult.status === 'fulfilled' ? kevResult.value : null;
+    const cisaKev = cisaKevResult.status === 'fulfilled' ? cisaKevResult.value : null;
+
+    // Enhanced KEV status reporting
+    if (cisaKev?.listed) {
+        this.updateSteps(`🚨 CRITICAL: ${cveId} is on CISA KEV - Active exploitation confirmed!`);
+        if (cisaKev.source === 'ai-web-search') {
+            this.updateSteps(`🤖 KEV status verified via AI web search of CISA catalog`);
+        }
+    } else if (cisaKev?.source === 'ai-web-search') {
+        this.updateSteps(`✅ AI search confirmed ${cveId} not in CISA KEV catalog`);
+    } else if (cisaKev?.source === 'error') {
+        this.updateSteps(`⚠️ Could not verify CISA KEV status for ${cveId} - ${cisaKev.error}`);
+    } else if (cisaKev && !cisaKev.listed) {
+        this.updateSteps(`✅ ${cveId} not found in CISA KEV catalog (not actively exploited)`);
+    }
 
     if (!cve) {
         const errorDetails = cveResult.status === 'rejected' ? cveResult.reason : 'Unknown error';
@@ -131,11 +167,10 @@ export class ResearchAgent {
     const confidence = ConfidenceScorer.scoreAIFindings(
         aiThreatIntel,
         validation,
-        { discoveredSources: ['NVD', 'EPSS', 'AI_WEB_SEARCH'] } // This might need dynamic update based on actual sources found
+        { discoveredSources: ['NVD', 'EPSS', 'CISA_KEV', 'AI_WEB_SEARCH'] } // Enhanced with CISA KEV
     );
 
-    // Constructing discoveredSources and sources (logic from APIService)
-    // This part might need refinement if the agent is to be more autonomous in source discovery reporting
+    // Constructing discoveredSources and sources (enhanced logic from APIService)
     const discoveredSources = ['NVD'];
     const sources: InformationSource[] = [
       { name: 'NVD', url: `https://nvd.nist.gov/vuln/detail/${cveId}`, aiDiscovered: false }
@@ -146,17 +181,22 @@ export class ResearchAgent {
         sources.push({ name: 'EPSS', url: `https://api.first.org/data/v1/epss?cve=${cveId}`, aiDiscovered: false });
     }
     
+    // Enhanced CISA KEV source handling
     if (cisaKev) {
         discoveredSources.push('CISA KEV');
         sources.push({ 
           name: 'CISA KEV', 
           url: 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog', 
-          aiDiscovered: false,
+          aiDiscovered: cisaKev.source === 'ai-web-search',
           kevListed: cisaKev.listed,
           dateAdded: cisaKev.dateAdded,
-          priority: cisaKev.listed ? 'CRITICAL' : 'INFO'
+          priority: cisaKev.listed ? 'CRITICAL' : 'INFO',
+          source: cisaKev.source,
+          confidence: cisaKev.confidence || 'MEDIUM',
+          verified: cisaKev.source === 'cisa-kev-direct' ? true : false
         });
     }
+    
     if (aiThreatIntel.intelligenceSummary?.analysisMethod === 'GROUNDING_INFO_ONLY' && aiThreatIntel.intelligenceSummary.searchQueries?.length > 0) {
         discoveredSources.push('AI Performed Searches');
         sources.push({
@@ -167,17 +207,22 @@ export class ResearchAgent {
           description: 'The AI performed these web searches but did not provide a textual summary based on them.'
         });
     }
-    // ... (add other source population logic for KEV, Exploits, Vendor Advisories as in APIService) ...
-     if (aiThreatIntel.cisaKev?.listed) {
-        discoveredSources.push('CISA KEV');
-        sources.push({
-          name: 'CISA KEV',
-          url: 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog',
-          aiDiscovered: aiThreatIntel.cisaKev?.aiDiscovered ?? true,
-          verified: validation.cisaKev?.verified || false
-        });
-      }
-      if (aiThreatIntel.exploitDiscovery?.found) {
+    
+    // Add other source population logic for KEV, Exploits, Vendor Advisories
+    if (aiThreatIntel.cisaKev?.listed) {
+        // Avoid duplicate CISA KEV entries
+        if (!sources.some(s => s.name === 'CISA KEV' && s.aiDiscovered === true)) {
+            discoveredSources.push('AI-Discovered CISA KEV');
+            sources.push({
+              name: 'AI-Discovered CISA KEV',
+              url: 'https://www.cisa.gov/known-exploited-vulnerabilities-catalog',
+              aiDiscovered: aiThreatIntel.cisaKev?.aiDiscovered ?? true,
+              verified: validation.cisaKev?.verified || false
+            });
+        }
+    }
+    
+    if (aiThreatIntel.exploitDiscovery?.found) {
         discoveredSources.push('Exploit Intelligence');
         if (aiThreatIntel.exploitDiscovery.exploits) {
           aiThreatIntel.exploitDiscovery.exploits.forEach(exploit => {
@@ -194,8 +239,9 @@ export class ResearchAgent {
             }
           });
         }
-      }
-      if (aiThreatIntel.vendorAdvisories?.found) {
+    }
+    
+    if (aiThreatIntel.vendorAdvisories?.found) {
         discoveredSources.push('Vendor Advisories');
         if (aiThreatIntel.vendorAdvisories.advisories) {
           aiThreatIntel.vendorAdvisories.advisories.forEach(advisory => {
@@ -213,9 +259,9 @@ export class ResearchAgent {
             }
           });
         }
-      }
+    }
 
-      if (patchAdvisoryData.patches && patchAdvisoryData.patches.length > 0) {
+    if (patchAdvisoryData.patches && patchAdvisoryData.patches.length > 0) {
         discoveredSources.push('Vendor Patches');
         patchAdvisoryData.patches.forEach(patch => {
           const patchName = `${patch.vendor} Patch${patch.patchVersion ? ' ' + patch.patchVersion : ''}`.trim();
@@ -230,9 +276,9 @@ export class ResearchAgent {
             citationUrl: patch.citationUrl
           });
         });
-      }
+    }
 
-      if (patchAdvisoryData.advisories && patchAdvisoryData.advisories.length > 0) {
+    if (patchAdvisoryData.advisories && patchAdvisoryData.advisories.length > 0) {
         discoveredSources.push('Vendor Patch Advisories');
         patchAdvisoryData.advisories.forEach(advisory => {
           const advName = advisory.title || `${advisory.vendor} Advisory`;
@@ -249,15 +295,15 @@ export class ResearchAgent {
             });
           }
         });
-      }
+    }
 
-
+    // Enhanced intelligence summary with CISA KEV information
     const intelligenceSummary = aiThreatIntel.intelligenceSummary || {
         sourcesAnalyzed: discoveredSources.length,
         exploitsFound: aiThreatIntel.exploitDiscovery?.totalCount || 0,
         vendorAdvisoriesFound: aiThreatIntel.vendorAdvisories?.count || 0,
-        activeExploitation: aiThreatIntel.activeExploitation?.confirmed || false,
-        cisaKevListed: aiThreatIntel.cisaKev?.listed || false,
+        activeExploitation: aiThreatIntel.activeExploitation?.confirmed || cisaKev?.listed || false,
+        cisaKevListed: aiThreatIntel.cisaKev?.listed || cisaKev?.listed || false,
         threatLevel: aiThreatIntel.overallThreatLevel || 'MEDIUM', // Default
         dataFreshness: 'AI_WEB_SEARCH', // Default
         analysisMethod: 'AI_WEB_SEARCH_VALIDATED', // Default
@@ -266,6 +312,12 @@ export class ResearchAgent {
         validated: true
     };
     intelligenceSummary.sourcesAnalyzed = discoveredSources.length; // Ensure this is updated
+    
+    // Override CISA KEV status with official data if available
+    if (cisaKev?.source === 'cisa-kev-direct' || cisaKev?.source === 'ai-web-search') {
+        intelligenceSummary.cisaKevListed = cisaKev.listed;
+        intelligenceSummary.activeExploitation = intelligenceSummary.activeExploitation || cisaKev.listed;
+    }
 
     const threatLevel = aiThreatIntel.overallThreatLevel || intelligenceSummary.threatLevel;
     const summary = aiThreatIntel.summary || `AI-driven analysis for ${cveId}. Confidence: ${confidence.overall}. Threat: ${threatLevel}.`;
@@ -283,7 +335,7 @@ export class ResearchAgent {
             found: (aiThreatIntel.exploitDiscovery?.githubRepos || 0) > 0 || (aiThreatIntel.vendorAdvisories?.count || 0) > 0,
             count: (aiThreatIntel.exploitDiscovery?.githubRepos || 0) + (aiThreatIntel.vendorAdvisories?.count || 0)
         },
-        activeExploitation: aiThreatIntel.activeExploitation,
+        activeExploitation: aiThreatIntel.activeExploitation || { confirmed: cisaKev?.listed || false, details: cisaKev?.listed ? 'Listed in CISA KEV catalog' : null },
         threatIntelligence: aiThreatIntel.threatIntelligence,
         intelligenceSummary: intelligenceSummary,
         patches: patchAdvisoryData.patches || [],
@@ -313,6 +365,17 @@ export class ResearchAgent {
     this.updateSteps(`💾 Agent potentially storing refined summary for ${cveId} in RAG DB...`);
     if (ragDatabase?.initialized && (confidence.overall === 'HIGH' || confidence.overall === 'MEDIUM')) {
         let ragDocContent = `Refined AI Summary for ${cveId}:\nOverall Threat: ${threatLevel}\nSummary: ${summary}\n`;
+        
+        // Enhanced RAG content with CISA KEV information
+        if (cisaKev?.listed) {
+            ragDocContent += `CISA KEV: ACTIVELY EXPLOITED - Listed in CISA Known Exploited Vulnerabilities catalog.\n`;
+            if (cisaKev.dateAdded) ragDocContent += `Date Added to KEV: ${cisaKev.dateAdded}\n`;
+            if (cisaKev.shortDescription) ragDocContent += `KEV Description: ${cisaKev.shortDescription}\n`;
+            if (cisaKev.requiredAction) ragDocContent += `Required Action: ${cisaKev.requiredAction}\n`;
+            if (cisaKev.dueDate) ragDocContent += `Due Date: ${cisaKev.dueDate}\n`;
+            ragDocContent += `KEV Verification Method: ${cisaKev.source}\n`;
+        }
+        
         if (aiThreatIntel.cisaKev?.listed) ragDocContent += `CISA KEV: Listed. Details: ${aiThreatIntel.cisaKev.details || 'Not specified'}\n`;
         if (aiThreatIntel.activeExploitation?.confirmed) ragDocContent += `Active Exploitation: Confirmed. Details: ${aiThreatIntel.activeExploitation.details || 'Not specified'}\n`;
         if (aiThreatIntel.exploitDiscovery?.found && aiThreatIntel.exploitDiscovery.exploits && aiThreatIntel.exploitDiscovery.exploits.length > 0) {
@@ -355,7 +418,9 @@ export class ResearchAgent {
                         cveId: cveId,
                         timestamp: new Date().toISOString(),
                         confidence: confidence.overall,
-                        threatLevel: threatLevel
+                        threatLevel: threatLevel,
+                        cisaKevListed: cisaKev?.listed || false,
+                        kevVerificationMethod: cisaKev?.source || 'unknown'
                     }
                 );
                 this.updateSteps(`💾 Agent: Stored refined AI summary for ${cveId} in RAG DB.`);
