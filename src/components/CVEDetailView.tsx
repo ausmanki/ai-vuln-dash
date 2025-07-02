@@ -547,28 +547,6 @@ const CVEDetailView = ({ vulnerability }) => {
                     </ul>
                   </div>
 
-                  <div style={{ marginTop: '16px' }}>
-                    <h4 style={{
-                      fontSize: '1rem',
-                      fontWeight: '600',
-                      marginBottom: '8px'
-                    }}>
-                      Patch Summary
-                    </h4>
-                    {vulnerability.patchSearchSummary ? (
-                      <p style={{ fontSize: '0.875rem' }}>
-                        {vulnerability.patchSearchSummary.patchesFound > 0
-                          ? `${vulnerability.patchSearchSummary.patchesFound} patch(es) found across ${vulnerability.patchSearchSummary.vendorsSearched?.length || 0} vendor(s).`
-                          : 'No patches identified in initial sources.'}
-                      </p>
-                    ) : (
-                      <p style={{ fontSize: '0.875rem' }}>
-                        {vulnerability.patches && vulnerability.patches.length > 0
-                          ? `${vulnerability.patches.length} patch(es) discovered.`
-                          : 'No patch data available.'}
-                      </p>
-                    )}
-                  </div>
 
                   </div>
                 </div>
