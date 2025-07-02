@@ -5,7 +5,7 @@ import { ResearchAgent } from '../agents/ResearchAgent';
 import { ValidationService } from './ValidationService';
 import { ConfidenceScorer } from './ConfidenceScorer';
 import {
-  fetchWithFallback,
+  fetchWithFallback, // Now properly exported from UtilityService
   processCVEData,
   parsePatchAndAdvisoryResponse,
   getHeuristicPatchesAndAdvisories,
@@ -20,10 +20,6 @@ import {
   createAIDataDisclaimer,
   countAIGeneratedFindings,
   countVerifiedFindings,
-  // calculateThreatLevel, // This is used internally by normalizeAIFindings and performHeuristicAnalysis, not directly by APIService
-  // normalizeAIFindings, // Used by parseAIThreatIntelligence
-  // detectHallucinationFlags, // Used by parseAIThreatIntelligence
-  // performConservativeTextAnalysis // Used by parseAIThreatIntelligence
 } from './UtilityService';
 import {
   fetchCVEData as fetchCVEDataInternal,
@@ -36,10 +32,8 @@ import {
   fetchGeneralAnswer as fetchGeneralAnswerInternal,
 } from './AIEnhancementService';
 
-
 // Enhanced API Service Layer with Multi-Source Intelligence and Validation
 export class APIService {
-  // Utility methods are now imported from UtilityService, so they are removed from here.
   // Data fetching methods are moved to DataFetchingService
   static async fetchCVEData(cveId, apiKey, setLoadingSteps) {
     return fetchCVEDataInternal(cveId, apiKey, setLoadingSteps, ragDatabase, fetchWithFallback, processCVEData);
@@ -66,37 +60,21 @@ export class APIService {
     return fetchGeneralAnswerInternal(query, settings, fetchWithFallback);
   }
 
-
-
-
-// Enhanced main function with validation
+  // Enhanced main function with validation
   static async fetchVulnerabilityDataWithAI(cveId, setLoadingSteps, apiKeys, settings) {
     try {
       // All previous logic is now encapsulated within ResearchAgent
       const agent = new ResearchAgent(setLoadingSteps);
       const enhancedVulnerability = await agent.analyzeCVE(cveId, apiKeys, settings);
 
-      // The setLoadingSteps updates are now handled by the agent itself.
-      // The final "Enhanced analysis complete" message from APIService might be redundant
-      // if the agent has its own final step message.
-      // For consistency, we can rely on the agent's last message or add a specific one here.
-      // For now, let's assume agent's logging is sufficient.
-      // setLoadingSteps(prev => [...prev,
-      //   `✅ APIService: Orchestration complete via ResearchAgent for ${cveId}`
-      // ]);
-
       return enhancedVulnerability;
     } catch (error) {
       console.error(`APIService: Error processing ${cveId} via ResearchAgent:`, error);
-      // It's important to re-throw the error so the UI can catch it and display an appropriate message.
-      // Or, APIService could return a structured error object. For now, re-throwing.
       throw error;
     }
   }
 
-  // Utility methods previously here are now in UtilityService.ts or handled by the ResearchAgent
-  // They are kept here for now to avoid breaking existing calls from other parts of the APIService class,
-  // but they should be removed once all internal calls are updated to use the imported versions.
+  // Utility methods for backward compatibility
   static formatFindingWithConfidence(finding, confidence, validation) {
     return formatFindingWithConfidence(finding, confidence, validation);
   }
