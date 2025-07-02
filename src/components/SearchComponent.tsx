@@ -10,7 +10,7 @@ import { COLORS } from '../utils/constants';
 const SearchComponent = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchHistory, setSearchHistory] = useState([]);
-  const { setVulnerabilities, setLoading, loading, setLoadingSteps, addNotification, settings } = useContext(AppContext);
+  const { setVulnerabilities, setLoading, loading, setLoadingSteps, addNotification, settings, refreshRagDocCount } = useContext(AppContext);
   const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
 
   const handleSearch = useCallback(async () => {
@@ -60,6 +60,7 @@ const SearchComponent = () => {
       );
 
       setVulnerabilities([vulnerability]);
+      if (refreshRagDocCount) refreshRagDocCount();
       setSearchHistory(prev => [...new Set([cveId, ...prev])].slice(0, 5));
 
       // Enhanced completion message with AI attribution

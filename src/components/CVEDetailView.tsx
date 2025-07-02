@@ -11,7 +11,7 @@ const CVEDetailView = ({ vulnerability }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [aiAnalysis, setAiAnalysis] = useState(null);
   const [aiLoading, setAiLoading] = useState(false);
-  const { settings, addNotification, setVulnerabilities } = useContext(AppContext);
+  const { settings, addNotification, setVulnerabilities, refreshRagDocCount } = useContext(AppContext);
   const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
 
   const generateAnalysis = useCallback(async () => {
@@ -45,6 +45,7 @@ const CVEDetailView = ({ vulnerability }) => {
         );
 
         setVulnerabilities([enhancedVulnerability]);
+        if (refreshRagDocCount) refreshRagDocCount();
 
         addNotification({
           type: 'success',
@@ -61,6 +62,7 @@ const CVEDetailView = ({ vulnerability }) => {
       );
 
       setAiAnalysis(result);
+      if (refreshRagDocCount) refreshRagDocCount();
       setActiveTab('analysis');
 
       addNotification({
@@ -92,6 +94,7 @@ const CVEDetailView = ({ vulnerability }) => {
       );
 
       setVulnerabilities([refreshedVulnerability]);
+      if (refreshRagDocCount) refreshRagDocCount();
 
       addNotification({
         type: 'success',

@@ -31,6 +31,7 @@ const App = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showChat, setShowChat] = useState(false); // Added state for chat visibility
   const [showBulkUploadView, setShowBulkUploadView] = useState(false); // State for bulk upload UI
+  const [ragDocCount, setRagDocCount] = useState(0);
   
   // State for bulk analysis
   const [bulkAnalysisResults, setBulkAnalysisResults] = useState<Array<{cveId: string, data?: any, error?: string}>>([]);
@@ -48,9 +49,16 @@ const App = () => {
     document.body.style.fontFamily = styles.app.fontFamily;
   }, [styles.app]);
 
-  // Initialize RAG database
+  // Initialize RAG database and track document count
   useEffect(() => {
-    ragDatabase.initialize().catch(console.error);
+    ragDatabase
+      .initialize()
+      .then(() => setRagDocCount(ragDatabase.documents.length))
+      .catch(console.error);
+  }, []);
+
+  const refreshRagDocCount = useCallback(() => {
+    setRagDocCount(ragDatabase.documents.length);
   }, []);
 
   const contextValue = useMemo(() => ({
@@ -63,7 +71,9 @@ const App = () => {
     notifications,
     addNotification,
     settings,
-    setSettings
+    setSettings,
+    ragDocCount,
+    refreshRagDocCount
   }), [
     vulnerabilities,
     loading,
@@ -71,7 +81,8 @@ const App = () => {
     notifications,
     addNotification,
     settings,
-    setSettings
+    setSettings,
+    ragDocCount
   ]);
 
   const startBulkAnalysis = async (cveIds: string[]) => {
@@ -187,6 +198,22 @@ const App = () => {
               }}>
                 <Brain size={16} />
                 {settings.geminiApiKey ? 'AI Ready' : 'AI Offline'}
+              </div>
+
+              <div style={{
+                ...styles.badge,
+                background: settings.darkMode ? `rgba(${utils.hexToRgb(COLORS.purple)}, 0.15)` : `rgba(${utils.hexToRgb(COLORS.purple)}, 0.1)`,
+                borderColor: `rgba(${utils.hexToRgb(COLORS.purple)}, 0.3)`,
+                color: COLORS.purple,
+                borderWidth: '1px',
+                borderStyle: 'solid',
+                fontWeight: '600',
+                fontSize: '0.875rem',
+                padding: '8px 14px',
+                minHeight: '44px',
+              }}>
+                <Database size={16} />
+                {ragDocCount} Docs
               </div>
               
               <button

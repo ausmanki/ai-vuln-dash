@@ -93,6 +93,7 @@ We've built the world's first **AI-Powered Real-Time Vulnerability Intelligence 
 ### **🤖 AI-Powered Intelligence**
 - **Gemini 2.0 Flash**: Web-grounded real-time analysis
 - **RAG Database**: Self-learning security knowledge base
+- **RAG Doc Count Display**: UI shows how many knowledge base documents are loaded
 - **Vector Embeddings**: Semantic vulnerability analysis
 - **Automated Advisory Discovery**: Latest vendor patches & fixes
 

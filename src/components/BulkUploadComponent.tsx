@@ -21,7 +21,7 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
   isBulkLoading,
   bulkProgress
  }) => {
-  const { settings, addNotification, setVulnerabilities } = useContext(AppContext);
+  const { settings, addNotification, setVulnerabilities, refreshRagDocCount } = useContext(AppContext);
   const styles = createStyles(settings.darkMode);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -247,6 +247,7 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
                         onClick={() => {
                           if (resultData) {
                             setVulnerabilities([resultData]);
+                            if (refreshRagDocCount) refreshRagDocCount();
                             onClose();
                           } else {
                             addNotification({
