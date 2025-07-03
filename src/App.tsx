@@ -256,21 +256,23 @@ const App = () => {
           {showChat ? <X size={32} /> : <MessageSquare size={32} />}
         </button>
 
-        {/* Conditionally Render ChatInterface */}
+        {/* Conditionally Render ChatInterface as a side panel */}
         {showChat && (
-          <div style={{ // This outer div is the modal container for ChatInterface
-            position: 'fixed',
-            bottom: '112px', // Above the toggle button
-            right: '32px',
-            width: '400px', // Adjust as needed
-            height: '60vh', // Adjust as needed
-            maxHeight: '700px',
-            zIndex: 999, // Below the toggle button if it needs to overlap, or manage carefully
-            boxShadow: `0 8px 24px rgba(${utils.hexToRgb(COLORS.dark.shadow)}, 0.3)`, // Consistent shadow
-            borderRadius: '12px', // Consistent with cards
-            overflow: 'hidden', // To ensure ChatInterface respects border radius
-            // Background will be handled by ChatInterface itself via styles.card.background
-          }}>
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              right: 0,
+              height: '100vh',
+              width: '420px',
+              maxWidth: '100%',
+              zIndex: 999, // Below the toggle button so it's still clickable
+              boxShadow: `0 0 24px rgba(${utils.hexToRgb(COLORS.dark.shadow)}, 0.3)`,
+              borderLeft: `1px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}`,
+              overflow: 'hidden',
+              background: styles.card.background,
+            }}
+          >
             <ChatInterface initialCveId={vulnerabilities[0]?.cve?.id || null} />
           </div>
         )}
