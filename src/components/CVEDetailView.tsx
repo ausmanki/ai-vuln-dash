@@ -43,11 +43,23 @@ const CVEDetailView = ({ vulnerability }) => {
           message: 'Running AI source discovery and validation analysis...'
         });
 
+        // Fix: Create a proper setLoadingSteps function that matches ResearchAgent's expectations
+        // The ResearchAgent calls setLoadingSteps with: (prev) => [...prev, message]
+        // So we need to accept a function that expects the previous steps array
+        const setLoadingStepsWrapper = (stepsUpdater) => {
+          if (typeof stepsUpdater === 'function') {
+            // Call the updater with an empty array to get the new steps
+            const newSteps = stepsUpdater([]);
+            // Log only the new message (last item in the array)
+            if (newSteps.length > 0) {
+              console.log(newSteps[newSteps.length - 1]);
+            }
+          }
+        };
+
         enhancedVulnerability = await APIService.fetchVulnerabilityDataWithAI(
           vulnerability.cve.id,
-          (steps) => {
-            steps.forEach(step => console.log(step));
-          },
+          setLoadingStepsWrapper, // Use the wrapper function
           { nvd: settings.nvdApiKey },
           settings
         );
@@ -92,9 +104,19 @@ const CVEDetailView = ({ vulnerability }) => {
     if (!cveId) return;
 
     try {
+      // Create the same wrapper for consistency
+      const setLoadingStepsWrapper = (stepsUpdater) => {
+        if (typeof stepsUpdater === 'function') {
+          const newSteps = stepsUpdater([]);
+          if (newSteps.length > 0) {
+            console.log(newSteps[newSteps.length - 1]);
+          }
+        }
+      };
+
       const refreshedVulnerability = await APIService.fetchVulnerabilityDataWithAI(
         cveId,
-        (steps) => {},
+        setLoadingStepsWrapper, // Use the wrapper function
         { nvd: settings.nvdApiKey },
         settings
       );
