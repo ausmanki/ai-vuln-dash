@@ -212,6 +212,16 @@ export interface PatchData {
   summary?: string; // Overall summary of patch availability
 }
 
+export interface RemediationStep {
+  phase: string;
+  title: string;
+  description: string;
+  actions: string[];
+  tools: string[];
+  estimatedTime: string;
+  priority: string;
+}
+
 export interface TechnicalAnalysisData {
   text?: string; // In-depth technical explanation of the vulnerability
   attackVector?: string; // How the vulnerability is exploited

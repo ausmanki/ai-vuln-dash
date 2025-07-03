@@ -5,6 +5,7 @@ import {
   ChatResponse,
   EPSSData,
   PatchData,
+  RemediationStep,
   EnhancedVulnerabilityData,
   CVEValidationData, // Make sure this is the new detailed structure
   BaseCVEInfo,
@@ -17,6 +18,7 @@ import {
   BulkAnalysisResult // Added for bulk analysis
 } from '../types/cveData';
 import { AIThreatIntelData } from '../types/aiThreatIntel';
+import { generateRemediationPlan } from '../utils/remediation';
 
 const CVE_REGEX = /CVE-\d{4}-\d{4,7}/i;
 
@@ -104,8 +106,13 @@ export class UserAssistantAgent {
         handler: this.getValidationInfo
       },
       {
+        name: 'getRemediationPlan',
+        keywords: ['remediation plan', 'remediation steps', 'mitigation plan', 'mitigation steps', 'fix plan'],
+        handler: this.getRemediationPlan
+      },
+      {
         name: 'getPatchAndAdvisoryInfo',
-        keywords: ['patch', 'patches', 'advisory', 'advisories', 'fix', 'remediation', 'mitigation'],
+        keywords: ['patch', 'patches', 'advisory', 'advisories', 'fix'],
         handler: this.getPatchAndAdvisoryInfo
       },
       {
@@ -340,6 +347,25 @@ export class UserAssistantAgent {
         error: error.message,
         data: null
       };
+    }
+  }
+
+  private async getRemediationPlan(cveId: string): Promise<ChatResponse<RemediationStep[]>> {
+    try {
+      const steps = generateRemediationPlan();
+      let responseText = `**Remediation Plan for ${cveId}**\n\n`;
+      steps.forEach((step, idx) => {
+        responseText += `**${idx + 1}. ${step.phase}: ${step.title}**\n`;
+        responseText += `${step.description}\n`;
+        step.actions.forEach(action => {
+          responseText += `- ${action}\n`;
+        });
+        responseText += `Estimated time: ${step.estimatedTime}. Priority: ${step.priority.toUpperCase()}\n\n`;
+      });
+      return { text: responseText, sender: 'bot', id: Date.now().toString(), data: steps };
+    } catch (error: any) {
+      console.error(`Error generating remediation plan for ${cveId}:`, error);
+      return { text: `Sorry, I couldn't generate a remediation plan for ${cveId}. Error: ${error.message}`, sender: 'bot', id: Date.now().toString(), error: error.message };
     }
   }
 
