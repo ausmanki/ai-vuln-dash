@@ -5,7 +5,7 @@ import { utils } from '../utils/helpers';
 import { createStyles } from '../utils/styles';
 import { COLORS, CONSTANTS } from '../utils/constants';
 import CVSSDisplay from './CVSSDisplay';
-import { Brain, Database, Globe, Info, Loader2, Copy, RefreshCw, Package, CheckCircle, XCircle, AlertTriangle, Target, ChevronRight, FileText, ExternalLink, Search } from 'lucide-react';
+import { Brain, Database, Globe, Info, Loader2, Copy, RefreshCw, Package, CheckCircle, XCircle, AlertTriangle, Target, ChevronRight, FileText, ExternalLink, Search, Clock } from 'lucide-react';
 import TechnicalBrief from './TechnicalBrief';
 import ScoreChart from './ScoreChart';
 
@@ -1011,12 +1011,12 @@ You are a cybersecurity expert helping find official patches and fixes for vulne
 CVE ID: ${cveId}
 DESCRIPTION: ${description}
 
-TASK: Find official vendor patches, security advisories, and package manager updates for this CVE.
+TASK: Find official vendor patches, security advisories, and security bulletins for this CVE.
 
 SEARCH AND PROVIDE:
 1. **Official Vendor Downloads**: Direct download links for patched versions
 2. **Security Advisories**: Vendor security pages with detailed information
-3. **Package Manager Updates**: npm, Maven, pip, NuGet registry updates
+3. **Vendor Security Bulletins**: announcements and response timelines
 4. **GitHub Releases**: Official releases and security fixes
 5. **Distribution Updates**: Linux distribution security updates
 
@@ -1025,7 +1025,6 @@ IMPORTANT REQUIREMENTS:
 - Include specific version numbers that fix the vulnerability
 - Verify all information is current and accurate
 - Focus on official vendor sources
-- Include package manager dependency information
 
 RETURN FORMAT:
 For each fix found, provide:
@@ -1244,7 +1243,7 @@ Search comprehensively for all available patches and advisories.
                 { key: 'overview', label: 'Overview', icon: Info },
                 { key: 'ai-patches', label: 'AI Patches', icon: Package },
                 { key: 'vendors', label: 'Vendor Portals', icon: Globe },
-                { key: 'packages', label: 'Package Managers', icon: Database },
+                { key: 'packages', label: 'Vendor & Patch Info', icon: Database },
                 { key: 'remediation', label: 'Remediation', icon: Target }
               ].map(({ key, label, icon: Icon }) => (
                 <button
@@ -1740,60 +1739,169 @@ Search comprehensively for all available patches and advisories.
 
               {activeGuidanceSection === 'packages' && (
                 <div>
-                  <h3 style={{ marginBottom: '16px' }}>Package Manager Updates</h3>
-                  <div style={{ display: 'grid', gap: '16px' }}>
-                    {patchGuidance.packageManagers.map((pm, index) => (
-                      <div key={index} style={{
-                        ...styles.card,
-                        borderLeft: `4px solid ${COLORS.green}`
-                      }}>
-                        <h4 style={{ margin: '0 0 8px 0' }}>{pm.name}</h4>
-                        <p style={{ margin: '0 0 16px 0', fontSize: '0.9rem', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
-                          Component: {pm.component}
-                        </p>
-                        
-                        <div style={{ marginBottom: '16px' }}>
-                          <strong style={{ fontSize: '0.9rem' }}>Check Commands:</strong>
-                          <div style={{ marginTop: '8px' }}>
-                            {pm.checkCommands.map((cmd, cIndex) => (
-                              <code key={cIndex} style={{
-                                display: 'block',
+                  <h3 style={{ marginBottom: '16px' }}>Vendor &amp; Patch Information</h3>
+
+                  {/* Vendor Response Timeline */}
+                  {(patchGuidance.aiPatches.length > 0 || patchGuidance.aiAdvisories.length > 0) && (
+                    <div style={{ marginBottom: '24px' }}>
+                      <h4 style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Clock size={18} color={COLORS.blue} />
+                        Vendor Response Timeline
+                      </h4>
+                      <ul style={{ listStyle: 'none', padding: 0 }}>
+                        {[...patchGuidance.aiPatches, ...patchGuidance.aiAdvisories]
+                          .filter(item => item.releaseDate || item.publishDate)
+                          .sort((a, b) => new Date(a.releaseDate || a.publishDate).getTime() - new Date(b.releaseDate || b.publishDate).getTime())
+                          .map((item, index) => (
+                            <li key={index} style={{ marginBottom: '8px', fontSize: '0.9rem' }}>
+                              <strong>{new Date(item.releaseDate || item.publishDate).toLocaleDateString()}</strong>
+                              {` – ${item.vendor || item.source}`}
+                              {item.patchVersion ? ` ${item.patchVersion}` : ''}
+                            </li>
+                          ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Official Advisories */}
+                  {patchGuidance.aiAdvisories.length > 0 && (
+                    <div style={{ marginBottom: '32px' }}>
+                      <h4 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <FileText size={18} color={COLORS.blue} />
+                        Official Vendor Advisories ({patchGuidance.aiAdvisories.length})
+                      </h4>
+                      {patchGuidance.aiAdvisories.map((advisory, index) => (
+                        <div key={index} style={{
+                          ...styles.card,
+                          marginBottom: '16px',
+                          borderLeft: `4px solid ${advisory.verified ? COLORS.green : COLORS.yellow}`
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                <h5 style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>
+                                  {advisory.title}
+                                </h5>
+                                <span style={{
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '0.7rem',
+                                  fontWeight: '600',
+                                  background: advisory.verified ? `${COLORS.green}20` : `${COLORS.yellow}20`,
+                                  color: advisory.verified ? COLORS.green : COLORS.yellow
+                                }}>
+                                  {advisory.verified ? 'VERIFIED' : 'UNVERIFIED'}
+                                </span>
+                              </div>
+
+                              <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                                {advisory.summary}
+                              </p>
+
+                              <div style={{
                                 padding: '8px 12px',
                                 background: safeSettings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
-                                borderRadius: '4px',
+                                borderRadius: '6px',
                                 fontSize: '0.8rem',
-                                marginBottom: '4px'
+                                fontFamily: 'monospace'
                               }}>
-                                {cmd}
-                              </code>
-                            ))}
+                                <strong>URL:</strong> {advisory.url}
+                              </div>
+                            </div>
+
+                            <a
+                              href={advisory.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                ...styles.button,
+                                ...styles.buttonPrimary,
+                                padding: '8px 16px',
+                                fontSize: '0.85rem',
+                                textDecoration: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                              }}
+                            >
+                              <ExternalLink size={14} />
+                              View Advisory
+                            </a>
                           </div>
                         </div>
-                        
-                        <div style={{ marginBottom: '16px' }}>
-                          <strong style={{ fontSize: '0.9rem' }}>Update Commands:</strong>
-                          <div style={{ marginTop: '8px' }}>
-                            {pm.updateCommands.map((cmd, uIndex) => (
-                              <code key={uIndex} style={{
-                                display: 'block',
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Patch Downloads */}
+                  {patchGuidance.aiPatches.length > 0 && (
+                    <div style={{ marginBottom: '32px' }}>
+                      <h4 style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Package size={18} color={COLORS.green} />
+                        Patch Downloads &amp; Links ({patchGuidance.aiPatches.length})
+                      </h4>
+                      {patchGuidance.aiPatches.map((patch, index) => (
+                        <div key={index} style={{
+                          ...styles.card,
+                          marginBottom: '16px',
+                          borderLeft: `4px solid ${patch.verified ? COLORS.green : COLORS.yellow}`
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px' }}>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                                <h5 style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>
+                                  {patch.vendor} Patch
+                                </h5>
+                                <span style={{
+                                  padding: '2px 6px',
+                                  borderRadius: '4px',
+                                  fontSize: '0.7rem',
+                                  fontWeight: '600',
+                                  background: patch.verified ? `${COLORS.green}20` : `${COLORS.yellow}20`,
+                                  color: patch.verified ? COLORS.green : COLORS.yellow
+                                }}>
+                                  {patch.verified ? 'VERIFIED' : 'UNVERIFIED'}
+                                </span>
+                              </div>
+
+                              <p style={{ margin: '0 0 8px 0', fontSize: '0.9rem', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                                {patch.description}
+                              </p>
+
+                              <div style={{
                                 padding: '8px 12px',
                                 background: safeSettings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
-                                borderRadius: '4px',
+                                borderRadius: '6px',
                                 fontSize: '0.8rem',
-                                marginBottom: '4px'
+                                fontFamily: 'monospace'
                               }}>
-                                {cmd}
-                              </code>
-                            ))}
+                                <strong>URL:</strong> {patch.downloadUrl}
+                              </div>
+                            </div>
+
+                            <a
+                              href={patch.downloadUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                ...styles.button,
+                                ...styles.buttonPrimary,
+                                padding: '8px 16px',
+                                fontSize: '0.85rem',
+                                textDecoration: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                              }}
+                            >
+                              <Package size={14} />
+                              Download
+                            </a>
                           </div>
                         </div>
-                        
-                        <div style={{ fontSize: '0.8rem', color: safeSettings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
-                          <strong>Registry:</strong> <a href={pm.registryUrl} target="_blank" rel="noopener noreferrer">{pm.registryUrl}</a>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1870,7 +1978,7 @@ Search comprehensively for all available patches and advisories.
               <ul style={{ textAlign: 'left', maxWidth: '400px', margin: '8px auto 0 auto', paddingLeft: '20px' }}>
                 <li>Search for official vendor patches and downloads</li>
                 <li>Find security advisories and vulnerability pages</li>
-                <li>Discover package manager updates (npm, Maven, pip)</li>
+                <li>Summarize vendor security bulletins and timelines</li>
                 <li>Verify discovered URLs for accessibility</li>
                 <li>Provide comprehensive remediation guidance</li>
               </ul>
