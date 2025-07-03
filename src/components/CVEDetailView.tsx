@@ -505,271 +505,549 @@ const CVEDetailView = ({ vulnerability }) => {
             </div>
           )}
 
-          {activeTab === 'ai-sources' && (
-            <div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '24px' }}>
-                AI-Discovered Intelligence Sources
-              </h2>
+          {activeTab === 'ai-sources' && (() => {
+            const cvssRisk = cvssScore >= 9.0 ? 'CRITICAL' : cvssScore >= 7.0 ? 'HIGH' : cvssScore >= 4.0 ? 'MEDIUM' : 'LOW';
+            const epssRisk = vulnerability.epss?.epssFloat > CONSTANTS.EPSS_THRESHOLDS.HIGH ? 'HIGH' : 
+                            vulnerability.epss?.epssFloat > CONSTANTS.EPSS_THRESHOLDS.MEDIUM ? 'MEDIUM' : 'LOW';
+            
+            return (
+              <div>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '24px' }}>
+                  AI-Discovered Intelligence Sources
+                </h2>
 
-              {(!vulnerability.sources || vulnerability.sources.length === 0) && (!vulnerability.discoveredSources || vulnerability.discoveredSources.length === 0) ? (
-                <div style={{
-                  textAlign: 'center',
-                  padding: '48px',
-                  color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText
-                }}>
-                  <Brain size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
-                  <p>AI source discovery not yet performed</p>
-                  <p style={{ fontSize: '0.875rem', marginTop: '8px' }}>
-                    {settings.geminiApiKey
-                      ? 'AI will automatically discover sources during search'
-                      : 'Configure Gemini API key to enable AI source discovery'}
-                  </p>
-                </div>
-              ) : (
-                <div>
+                {(!vulnerability.sources || vulnerability.sources.length === 0) && (!vulnerability.discoveredSources || vulnerability.discoveredSources.length === 0) ? (
                   <div style={{
-                    ...styles.card,
-                    marginBottom: '24px',
-                    background: settings.darkMode ? COLORS.dark.background : COLORS.light.background
+                    textAlign: 'center',
+                    padding: '48px',
+                    color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText
                   }}>
+                    <Brain size={48} style={{ marginBottom: '16px', opacity: 0.5 }} />
+                    <p>AI source discovery not yet performed</p>
+                    <p style={{ fontSize: '0.875rem', marginTop: '8px' }}>
+                      {settings.geminiApiKey
+                        ? 'AI will automatically discover sources during search'
+                        : 'Configure Gemini API key to enable AI source discovery'}
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    {/* Enhanced AI Risk Assessment Summary */}
                     <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      marginBottom: '16px'
+                      ...styles.card,
+                      marginBottom: '24px',
+                      background: settings.darkMode ? COLORS.dark.background : COLORS.light.background
                     }}>
-                      <Brain size={24} color={COLORS.purple} />
-                      <div>
-                        <h3 style={{
-                          fontSize: '1.125rem',
-                          fontWeight: '600',
-                          margin: 0
-                        }}>
-                          AI Analysis Summary
-                        </h3>
-                        <p style={{
-                          margin: '4px 0 0 0',
-                          fontSize: '0.875rem',
-                          color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText
-                        }}>
-                          {vulnerability.analysisSummary || vulnerability.summary || `AI searched ${vulnerability.discoveredSources?.length || 2} security sources`}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Enhanced AI Analysis Limitations Notice */}
-                    {vulnerability.intelligenceSummary?.analysisMethod === 'GROUNDING_INFO_ONLY' && (
                       <div style={{
-                        background: `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)`,
-                        borderWidth: '1px',
-                        borderStyle: 'solid', 
-                        borderColor: `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.3)`,
-                        borderRadius: '8px',
-                        padding: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
                         marginBottom: '16px'
                       }}>
-                        <p style={{ margin: 0, fontSize: '0.8rem' }}>
-                          <strong>⚠️ AI Search Limitation:</strong> The AI performed web searches but could not provide textual analysis. 
-                          Using fallback analysis based on available vulnerability data.
+                        <Brain size={24} color={COLORS.purple} />
+                        <div>
+                          <h3 style={{
+                            fontSize: '1.125rem',
+                            fontWeight: '600',
+                            margin: 0
+                          }}>
+                            AI Risk Assessment Summary
+                          </h3>
+                          <p style={{
+                            margin: '4px 0 0 0',
+                            fontSize: '0.875rem',
+                            color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText
+                          }}>
+                            Comprehensive analysis of {vulnerability.cve?.id} based on multiple intelligence sources
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Enhanced AI Analysis Limitations Notice */}
+                      {vulnerability.intelligenceSummary?.analysisMethod === 'GROUNDING_INFO_ONLY' && (
+                        <div style={{
+                          background: `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)`,
+                          borderWidth: '1px',
+                          borderStyle: 'solid', 
+                          borderColor: `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.3)`,
+                          borderRadius: '8px',
+                          padding: '12px',
+                          marginBottom: '16px'
+                        }}>
+                          <p style={{ margin: 0, fontSize: '0.8rem' }}>
+                            <strong>⚠️ AI Search Limitation:</strong> The AI performed web searches but could not provide textual analysis. 
+                            Using fallback analysis based on available vulnerability data.
+                          </p>
+                          {vulnerability.intelligenceSummary.searchQueries?.length > 0 && (
+                            <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
+                              {vulnerability.intelligenceSummary.searchQueries.length} search queries were executed.
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Critical Alerts */}
+                      {(vulnerability.kev?.listed || vulnerability.exploits?.found || vulnerability.activeExploitation?.confirmed) && (
+                        <div style={{
+                          background: `rgba(${utils.hexToRgb(COLORS.red)}, 0.1)`,
+                          borderWidth: '1px',
+                          borderStyle: 'solid',
+                          borderColor: `rgba(${utils.hexToRgb(COLORS.red)}, 0.3)`,
+                          borderRadius: '8px',
+                          padding: '12px',
+                          marginBottom: '16px'
+                        }}>
+                          {vulnerability.kev?.listed && (
+                            <div style={{ marginBottom: '8px' }}>
+                              <strong style={{ color: COLORS.red }}>🚨 CISA KEV:</strong> {vulnerability.kev.details}
+                            </div>
+                          )}
+                          {vulnerability.exploits?.found && (
+                            <div style={{ marginBottom: '8px' }}>
+                              <strong style={{ color: COLORS.red }}>💣 Public Exploits:</strong> Found {vulnerability.exploits.count} exploit(s)
+                            </div>
+                          )}
+                          {vulnerability.activeExploitation?.confirmed && (
+                            <div>
+                              <strong style={{ color: COLORS.red }}>🔍 Active Exploitation:</strong> {vulnerability.activeExploitation.details}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* AI Risk Analysis Grid */}
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+                        gap: '16px',
+                        marginBottom: '20px'
+                      }}>
+                        {/* CVSS Risk Box */}
+                        <div style={{
+                          padding: '12px',
+                          borderRadius: '8px',
+                          background: cvssRisk === 'CRITICAL' ? `rgba(${utils.hexToRgb(COLORS.red)}, 0.1)` :
+                                     cvssRisk === 'HIGH' ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)` :
+                                     cvssRisk === 'MEDIUM' ? `rgba(${utils.hexToRgb(COLORS.blue)}, 0.1)` : 
+                                     `rgba(${utils.hexToRgb(COLORS.green)}, 0.1)`,
+                          borderWidth: '1px',
+                          borderStyle: 'solid',
+                          borderColor: cvssRisk === 'CRITICAL' ? `rgba(${utils.hexToRgb(COLORS.red)}, 0.3)` :
+                                      cvssRisk === 'HIGH' ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.3)` :
+                                      cvssRisk === 'MEDIUM' ? `rgba(${utils.hexToRgb(COLORS.blue)}, 0.3)` : 
+                                      `rgba(${utils.hexToRgb(COLORS.green)}, 0.3)`
+                        }}>
+                          <div style={{ fontWeight: '600', fontSize: '0.9rem', marginBottom: '4px' }}>
+                            CVSS Risk: {cvssRisk}
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                            Score: {cvssScore?.toFixed(1) || 'N/A'}
+                          </div>
+                        </div>
+
+                        {/* EPSS Risk Box */}
+                        <div style={{
+                          padding: '12px',
+                          borderRadius: '8px',
+                          background: epssRisk === 'HIGH' ? `rgba(${utils.hexToRgb(COLORS.red)}, 0.1)` :
+                                     epssRisk === 'MEDIUM' ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)` :
+                                     `rgba(${utils.hexToRgb(COLORS.green)}, 0.1)`,
+                          borderWidth: '1px',
+                          borderStyle: 'solid',
+                          borderColor: epssRisk === 'HIGH' ? `rgba(${utils.hexToRgb(COLORS.red)}, 0.3)` :
+                                      epssRisk === 'MEDIUM' ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.3)` :
+                                      `rgba(${utils.hexToRgb(COLORS.green)}, 0.3)`
+                        }}>
+                          <div style={{ fontWeight: '600', fontSize: '0.9rem', marginBottom: '4px' }}>
+                            EPSS Risk: {epssRisk}
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                            {vulnerability.epss?.epssPercentage || 'N/A'}
+                          </div>
+                        </div>
+
+                        {/* CISA KEV Status Box */}
+                        <div style={{
+                          padding: '12px',
+                          borderRadius: '8px',
+                          background: vulnerability.kev?.listed ? `rgba(${utils.hexToRgb(COLORS.red)}, 0.1)` : `rgba(${utils.hexToRgb(COLORS.green)}, 0.1)`,
+                          borderWidth: '1px',
+                          borderStyle: 'solid',
+                          borderColor: vulnerability.kev?.listed ? `rgba(${utils.hexToRgb(COLORS.red)}, 0.3)` : `rgba(${utils.hexToRgb(COLORS.green)}, 0.3)`
+                        }}>
+                          <div style={{ fontWeight: '600', fontSize: '0.9rem', marginBottom: '4px' }}>
+                            CISA KEV: {vulnerability.kev?.listed ? 'LISTED' : 'Not Listed'}
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                            {vulnerability.kev?.listed ? 'Active Exploitation' : 'No Active Exploitation'}
+                          </div>
+                        </div>
+
+                        {/* Threat Level Box */}
+                        <div style={{
+                          padding: '12px',
+                          borderRadius: '8px',
+                          background: vulnerability.threatLevel === 'CRITICAL' ? `rgba(${utils.hexToRgb(COLORS.red)}, 0.1)` :
+                                     vulnerability.threatLevel === 'HIGH' ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)` :
+                                     vulnerability.threatLevel === 'MEDIUM' ? `rgba(${utils.hexToRgb(COLORS.blue)}, 0.1)` :
+                                     `rgba(${utils.hexToRgb(COLORS.green)}, 0.1)`,
+                          borderWidth: '1px',
+                          borderStyle: 'solid',
+                          borderColor: vulnerability.threatLevel === 'CRITICAL' ? `rgba(${utils.hexToRgb(COLORS.red)}, 0.3)` :
+                                      vulnerability.threatLevel === 'HIGH' ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.3)` :
+                                      vulnerability.threatLevel === 'MEDIUM' ? `rgba(${utils.hexToRgb(COLORS.blue)}, 0.3)` :
+                                      `rgba(${utils.hexToRgb(COLORS.green)}, 0.3)`
+                        }}>
+                          <div style={{ fontWeight: '600', fontSize: '0.9rem', marginBottom: '4px' }}>
+                            Threat Level: {vulnerability.threatLevel || 'Standard'}
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                            {vulnerability.analysisMethod === 'AI_WEB_SEARCH' ? 'AI Enhanced' : 'Heuristic Analysis'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* AI Analysis Description */}
+                      <div style={{ marginBottom: '16px' }}>
+                        <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '8px' }}>
+                          Vulnerability Analysis
+                        </h4>
+                        <p style={{ fontSize: '0.875rem', marginBottom: '12px', lineHeight: '1.5' }}>
+                          {vulnerability.cve?.description || 'No description available.'}
                         </p>
-                        {vulnerability.intelligenceSummary.searchQueries?.length > 0 && (
-                          <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
-                            {vulnerability.intelligenceSummary.searchQueries.length} search queries were executed.
+                        
+                        {/* AI-Generated Risk Summary */}
+                        <div style={{
+                          background: `rgba(${utils.hexToRgb(COLORS.blue)}, 0.05)`,
+                          borderWidth: '1px',
+                          borderStyle: 'solid',
+                          borderColor: `rgba(${utils.hexToRgb(COLORS.blue)}, 0.2)`,
+                          borderRadius: '6px',
+                          padding: '12px',
+                          marginTop: '12px'
+                        }}>
+                          <p style={{ margin: 0, fontSize: '0.85rem', fontStyle: 'italic' }}>
+                            <strong>AI Risk Assessment:</strong> Based on CVSS {cvssRisk} severity ({cvssScore?.toFixed(1)}) and EPSS {epssRisk} exploitation probability ({vulnerability.epss?.epssPercentage || 'N/A'}), 
+                            this vulnerability presents a {cvssRisk === 'CRITICAL' || epssRisk === 'HIGH' || vulnerability.kev?.listed ? 'HIGH' : 
+                            cvssRisk === 'HIGH' || epssRisk === 'MEDIUM' ? 'MEDIUM' : 'LOW'} risk to your environment.
+                            {vulnerability.kev?.listed && ' IMMEDIATE ACTION REQUIRED due to CISA KEV listing.'}
+                            {vulnerability.exploits?.found && ` ${vulnerability.exploits.count} public exploit(s) available.`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 style={{
+                          fontSize: '1rem',
+                          fontWeight: '600',
+                          marginBottom: '12px'
+                        }}>
+                          Sources Analyzed
+                        </h4>
+                        {vulnerability.discoveredSources && vulnerability.discoveredSources.length > 0 ? (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                            {vulnerability.discoveredSources.map((source, index) => (
+                              <span
+                                key={index}
+                                style={{
+                                  padding: '4px 8px',
+                                  background: `rgba(${utils.hexToRgb(COLORS.blue)}, 0.15)`,
+                                  color: COLORS.blue,
+                                  borderWidth: '1px',
+                                  borderStyle: 'solid',
+                                  borderColor: `rgba(${utils.hexToRgb(COLORS.blue)}, 0.3)`,
+                                  borderRadius: '6px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: '600'
+                                }}
+                              >
+                                {source}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <p style={{
+                            fontSize: '0.875rem',
+                            color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText
+                          }}>
+                            No sources identified.
                           </p>
                         )}
                       </div>
-                    )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
-                    {(vulnerability.kev?.listed || vulnerability.exploits?.found || vulnerability.activeExploitation?.confirmed) && (
-                      <div style={{
-                        background: `rgba(${utils.hexToRgb(COLORS.red)}, 0.1)`,
-                        borderWidth: '1px',
-                        borderStyle: 'solid',
-                        borderColor: `rgba(${utils.hexToRgb(COLORS.red)}, 0.3)`,
-                        borderRadius: '8px',
-                        padding: '12px',
-                        marginBottom: '16px'
-                      }}>
-                        {vulnerability.kev?.listed && (
-                          <div style={{ marginBottom: '8px' }}>
-                            <strong style={{ color: COLORS.red }}>🚨 CISA KEV:</strong> {vulnerability.kev.details}
-                          </div>
-                        )}
-                        {vulnerability.exploits?.found && (
-                          <div style={{ marginBottom: '8px' }}>
-                            <strong style={{ color: COLORS.red }}>💣 Public Exploits:</strong> Found {vulnerability.exploits.count} exploit(s)
-                          </div>
-                        )}
-                        {vulnerability.activeExploitation?.confirmed && (
-                          <div>
-                            <strong style={{ color: COLORS.red }}>🔍 Active Exploitation:</strong> {vulnerability.activeExploitation.details}
-                          </div>
-                        )}
-                      </div>
-                    )}
+          {activeTab === 'patches' && (() => {
+            // Helper function to extract patch info from technical brief
+            const extractPatchInfoFromTechBrief = (analysis) => {
+              if (!analysis) return [];
+              
+              const remediationSection = analysis.split('## Remediation')[1];
+              if (!remediationSection) return [];
+              
+              const patches = [];
+              const lines = remediationSection.split('\n');
+              
+              lines.forEach(line => {
+                if (line.includes('**') && (line.includes('Patch') || line.includes('Update') || line.includes('Version'))) {
+                  const match = line.match(/\*\*(.*?)\*\*/);
+                  if (match) {
+                    const patchInfo = match[1];
+                    const parts = patchInfo.split(' - ');
+                    patches.push({
+                      vendor: parts[0] || 'Unknown',
+                      product: parts[1] || '',
+                      description: line.replace(/\*\*/g, '').trim()
+                    });
+                  }
+                }
+              });
+              
+              return patches;
+            };
 
+            // Get patch information from technical brief if available
+            const techBriefPatches = aiAnalysis?.analysis && aiAnalysis.analysis.includes('## Remediation') ? 
+              extractPatchInfoFromTechBrief(aiAnalysis.analysis) : [];
+            
+            const totalPatches = (vulnerability.patches?.length || 0) + (techBriefPatches?.length || 0);
+            const uniqueVendors = [...new Set([
+              ...(vulnerability.patches || []).map(p => p.vendor),
+              ...(techBriefPatches || []).map(p => p.vendor)
+            ])].filter(Boolean);
+
+            return (
+              <div>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '24px' }}>
+                  Patches & Remediation
+                </h2>
+
+                {/* Patch Summary Card */}
+                <div style={{
+                  ...styles.card,
+                  marginBottom: '24px',
+                  background: settings.darkMode ? COLORS.dark.background : COLORS.light.background
+                }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    marginBottom: '16px'
+                  }}>
+                    <Package size={24} color={COLORS.blue} />
                     <div>
-                      <h4 style={{
-                        fontSize: '1rem',
+                      <h3 style={{
+                        fontSize: '1.125rem',
                         fontWeight: '600',
-                        marginBottom: '12px'
+                        margin: 0
                       }}>
-                        Sources Analyzed
-                      </h4>
-                      {vulnerability.discoveredSources && vulnerability.discoveredSources.length > 0 ? (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                          {vulnerability.discoveredSources.map((source, index) => (
-                            <span
-                              key={index}
-                              style={{
-                                padding: '4px 8px',
-                                background: `rgba(${utils.hexToRgb(COLORS.blue)}, 0.15)`,
-                                color: COLORS.blue,
-                                borderWidth: '1px',
-                                borderStyle: 'solid',
-                                borderColor: `rgba(${utils.hexToRgb(COLORS.blue)}, 0.3)`,
-                                borderRadius: '6px',
-                                fontSize: '0.75rem',
-                                fontWeight: '600'
-                              }}
-                            >
-                              {source}
-                            </span>
-                          ))}
-                        </div>
-                    ) : (
+                        Patch Availability Summary
+                      </h3>
                       <p style={{
+                        margin: '4px 0 0 0',
                         fontSize: '0.875rem',
                         color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText
                       }}>
-                        No sources identified.
+                        Comprehensive patch analysis for {vulnerability.cve?.id}
                       </p>
-                    )}
+                    </div>
                   </div>
 
-                  <div style={{ marginTop: '16px' }}>
-                    <h4 style={{
-                      fontSize: '1rem',
-                      fontWeight: '600',
-                      marginBottom: '8px'
+                  {/* Patch Statistics */}
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', 
+                    gap: '12px',
+                    marginBottom: '16px'
+                  }}>
+                    <div style={{
+                      padding: '12px',
+                      borderRadius: '8px',
+                      background: totalPatches > 0 ? `rgba(${utils.hexToRgb(COLORS.green)}, 0.1)` : `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)`,
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderColor: totalPatches > 0 ? `rgba(${utils.hexToRgb(COLORS.green)}, 0.3)` : `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.3)`
                     }}>
-                      Vulnerability Summary
-                    </h4>
-                    <p style={{ fontSize: '0.875rem', marginBottom: '8px' }}>
-                      {vulnerability.cve?.description || 'No description available.'}
+                      <div style={{ fontWeight: '600', fontSize: '0.9rem', marginBottom: '4px' }}>
+                        Total Patches: {totalPatches}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                        {totalPatches > 0 ? 'Patches Available' : 'No Patches Found'}
+                      </div>
+                    </div>
+
+                    <div style={{
+                      padding: '12px',
+                      borderRadius: '8px',
+                      background: `rgba(${utils.hexToRgb(COLORS.blue)}, 0.1)`,
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderColor: `rgba(${utils.hexToRgb(COLORS.blue)}, 0.3)`
+                    }}>
+                      <div style={{ fontWeight: '600', fontSize: '0.9rem', marginBottom: '4px' }}>
+                        Vendors: {uniqueVendors.length}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                        {uniqueVendors.length > 0 ? uniqueVendors.slice(0, 2).join(', ') + (uniqueVendors.length > 2 ? '...' : '') : 'None identified'}
+                      </div>
+                    </div>
+
+                    <div style={{
+                      padding: '12px',
+                      borderRadius: '8px',
+                      background: `rgba(${utils.hexToRgb(COLORS.purple)}, 0.1)`,
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderColor: `rgba(${utils.hexToRgb(COLORS.purple)}, 0.3)`
+                    }}>
+                      <div style={{ fontWeight: '600', fontSize: '0.9rem', marginBottom: '4px' }}>
+                        Analysis Source
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                        {vulnerability.aiSearchPerformed ? 'AI Enhanced' : 'Standard'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Patch Recommendation */}
+                  <div style={{
+                    background: `rgba(${utils.hexToRgb(COLORS.blue)}, 0.05)`,
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    borderColor: `rgba(${utils.hexToRgb(COLORS.blue)}, 0.2)`,
+                    borderRadius: '6px',
+                    padding: '12px'
+                  }}>
+                    <p style={{ margin: 0, fontSize: '0.85rem' }}>
+                      <strong>Recommendation:</strong> {
+                        totalPatches > 0 ? 
+                          `${totalPatches} patch(es) available across ${uniqueVendors.length} vendor(s). Review and apply patches based on your environment and risk tolerance.` :
+                          vulnerability.patchSearchSummary?.patchesFound > 0 ?
+                            `${vulnerability.patchSearchSummary.patchesFound} patch(es) found across ${vulnerability.patchSearchSummary.vendorsSearched?.length || 0} vendor(s) during initial discovery.` :
+                            'No patches identified in automated discovery. Check vendor security advisories manually for updates.'
+                      }
+                      {vulnerability.kev?.listed && ' PRIORITY: Immediate patching required due to CISA KEV listing.'}
                     </p>
-                    <ul style={{ fontSize: '0.875rem', paddingLeft: '20px', margin: 0 }}>
-                      <li>CVSS: {cvssScore?.toFixed(1) || 'N/A'} ({severity})</li>
-                      <li>EPSS: {vulnerability.epss?.epssPercentage || 'N/A'}</li>
-                      <li>CISA KEV: {vulnerability.kev?.listed ? 'Listed' : 'Not Listed'}</li>
-                      <li>Advisories: {vulnerability.vendorAdvisories?.count || 0}</li>
-                    </ul>
-                  </div>
-
-                  <div style={{ marginTop: '16px' }}>
-                    <h4 style={{
-                      fontSize: '1rem',
-                      fontWeight: '600',
-                      marginBottom: '8px'
-                    }}>
-                      Patch Summary
-                    </h4>
-                    {vulnerability.patchSearchSummary ? (
-                      <p style={{ fontSize: '0.875rem' }}>
-                        {vulnerability.patchSearchSummary.patchesFound > 0
-                          ? `${vulnerability.patchSearchSummary.patchesFound} patch(es) found across ${vulnerability.patchSearchSummary.vendorsSearched?.length || 0} vendor(s).`
-                          : 'No patches identified in initial sources.'}
-                      </p>
-                    ) : (
-                      <p style={{ fontSize: '0.875rem' }}>
-                        {vulnerability.patches && vulnerability.patches.length > 0
-                          ? `${vulnerability.patches.length} patch(es) discovered.`
-                          : 'No patch data available.'}
-                      </p>
-                    )}
-                  </div>
-
                   </div>
                 </div>
-              )}
-            </div>
-          )}
 
-          {activeTab === 'patches' && (
-            <div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '24px' }}>
-                Patches
-              </h2>
-              {vulnerability.patches && vulnerability.patches.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {vulnerability.patches.map((patch, index) => (
-                    <div
-                      key={index}
-                      style={{
-                        ...styles.card,
-                        padding: '12px 16px',
-                        background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        gap: '12px'
-                      }}
-                    >
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: '600', fontSize: '0.9rem', marginBottom: '4px' }}>
-                          {patch.vendor}{patch.product ? ` - ${patch.product}` : ''}
-                        </div>
-                        {patch.patchVersion && (
-                          <div style={{ fontSize: '0.8rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
-                            Version: {patch.patchVersion}
+                {/* Available Patches */}
+                {vulnerability.patches && vulnerability.patches.length > 0 ? (
+                  <div style={{ marginBottom: '24px' }}>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '16px' }}>
+                      Available Patches ({vulnerability.patches.length})
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      {vulnerability.patches.map((patch, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            ...styles.card,
+                            padding: '12px 16px',
+                            background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            gap: '12px'
+                          }}
+                        >
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontWeight: '600', fontSize: '0.9rem', marginBottom: '4px' }}>
+                              {patch.vendor}{patch.product ? ` - ${patch.product}` : ''}
+                            </div>
+                            {patch.patchVersion && (
+                              <div style={{ fontSize: '0.8rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                                Version: {patch.patchVersion}
+                              </div>
+                            )}
+                            {patch.description && (
+                              <div style={{ fontSize: '0.8rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                                {patch.description}
+                              </div>
+                            )}
                           </div>
-                        )}
-                        {patch.description && (
-                          <div style={{ fontSize: '0.8rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                          {patch.downloadUrl && patch.downloadUrl.startsWith('http') && (
+                            <a
+                              href={patch.downloadUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ ...styles.button, ...styles.buttonPrimary, padding: '6px 12px', fontSize: '0.8rem', textDecoration: 'none' }}
+                            >
+                              Get Patch
+                            </a>
+                          )}
+                          {!patch.downloadUrl && patch.advisoryUrl && patch.advisoryUrl.startsWith('http') && (
+                            <a
+                              href={patch.advisoryUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ ...styles.button, ...styles.buttonSecondary, padding: '6px 12px', fontSize: '0.8rem', textDecoration: 'none' }}
+                            >
+                              View Advisory →
+                            </a>
+                          )}
+                          {!patch.downloadUrl && !patch.advisoryUrl && patch.citationUrl && patch.citationUrl.startsWith('http') && (
+                            <a
+                              href={patch.citationUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ ...styles.button, ...styles.buttonSecondary, padding: '6px 12px', fontSize: '0.8rem', textDecoration: 'none' }}
+                            >
+                              View Source →
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '32px',
+                    color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText,
+                    background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
+                    borderRadius: '8px',
+                    marginBottom: '24px'
+                  }}>
+                    <Package size={40} style={{ marginBottom: '12px', opacity: 0.5 }} />
+                    <h4 style={{ margin: '0 0 8px 0', fontSize: '1rem' }}>No Patches Identified</h4>
+                    <p style={{ margin: 0, fontSize: '0.875rem' }}>
+                      No patches found through automated discovery. Check vendor advisories manually for potential updates.
+                    </p>
+                  </div>
+                )}
+
+                {/* Additional Patch Information from Tech Brief */}
+                {techBriefPatches && techBriefPatches.length > 0 && (
+                  <div>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '16px' }}>
+                      Additional Patch Information from Analysis
+                    </h3>
+                    <div style={{
+                      background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
+                      borderRadius: '8px',
+                      padding: '16px'
+                    }}>
+                      {techBriefPatches.map((patch, index) => (
+                        <div key={index} style={{ marginBottom: index < techBriefPatches.length - 1 ? '12px' : 0 }}>
+                          <div style={{ fontWeight: '600', fontSize: '0.9rem', marginBottom: '4px' }}>
+                            {patch.vendor} {patch.product && `- ${patch.product}`}
+                          </div>
+                          <div style={{ fontSize: '0.85rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
                             {patch.description}
                           </div>
-                        )}
-                      </div>
-                      {patch.downloadUrl && patch.downloadUrl.startsWith('http') && (
-                        <a
-                          href={patch.downloadUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ ...styles.button, ...styles.buttonPrimary, padding: '6px 12px', fontSize: '0.8rem', textDecoration: 'none' }}
-                        >
-                          Get Patch
-                        </a>
-                      )}
-                      {!patch.downloadUrl && patch.advisoryUrl && patch.advisoryUrl.startsWith('http') && (
-                        <a
-                          href={patch.advisoryUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ ...styles.button, ...styles.buttonSecondary, padding: '6px 12px', fontSize: '0.8rem', textDecoration: 'none' }}
-                        >
-                          View Advisory →
-                        </a>
-                      )}
-                      {!patch.downloadUrl && !patch.advisoryUrl && patch.citationUrl && patch.citationUrl.startsWith('http') && (
-                        <a
-                          href={patch.citationUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{ ...styles.button, ...styles.buttonSecondary, padding: '6px 12px', fontSize: '0.8rem', textDecoration: 'none' }}
-                        >
-                          View Source →
-                        </a>
-                      )}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <p style={{ fontSize: '0.875rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
-                  No patches available.
-                </p>
-              )}
-            </div>
-          )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {activeTab === 'brief' && (
             <div>
