@@ -16,6 +16,74 @@ const CVEDetailView = ({ vulnerability }) => {
   const { settings, addNotification, setVulnerabilities } = useContext(AppContext);
   const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
 
+  // Create a robust wrapper function that handles all possible parameter types
+  const createRobustLoadingStepsWrapper = (prefix = 'AI Agent') => {
+    return (param) => {
+      try {
+        // Case 1: ResearchAgent state updater function: (prev) => [...prev, message]
+        if (typeof param === 'function') {
+          try {
+            const result = param([]);
+            if (Array.isArray(result)) {
+              // Log only the new message (last item)
+              if (result.length > 0) {
+                console.log(`${prefix}:`, result[result.length - 1]);
+              }
+            } else {
+              console.log(`${prefix}:`, result);
+            }
+          } catch (funcError) {
+            console.log(`${prefix}:`, 'Function execution step');
+          }
+          return;
+        }
+        
+        // Case 2: Direct array of steps
+        if (Array.isArray(param)) {
+          param.forEach(step => {
+            if (step && typeof step === 'string') {
+              console.log(`${prefix}:`, step);
+            } else {
+              console.log(`${prefix}:`, String(step));
+            }
+          });
+          return;
+        }
+        
+        // Case 3: Direct string message
+        if (typeof param === 'string') {
+          console.log(`${prefix}:`, param);
+          return;
+        }
+        
+        // Case 4: Object with steps property
+        if (param && typeof param === 'object') {
+          if (param.steps && Array.isArray(param.steps)) {
+            param.steps.forEach(step => console.log(`${prefix}:`, step));
+            return;
+          }
+          if (param.message) {
+            console.log(`${prefix}:`, param.message);
+            return;
+          }
+        }
+        
+        // Case 5: Number, boolean, or other primitive
+        if (param !== null && param !== undefined) {
+          console.log(`${prefix}:`, String(param));
+          return;
+        }
+        
+        // Fallback for null/undefined
+        console.log(`${prefix}:`, 'Processing...');
+        
+      } catch (error) {
+        console.error(`Error in ${prefix} wrapper:`, error);
+        console.log(`${prefix}:`, 'Step processing (error recovery)');
+      }
+    };
+  };
+
   const generateAnalysis = useCallback(async () => {
     if (!settings.geminiApiKey) {
       addNotification({
@@ -43,23 +111,12 @@ const CVEDetailView = ({ vulnerability }) => {
           message: 'Running AI source discovery and validation analysis...'
         });
 
-        // Fix: Create a proper setLoadingSteps function that matches ResearchAgent's expectations
-        // The ResearchAgent calls setLoadingSteps with: (prev) => [...prev, message]
-        // So we need to accept a function that expects the previous steps array
-        const setLoadingStepsWrapper = (stepsUpdater) => {
-          if (typeof stepsUpdater === 'function') {
-            // Call the updater with an empty array to get the new steps
-            const newSteps = stepsUpdater([]);
-            // Log only the new message (last item in the array)
-            if (newSteps.length > 0) {
-              console.log(newSteps[newSteps.length - 1]);
-            }
-          }
-        };
+        // Use the robust wrapper
+        const setLoadingStepsWrapper = createRobustLoadingStepsWrapper('AI Discovery');
 
         enhancedVulnerability = await APIService.fetchVulnerabilityDataWithAI(
           vulnerability.cve.id,
-          setLoadingStepsWrapper, // Use the wrapper function
+          setLoadingStepsWrapper, // Use the robust wrapper function
           { nvd: settings.nvdApiKey },
           settings
         );
@@ -83,11 +140,32 @@ const CVEDetailView = ({ vulnerability }) => {
       setAiAnalysis(result);
       setActiveTab('brief');
 
-      addNotification({
-        type: 'success',
-        title: 'AI Analysis Complete',
-        message: `Enhanced analysis generated using ${result.ragDocuments} knowledge sources and real-time intelligence`
-      });
+      // Enhanced notification based on AI analysis result
+      if (result.fallbackReason === 'GROUNDING_INFO_ONLY') {
+        addNotification({
+          type: 'warning',
+          title: 'AI Analysis with Limitations',
+          message: `AI performed web searches but provided fallback analysis. Generated using ${result.ragDocuments || 0} knowledge sources.`
+        });
+      } else if (result.fallbackReason === 'SAFETY' || result.fallbackReason === 'RECITATION') {
+        addNotification({
+          type: 'warning',
+          title: 'Content Policy Limitation',
+          message: `AI analysis was limited due to content policies. Using fallback analysis based on available data.`
+        });
+      } else if (result.fallbackReason) {
+        addNotification({
+          type: 'warning',
+          title: 'AI Analysis Issue',
+          message: `AI analysis encountered limitations (${result.fallbackReason}). Using enhanced fallback analysis.`
+        });
+      } else {
+        addNotification({
+          type: 'success',
+          title: 'AI Analysis Complete',
+          message: `Enhanced analysis generated using ${result.ragDocuments || 0} knowledge sources and real-time intelligence`
+        });
+      }
     } catch (error) {
       addNotification({
         type: 'error',
@@ -104,19 +182,12 @@ const CVEDetailView = ({ vulnerability }) => {
     if (!cveId) return;
 
     try {
-      // Create the same wrapper for consistency
-      const setLoadingStepsWrapper = (stepsUpdater) => {
-        if (typeof stepsUpdater === 'function') {
-          const newSteps = stepsUpdater([]);
-          if (newSteps.length > 0) {
-            console.log(newSteps[newSteps.length - 1]);
-          }
-        }
-      };
+      // Use the same robust wrapper for consistency
+      const setLoadingStepsWrapper = createRobustLoadingStepsWrapper('AI Refresh');
 
       const refreshedVulnerability = await APIService.fetchVulnerabilityDataWithAI(
         cveId,
-        setLoadingStepsWrapper, // Use the wrapper function
+        setLoadingStepsWrapper, // Use the robust wrapper function
         { nvd: settings.nvdApiKey },
         settings
       );
@@ -486,6 +557,29 @@ const CVEDetailView = ({ vulnerability }) => {
                       </div>
                     </div>
 
+                    {/* Enhanced AI Analysis Limitations Notice */}
+                    {vulnerability.intelligenceSummary?.analysisMethod === 'GROUNDING_INFO_ONLY' && (
+                      <div style={{
+                        background: `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)`,
+                        borderWidth: '1px',
+                        borderStyle: 'solid', 
+                        borderColor: `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.3)`,
+                        borderRadius: '8px',
+                        padding: '12px',
+                        marginBottom: '16px'
+                      }}>
+                        <p style={{ margin: 0, fontSize: '0.8rem' }}>
+                          <strong>⚠️ AI Search Limitation:</strong> The AI performed web searches but could not provide textual analysis. 
+                          Using fallback analysis based on available vulnerability data.
+                        </p>
+                        {vulnerability.intelligenceSummary.searchQueries?.length > 0 && (
+                          <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
+                            {vulnerability.intelligenceSummary.searchQueries.length} search queries were executed.
+                          </p>
+                        )}
+                      </div>
+                    )}
+
                     {(vulnerability.kev?.listed || vulnerability.exploits?.found || vulnerability.activeExploitation?.confirmed) && (
                       <div style={{
                         background: `rgba(${utils.hexToRgb(COLORS.red)}, 0.1)`,
@@ -677,11 +771,52 @@ const CVEDetailView = ({ vulnerability }) => {
             </div>
           )}
 
-
           {activeTab === 'brief' && (
             <div>
               {aiAnalysis ? (
-                <TechnicalBrief brief={aiAnalysis.analysis} />
+                <div>
+                  {/* Enhanced AI Analysis Status Display */}
+                  {aiAnalysis.fallbackReason && (
+                    <div style={{
+                      background: aiAnalysis.fallbackReason === 'GROUNDING_INFO_ONLY' 
+                        ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)` 
+                        : `rgba(${utils.hexToRgb(COLORS.red)}, 0.1)`,
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      borderColor: aiAnalysis.fallbackReason === 'GROUNDING_INFO_ONLY' 
+                        ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.3)` 
+                        : `rgba(${utils.hexToRgb(COLORS.red)}, 0.3)`,
+                      borderRadius: '8px',
+                      padding: '12px',
+                      marginBottom: '20px'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <AlertTriangle size={16} color={aiAnalysis.fallbackReason === 'GROUNDING_INFO_ONLY' ? COLORS.yellow : COLORS.red} />
+                        <strong style={{ fontSize: '0.9rem' }}>
+                          {aiAnalysis.fallbackReason === 'GROUNDING_INFO_ONLY' 
+                            ? 'AI Search Performed - Fallback Analysis Used'
+                            : `AI Analysis Limited - ${aiAnalysis.fallbackReason}`}
+                        </strong>
+                      </div>
+                      <p style={{ margin: 0, fontSize: '0.8rem' }}>
+                        {aiAnalysis.fallbackReason === 'GROUNDING_INFO_ONLY' 
+                          ? 'The AI performed web searches but could not provide direct textual analysis. This technical brief was generated using available vulnerability data and fallback analysis methods.'
+                          : aiAnalysis.fallbackReason === 'SAFETY' 
+                            ? 'AI analysis was blocked due to content safety policies. Using fallback analysis based on available data.'
+                            : aiAnalysis.fallbackReason === 'RECITATION'
+                              ? 'AI analysis was blocked due to content recitation policies. Using fallback analysis based on available data.'
+                              : `AI analysis encountered limitations (${aiAnalysis.fallbackReason}). Using enhanced fallback analysis.`}
+                      </p>
+                      {aiAnalysis.searchQueries?.length > 0 && (
+                        <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
+                          Search queries executed: {aiAnalysis.searchQueries.length}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                  
+                  <TechnicalBrief brief={aiAnalysis.analysis} />
+                </div>
               ) : (
                 <div style={{ textAlign: 'center', padding: '48px 32px' }}>
                   <FileText size={40} color={settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText} />
@@ -720,6 +855,29 @@ const CVEDetailView = ({ vulnerability }) => {
             <Brain size={14} />
             AI Intelligence Summary
           </h3>
+
+          {/* Enhanced AI Analysis Limitations Notice in Summary */}
+          {vulnerability.intelligenceSummary?.analysisMethod === 'GROUNDING_INFO_ONLY' && (
+            <div style={{
+              background: `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)`,
+              borderWidth: '1px',
+              borderStyle: 'solid', 
+              borderColor: `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.3)`,
+              borderRadius: '8px',
+              padding: '12px',
+              marginBottom: '12px'
+            }}>
+              <p style={{ margin: 0, fontSize: '0.8rem' }}>
+                <strong>⚠️ AI Search Limitation:</strong> The AI performed web searches but could not provide textual analysis. 
+                Using fallback analysis based on available vulnerability data.
+              </p>
+              {vulnerability.intelligenceSummary.searchQueries?.length > 0 && (
+                <p style={{ margin: '8px 0 0 0', fontSize: '0.75rem', color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
+                  {vulnerability.intelligenceSummary.searchQueries.length} search queries were executed.
+                </p>
+              )}
+            </div>
+          )}
 
           <div style={{ fontSize: '0.8125rem', color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
             <p style={{ margin: '0 0 8px 0' }}>
