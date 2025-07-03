@@ -25,4 +25,12 @@ describe('UserAssistantAgent validation integration', () => {
     expect(validateSpy).toHaveBeenCalled();
     expect(res.data).toEqual(mockValidation);
   });
+
+  it('returns remediation plan when asked', async () => {
+    const agent = new UserAssistantAgent({});
+    const res = await agent.handleQuery('remediation plan for CVE-1234-0001');
+    expect(res.text).toContain('Remediation Plan');
+    expect(Array.isArray(res.data)).toBe(true);
+    expect(res.data.length).toBeGreaterThan(0);
+  });
 });
