@@ -666,8 +666,8 @@ export function generateUserWarning(confidence: string, validation: any): string
 export function createAIDataDisclaimer(vulnerability: any): string {
   const aiGeneratedCount = countAIGeneratedFindings(vulnerability);
   const verifiedCount = countVerifiedFindings(vulnerability.validation || {});
-  
-  return `📊 Analysis Summary: ${aiGeneratedCount} AI-generated findings, ${verifiedCount} verified. Please review all findings before taking action.`;
+
+  return `📊 Analysis Summary: ${aiGeneratedCount} AI-generated findings, ${verifiedCount} verified. AI is prone to mistakes, so validate the evidence before taking action.`;
 }
 
 // Count AI Generated Findings
