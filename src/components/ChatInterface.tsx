@@ -18,9 +18,10 @@ interface Message {
 
 interface ChatInterfaceProps {
   initialCveId?: string | null;
+  bulkAnalysisResults?: Array<{ cveId: string; data?: any; error?: string }>;
 }
 
-const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId }) => {
+const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId, bulkAnalysisResults = [] }) => {
   const { settings, addNotification } = useContext(AppContext);
   const styles = createStyles(settings.darkMode); // Assuming createStyles is memoized or lightweight
 
@@ -63,6 +64,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId }) => {
     // Intentionally not adding chatHistory to dependencies to avoid loop with setChatHistory
     // This effect should primarily react to initialCveId or agent availability.
   }, [initialCveId, agent]);
+
+  useEffect(() => {
+    if (agent) {
+      agent.setBulkAnalysisResults(bulkAnalysisResults);
+    }
+  }, [agent, bulkAnalysisResults]);
 
   const handleSendMessage = useCallback(async () => {
     if (!inputMessage.trim() || !agent) return; // currentCveId check removed

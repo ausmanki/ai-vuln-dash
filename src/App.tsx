@@ -273,7 +273,10 @@ const App = () => {
               background: styles.card.background,
             }}
           >
-            <ChatInterface initialCveId={vulnerabilities[0]?.cve?.id || null} />
+            <ChatInterface
+              initialCveId={vulnerabilities[0]?.cve?.id || null}
+              bulkAnalysisResults={bulkAnalysisResults}
+            />
           </div>
         )}
 
