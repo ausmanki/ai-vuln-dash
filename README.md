@@ -240,6 +240,13 @@ npm start
 3. Get 3000+ word comprehensive security assessment
 ```
 
+### **🗣️ Smart Assistant Commands**
+```
+/help             - List available assistant commands
+/bulk_summary     - Summarize results from your uploaded CVE file (includes patch search counts)
+/component_summary - Show impacted components across bulk CVEs
+```
+
 ### **📈 Executive Reporting**
 ```
 1. Generate vulnerability analysis

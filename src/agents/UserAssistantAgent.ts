@@ -59,6 +59,9 @@ export class UserAssistantAgent {
     if (lowerQuery === '/component_summary') {
       return this.generateBulkComponentImpactSummary();
     }
+    if (lowerQuery === '/help') {
+      return this.generateHelpMessage();
+    }
 
     // Determine operational CVE ID
     if (cveMatch) {
@@ -647,6 +650,15 @@ export class UserAssistantAgent {
       summaryText += `No CVEs found in CISA KEV or with CVSS score >= 9.0 among the successfully analyzed items.\n\n`;
     }
 
+    // Patch/advisory search summary per CVE
+    summaryText += `**Patch Search Summary:**\n`;
+    this.bulkAnalysisResults.forEach(result => {
+      const patches = result.data?.patchSearchSummary?.patchesFound;
+      const advisories = result.data?.patchSearchSummary?.advisoriesFound;
+      summaryText += `- ${result.cveId}: ${patches ?? 'undefined'} patches, ${advisories ?? 'undefined'} advisories from searched vendors\n`;
+    });
+    summaryText += `\n`;
+
     summaryText += "You can ask for details on any specific CVE by typing its ID (e.g., 'CVE-2023-1234').";
 
     return {
@@ -693,5 +705,14 @@ export class UserAssistantAgent {
     });
 
     return { text: summaryText, sender: 'bot', id: Date.now().toString() };
+  }
+
+  public generateHelpMessage(): ChatResponse {
+    const helpText = `Available commands:\n` +
+      `- /help: Show this help message\n` +
+      `- /bulk_summary: Summarize uploaded CVE analysis results\n` +
+      `- /component_summary: Summarize affected components across uploaded CVEs\n` +
+      `\nYou can also ask about a specific CVE, e.g. 'Tell me about CVE-2023-1234'.`;
+    return { text: helpText, sender: 'system', id: Date.now().toString() };
   }
 }
