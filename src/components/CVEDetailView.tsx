@@ -98,6 +98,8 @@ const CVEDetailView = ({ vulnerability }) => {
         // Popular libraries
         { pattern: /log4j/i, name: 'Log4j', type: 'library', ecosystem: 'java' },
         { pattern: /spring/i, name: 'Spring Framework', type: 'framework', ecosystem: 'java' },
+        { pattern: /maven/i, name: 'Apache Maven', type: 'build-tool', ecosystem: 'maven' },
+        { pattern: /gradle/i, name: 'Gradle Build Tool', type: 'build-tool', ecosystem: 'gradle' },
         { pattern: /wordpress/i, name: 'WordPress', type: 'cms', ecosystem: 'wordpress' },
         { pattern: /drupal/i, name: 'Drupal', type: 'cms', ecosystem: 'drupal' },
         
@@ -431,8 +433,9 @@ const CVEDetailView = ({ vulnerability }) => {
     },
 
     // Generate package manager guidance
-    generatePackageManagerGuidance: (components, cveId) => {
+    generatePackageManagerGuidance: (components, cveId, description = '') => {
       const guidance = [];
+      const lowerDesc = description.toLowerCase();
       
       const packageManagers = {
         'nodejs': {
@@ -459,6 +462,22 @@ const CVEDetailView = ({ vulnerability }) => {
           registryUrl: 'https://search.maven.org/',
           searchTips: 'Check Maven Central for updated versions with security fixes'
         },
+        'maven': {
+          name: 'Maven',
+          checkCommands: ['mvn versions:display-dependency-updates', 'mvn dependency:tree'],
+          updateCommands: ['mvn versions:use-latest-versions', 'Update pom.xml dependencies'],
+          configFiles: ['pom.xml', 'build.gradle'],
+          registryUrl: 'https://search.maven.org/',
+          searchTips: 'Check Maven Central for updated versions with security fixes'
+        },
+        'gradle': {
+          name: 'Gradle',
+          checkCommands: ['./gradlew dependencyUpdates', './gradlew dependencies'],
+          updateCommands: ['./gradlew useLatestVersions', 'Update build.gradle dependencies'],
+          configFiles: ['build.gradle', 'build.gradle.kts'],
+          registryUrl: 'https://plugins.gradle.org/',
+          searchTips: 'Check Gradle plugin portal for updated versions with security fixes'
+        },
         'dotnet': {
           name: 'NuGet',
           checkCommands: ['dotnet list package --outdated', 'dotnet restore'],
@@ -478,16 +497,44 @@ const CVEDetailView = ({ vulnerability }) => {
       };
       
       components.forEach(component => {
-        const pm = packageManagers[component.ecosystem];
+        let key = component.ecosystem;
+
+        if (key === 'java') {
+          if (lowerDesc.includes('gradle')) key = 'gradle';
+          else if (lowerDesc.includes('maven')) key = 'maven';
+          else key = 'maven';
+        }
+
+        const pm = packageManagers[key];
         if (pm) {
           guidance.push({
             ...pm,
             component: component.name,
-            ecosystem: component.ecosystem,
+            ecosystem: key,
             cveSearchTerms: [`${cveId} ${pm.name}`, `${component.name} ${cveId} security`]
           });
         }
       });
+
+      if (guidance.length === 0) {
+        if (lowerDesc.includes('gradle')) {
+          const pm = packageManagers['gradle'];
+          guidance.push({
+            ...pm,
+            component: 'Gradle Project',
+            ecosystem: 'gradle',
+            cveSearchTerms: [`${cveId} gradle`, `${cveId} security`]
+          });
+        } else if (lowerDesc.includes('maven')) {
+          const pm = packageManagers['maven'];
+          guidance.push({
+            ...pm,
+            component: 'Maven Project',
+            ecosystem: 'maven',
+            cveSearchTerms: [`${cveId} maven`, `${cveId} security`]
+          });
+        }
+      }
       
       return guidance;
     },
@@ -1072,7 +1119,7 @@ Search comprehensively for all available patches and advisories.
         aiAdvisories: verified.advisories,
         vendorPortals: PatchDiscovery.generateVendorPortals(components),
         searchStrategies: PatchDiscovery.generateSearchStrategies(cveId, components),
-        packageManagers: PatchDiscovery.generatePackageManagerGuidance(components, cveId),
+        packageManagers: PatchDiscovery.generatePackageManagerGuidance(components, cveId, description),
         remediationSteps: PatchDiscovery.generateRemediationSteps(cveId, components),
         urgencyLevel: PatchDiscovery.assessUrgencyLevel(vulnerability),
         aiAnalysis: aiResponse.analysis,
