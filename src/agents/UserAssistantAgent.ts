@@ -653,9 +653,9 @@ export class UserAssistantAgent {
     // Patch/advisory search summary per CVE
     summaryText += `**Patch Search Summary:**\n`;
     this.bulkAnalysisResults.forEach(result => {
-      const patches = result.data?.patchSearchSummary?.patchesFound;
-      const advisories = result.data?.patchSearchSummary?.advisoriesFound;
-      summaryText += `- ${result.cveId}: ${patches ?? 'undefined'} patches, ${advisories ?? 'undefined'} advisories from searched vendors\n`;
+      const patches = result.data?.patchSearchSummary?.patchesFound ?? 0;
+      const advisories = result.data?.patchSearchSummary?.advisoriesFound ?? 0;
+      summaryText += `- ${result.cveId}: ${patches} patches, ${advisories} advisories from searched vendors\n`;
     });
     summaryText += `\n`;
 

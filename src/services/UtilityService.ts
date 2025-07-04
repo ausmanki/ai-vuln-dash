@@ -316,6 +316,16 @@ export function parsePatchAndAdvisoryResponse(response: any) {
     const patches = response.patches || [];
     const advisories = response.advisories || [];
     const searchSummary = response.searchSummary || {};
+
+    if (searchSummary.patchesFound === undefined) {
+      searchSummary.patchesFound = patches.length;
+    }
+    if (searchSummary.advisoriesFound === undefined) {
+      searchSummary.advisoriesFound = advisories.length;
+    }
+    if (!Array.isArray(searchSummary.vendorsSearched)) {
+      searchSummary.vendorsSearched = [];
+    }
     
     return {
       patches: patches.map((patch: any) => ({
@@ -351,7 +361,10 @@ export function getHeuristicPatchesAndAdvisories(cveId: string, cveData: any) {
     searchSummary: {
       method: 'heuristic',
       confidence: 'low',
-      note: 'Generated from CVE metadata when AI search fails'
+      note: 'Generated from CVE metadata when AI search fails',
+      patchesFound: 0,
+      advisoriesFound: 0,
+      vendorsSearched: []
     }
   };
 
@@ -378,6 +391,7 @@ export function getHeuristicPatchesAndAdvisories(cveId: string, cveData: any) {
             patchAvailable: false,
             citationUrl: ''
           });
+          heuristicData.searchSummary.advisoriesFound += 1;
         });
       }
     });
