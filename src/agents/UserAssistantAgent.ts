@@ -19,6 +19,7 @@ import {
 } from '../types/cveData';
 import { AIThreatIntelData } from '../types/aiThreatIntel';
 import { generateRemediationPlan } from '../utils/remediation';
+import { extractComponentNames } from '../utils/componentUtils';
 
 const CVE_REGEX = /CVE-\d{4}-\d{4,7}/i;
 
@@ -51,9 +52,12 @@ export class UserAssistantAgent {
     const cveMatch = query.match(CVE_REGEX);
     let operationalCveId: string | null = null;
 
-    // Prioritize /bulk_summary command
+    // Prioritize bulk summary commands
     if (lowerQuery === '/bulk_summary') {
       return this.generateBulkAnalysisSummary();
+    }
+    if (lowerQuery === '/component_summary') {
+      return this.generateBulkComponentImpactSummary();
     }
 
     // Determine operational CVE ID
@@ -650,5 +654,44 @@ export class UserAssistantAgent {
       sender: 'bot',
       id: Date.now().toString(),
     };
+  }
+
+  public generateBulkComponentImpactSummary(): ChatResponse {
+    if (!this.bulkAnalysisResults || this.bulkAnalysisResults.length === 0) {
+      return {
+        text: "No bulk analysis results available to summarize. Please upload and process a file first.",
+        sender: 'system',
+        id: Date.now().toString(),
+      };
+    }
+
+    const componentMap: Record<string, { cveIds: string[]; severities: string[] }> = {};
+
+    this.bulkAnalysisResults.forEach(result => {
+      if (!result.data) return;
+      const desc = result.data.cve?.cve?.descriptions?.[0]?.value || '';
+      const components = extractComponentNames(desc);
+      const severity = result.data.cve?.cvssV3?.baseSeverity || result.data.cve?.cvssV2?.baseSeverity || 'UNKNOWN';
+
+      const comps = components.length > 0 ? components : ['Unknown'];
+      comps.forEach(name => {
+        if (!componentMap[name]) {
+          componentMap[name] = { cveIds: [], severities: [] };
+        }
+        componentMap[name].cveIds.push(result.cveId);
+        componentMap[name].severities.push(severity);
+      });
+    });
+
+    const severityRank: Record<string, number> = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1, INFO: 0, UNKNOWN: 0 };
+
+    let summaryText = `**Component Impact Summary:**\n\n`;
+    Object.entries(componentMap).forEach(([name, info]) => {
+      const highest = info.severities.reduce((a, b) =>
+        (severityRank[b.toUpperCase()] > severityRank[a.toUpperCase()] ? b : a), 'INFO');
+      summaryText += `- ${name}: ${info.cveIds.join(', ')} (Highest Severity: ${highest})\n`;
+    });
+
+    return { text: summaryText, sender: 'bot', id: Date.now().toString() };
   }
 }
