@@ -64,4 +64,29 @@ describe('UserAssistantAgent validation integration', () => {
     expect(res.text).toContain('Apache HTTP Server');
     expect(res.text).toContain('CVE-0001, CVE-0002');
   });
+
+  it('returns help information for /help command', async () => {
+    const agent = new UserAssistantAgent({});
+    const res = await agent.handleQuery('/help');
+    expect(res.text).toContain('Available commands');
+    expect(res.sender).toBe('system');
+  });
+
+  it('includes patch summary in bulk summary', async () => {
+    const agent = new UserAssistantAgent({});
+    agent.setBulkAnalysisResults([
+      {
+        cveId: 'CVE-0003',
+        status: 'Complete',
+        data: {
+          patchSearchSummary: { patchesFound: 1, advisoriesFound: 0 }
+        } as any
+      }
+    ]);
+
+    const res = await agent.handleQuery('/bulk_summary');
+    expect(res.text).toContain('Patch Search Summary');
+    expect(res.text).toContain('CVE-0003');
+    expect(res.text).toContain('1 patches');
+  });
 });
