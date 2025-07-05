@@ -555,6 +555,54 @@ export async function generateAIAnalysis(vulnerability, apiKey, model, settings 
   }
 }
 
+export async function generateAITaintAnalysis(vulnerability, apiKey, model = 'gemini-2.5-flash', settings = {}, ragDatabase, fetchWithFallback) {
+  if (!apiKey) throw new Error('Gemini API key required');
+
+  if (ragDatabase) {
+    await ragDatabase.ensureInitialized(apiKey);
+  }
+
+  const cveId = vulnerability.cve?.id || 'Unknown';
+  const description = vulnerability.cve?.description || '';
+
+  let context = '';
+  if (ragDatabase && ragDatabase.initialized) {
+    const docs = await ragDatabase.search(`${cveId} ${description.substring(0, 200)}`, 5);
+    if (docs.length > 0) {
+      context = docs.map((d, i) => `[Context ${i + 1}] ${d.content.substring(0, 400)}`).join('\n\n');
+    }
+  }
+
+  const prompt = `You are the RAG-Powered CVE Conceptual Taint Analysis System.\n\nCVE ID: ${cveId}\nDescription: ${description}\n${context ? `Context:\n${context}\n` : ''}Provide a conceptual taint analysis detailing potential sources, propagation paths, impacted sinks, and mitigation guidance.`;
+
+  const requestBody = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.1, topK: 1, topP: 0.8, maxOutputTokens: 2048, candidateCount: 1 }
+  };
+
+  const response = await fetchWithFallback(`${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${apiKey}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    throw new Error(`Gemini API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error('Invalid response from Gemini API');
+  }
+
+  if (ragDatabase && ragDatabase.initialized && text.length > 100) {
+    await ragDatabase.addDocument(text, { title: `Taint Analysis - ${cveId}`, category: 'taint-analysis', tags: ['taint', cveId] });
+  }
+
+  return { analysis: text };
+}
+
 export async function fetchGeneralAnswer(query: string, settings: any, fetchWithFallbackFn: any) {
   if (!settings.geminiApiKey) {
     throw new Error("Gemini API key required for AI responses");
