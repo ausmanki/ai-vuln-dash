@@ -580,3 +580,45 @@ export async function fetchGeneralAnswer(query: string, settings: any, fetchWith
   }
   return { answer: text };
 }
+
+export async function generateAITaintAnalysis(
+  vulnerability: any,
+  apiKey: string,
+  model: string,
+  settings: any = {},
+  fetchWithFallbackFn: any
+) {
+  if (!apiKey) throw new Error('Gemini API key required');
+
+  const prompt = `Perform conceptual taint analysis for ${vulnerability?.cve?.id} based on the following description:\n${vulnerability?.cve?.description}`;
+
+  const requestBody: any = {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { temperature: 0.1, topK: 1, topP: 0.8, maxOutputTokens: 2048, candidateCount: 1 }
+  };
+
+  const isWebSearchCapable = model.includes('2.0') || model.includes('2.5');
+  if (isWebSearchCapable) {
+    requestBody.tools = [{ google_search: {} }];
+  }
+
+  const response = await fetchWithFallbackFn(
+    `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error(`Gemini API error: ${response.status}`);
+  }
+
+  const data = await response.json();
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error('Invalid response from Gemini API');
+  }
+  return { analysis: text };
+}
