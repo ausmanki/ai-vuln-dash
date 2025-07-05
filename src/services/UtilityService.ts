@@ -244,6 +244,44 @@ Each section should consider:
 
 **Multi-audience success criteria**: Each team should be able to extract their specific action items and context without reading the entire brief.`;
 
+// Prompt for conceptual taint analysis
+export const CONCEPTUAL_TAINT_ANALYSIS_PROMPT = String.raw`**Prompt for RAG-Powered CVE Conceptual Taint Analysis**
+
+"Perform a comprehensive conceptual taint analysis for the following CVE, as if you were an expert security analyst explaining it without direct code access. Focus on the *principles* of taint analysis rather than specific code lines, unless used for illustrative conceptual examples.  
+
+**CVE ID:** [CVE_ID]
+
+Please structure your analysis as follows:
+
+**1. What is this potential vulnerability, conceptually?**
+* Provide a high-level, easy-to-understand explanation of the vulnerability.
+* Describe the core flaw and its potential impact.
+
+**2. AI Taint Analysis**  
+* Outline how AI-driven methods (e.g., retrieval-augmented generation) can help trace tainted data flow from sources through propagators to sinks.
+* Explain how AI can highlight patterns or indicators that might not be obvious through manual inspection.
+
+**3. Mapping to Relevant CVEs (Primary & Related):**
+* Identify the primary CVE ID.
+* List any directly related CVEs (such as subsequent fixes, bypasses, or similar vulnerabilities in the same component) and briefly explain their connection.
+
+**4. Conceptual Taint Analysis Breakdown:**
+* **Sources (Where Taint Begins):** Identify common conceptual entry points for attacker-controlled data that could lead to this vulnerability.
+* **Propagators (How Taint Spreads):** Describe how tainted data can move through the system.
+* **Sinks (Where Taint Becomes Dangerous):** Explain the points or functions where untrusted data can trigger the vulnerability, and why these are considered sinks.
+* Provide a simple conceptual taint flow example using the identified sources, propagators, and sinks.
+
+**5. Specific Remediation Suggestions (Conceptual & Actionable):**
+* Detail the most effective mitigation steps at a conceptual level.
+* Include any common strategies if a full patch isn’t immediately feasible, and the rationale behind them.
+
+**6. Conceptual Code Example for Fix (Focus on Principle):**
+* Describe in principle how a developer would prevent the taint from reaching the sink or how to neutralize it (e.g., input validation, parameterized functions, or disabling certain features).`;
+
+export function buildConceptualTaintAnalysisPrompt(cveId: string): string {
+  return CONCEPTUAL_TAINT_ANALYSIS_PROMPT.replace('[CVE_ID]', cveId);
+}
+
 // CVE Data Processing Functions
 export function processCVEData(cveData: any) {
   console.log('processCVEData received:', JSON.stringify(cveData, null, 2));
