@@ -684,97 +684,6 @@ const CVEDetailView = ({ vulnerability }) => {
       return siteMap[ecosystem] || ['security.generic-vendor.com'];
     },
 
-    // Parse AI response for patch information
-    parseAIResponseForPatches: (aiResponse) => {
-      const patches = [];
-      const advisories = [];
-      const seenUrls = new Set(); // Track URLs to prevent duplicates
-      
-      try {
-        if (!aiResponse || typeof aiResponse !== 'string') {
-          return { patches, advisories };
-        }
-
-        // Enhanced URL pattern matching
-        const urlPattern = /https?:\/\/[^\s<>"{}|\\^`\[\]]+/g;
-        const foundUrls = aiResponse.match(urlPattern) || [];
-        
-        // Parse structured responses
-        const lines = aiResponse.split('\n');
-        let currentSection = null;
-        let currentPatch = null;
-        
-        lines.forEach(line => {
-          const trimmedLine = line.trim();
-          
-          // Identify sections
-          if (trimmedLine.includes('Official') && trimmedLine.includes('Download')) {
-            currentSection = 'downloads';
-          } else if (trimmedLine.includes('Security') && trimmedLine.includes('Page')) {
-            currentSection = 'security';
-          } else if (trimmedLine.includes('Package Manager')) {
-            currentSection = 'packages';
-          }
-          
-          // Extract URLs with context
-          const urlMatch = trimmedLine.match(/(https?:\/\/[^\s\)]+)/);
-          if (urlMatch) {
-            const url = urlMatch[1];
-            
-            // Skip if URL already seen
-            if (seenUrls.has(url)) {
-              return;
-            }
-            seenUrls.add(url);
-            
-            const isSecurityRelated = url.includes('security') || 
-                                    url.includes('advisory') || 
-                                    url.includes('patch') || 
-                                    url.includes('update') ||
-                                    url.includes('download') ||
-                                    url.includes('maven') ||
-                                    url.includes('npm') ||
-                                    url.includes('github');
-            
-            if (isSecurityRelated) {
-              const vendor = PatchDiscovery.extractVendorFromUrl(url);
-              const isPatchLike = url.includes('download') || 
-                                url.includes('maven') || 
-                                url.includes('npm') ||
-                                url.includes('packages') ||
-                                url.includes('releases');
-              
-              if (isPatchLike) {
-                patches.push({
-                  vendor,
-                  downloadUrl: url,
-                  description: `Found in AI analysis: ${trimmedLine}`,
-                  confidence: 'HIGH',
-                  verified: false,
-                  source: 'AI_DISCOVERY'
-                });
-              } else {
-                advisories.push({
-                  vendor,
-                  url,
-                  title: `${vendor} Security Advisory`,
-                  summary: `Found in AI analysis: ${trimmedLine}`,
-                  verified: false,
-                  source: 'AI_DISCOVERY'
-                });
-              }
-            }
-          }
-        });
-        
-        console.log(`Parsed ${patches.length} patches and ${advisories.length} advisories from AI response`);
-        
-      } catch (error) {
-        console.warn('Error parsing AI response:', error);
-      }
-      
-      return { patches, advisories };
-    },
 
     // Extract vendor from URL
     extractVendorFromUrl: (url) => {
@@ -906,62 +815,33 @@ const CVEDetailView = ({ vulnerability }) => {
       // Extract affected components
       const components = PatchDiscovery.extractAffectedComponents(description);
       
-      // Generate AI search prompt
-      const searchPrompt = `
-You are a cybersecurity expert helping find official patches and fixes for vulnerabilities.
 
-CVE ID: ${cveId}
-DESCRIPTION: ${description}
-
-TASK: Find official vendor patches, security advisories, and security bulletins for this CVE.
-
-SEARCH AND PROVIDE:
-1. **Official Vendor Downloads**: Direct download links for patched versions
-2. **Security Advisories**: Vendor security pages with detailed information
-3. **Vendor Security Bulletins**: announcements and response timelines
-4. **GitHub Releases**: Official releases and security fixes
-5. **Distribution Updates**: Linux distribution security updates
-
-IMPORTANT REQUIREMENTS:
-- Provide REAL, WORKING URLs only
-- Include specific version numbers that fix the vulnerability
-- Verify all information is current and accurate
-- Focus on official vendor sources
-
-RETURN FORMAT:
-For each fix found, provide:
-- **Vendor**: [Vendor name]
-- **Type**: [Download/Advisory/Package Update]
-- **URL**: [Complete working URL]
-- **Version**: [Specific version that fixes the CVE]
-- **Description**: [What this link provides]
-
-Search comprehensively for all available patches and advisories.
-`;
-
-      // Create enhanced vulnerability object for AI search
-      const enhancedVulnerability = {
-        ...vulnerability,
-        customPrompt: searchPrompt,
-        requireWebSearch: true,
-        searchDepth: 'comprehensive',
-        validateCVE: true
+      const createRobustLoadingStepsWrapper = (prefix = 'Patch Search') => {
+        return (param) => {
+          try {
+            if (typeof param === 'string') {
+              console.log(`${prefix}:`, param);
+              return;
+            }
+            console.log(`${prefix}:`, 'Processing...');
+          } catch (error) {
+            console.error(`Error in ${prefix} wrapper:`, error);
+          }
+        };
       };
 
-      // Generate AI analysis with web search
-      const aiResponse = await APIService.generateAIAnalysis(
-        enhancedVulnerability,
-        safeSettings.geminiApiKey,
-        safeSettings.geminiModel,
-        safeSettings
+      const setLoadingStepsWrapper = createRobustLoadingStepsWrapper('Patch Search');
+
+      const patchData = await APIService.fetchPatchesAndAdvisories(
+        cveId,
+        vulnerability.cve,
+        safeSettings,
+        setLoadingStepsWrapper
       );
 
-      if (!aiResponse || !aiResponse.analysis) {
-        throw new Error('AI analysis failed or returned empty response');
-      }
-
-      // Parse AI response for patches and advisories
-      const { patches, advisories } = PatchDiscovery.parseAIResponseForPatches(aiResponse.analysis);
+      const patches = patchData.patches || [];
+      const advisories = patchData.advisories || [];
+      const searchSummary = patchData.searchSummary || {};
       
       // Verify discovered URLs
       const verified = await PatchDiscovery.verifyPatchUrls(patches, advisories);
@@ -977,7 +857,7 @@ Search comprehensively for all available patches and advisories.
         packageManagers: PatchDiscovery.generatePackageManagerGuidance(components, cveId, description),
         remediationSteps: PatchDiscovery.generateRemediationSteps(cveId, components),
         urgencyLevel: PatchDiscovery.assessUrgencyLevel(vulnerability),
-        aiAnalysis: aiResponse.analysis,
+        searchSummary,
         generatedAt: new Date().toISOString(),
         searchPerformed: true,
         totalFound: verified.patches.length + verified.advisories.length,
@@ -1110,6 +990,24 @@ Search comprehensively for all available patches and advisories.
                   </div>
                   <div style={{ fontSize: '0.8rem', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
                     Components
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'center', padding: '12px', background: safeSettings.darkMode ? COLORS.dark.surface : COLORS.light.surface, borderRadius: '8px' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: COLORS.purple }}>
+                    {patchGuidance.searchSummary?.patchesFound ?? patchGuidance.aiPatches.length}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                    Patches
+                  </div>
+                </div>
+
+                <div style={{ textAlign: 'center', padding: '12px', background: safeSettings.darkMode ? COLORS.dark.surface : COLORS.light.surface, borderRadius: '8px' }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: '700', color: COLORS.purple }}>
+                    {patchGuidance.searchSummary?.advisoriesFound ?? patchGuidance.aiAdvisories.length}
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                    Advisories
                   </div>
                 </div>
               </div>
