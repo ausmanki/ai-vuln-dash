@@ -399,6 +399,13 @@ CRITICAL REQUIREMENTS:
   }
 }
 
+/**
+ * Generates an enhanced AI-driven analysis of a vulnerability using Gemini and optional RAG context.
+ *
+ * Combines vulnerability details with relevant documents from a RAG database (if available) to construct a comprehensive prompt for the Gemini API. Optionally enables web search based on model capabilities. Handles API rate limiting, error conditions, and stores validated analysis in the RAG database for future queries. Returns an object containing the analysis text, RAG usage details, model information, real-time data, and validation metrics.
+ *
+ * @returns An object with the AI-generated analysis, RAG and model metadata, and validation details.
+ */
 export async function generateAIAnalysis(vulnerability, apiKey, model, settings = {}, ragDatabase, fetchWithFallback, buildEnhancedAnalysisPrompt, generateEnhancedFallbackAnalysis) {
   if (!apiKey) throw new Error('Gemini API key required');
 
@@ -555,6 +562,19 @@ export async function generateAIAnalysis(vulnerability, apiKey, model, settings 
   }
 }
 
+/**
+ * Generates a conceptual taint analysis for a given vulnerability using the Gemini API, optionally leveraging RAG database context.
+ *
+ * If a RAG database is provided and initialized, relevant context documents are included in the prompt to enhance the analysis. The resulting taint analysis covers potential sources, propagation paths, impacted sinks, and mitigation guidance. The analysis is stored in the RAG database if it meets minimum length requirements.
+ *
+ * @param vulnerability - The vulnerability object containing CVE details
+ * @param apiKey - The Gemini API key
+ * @param model - The Gemini model to use (default: 'gemini-2.5-flash')
+ * @param settings - Optional generation settings
+ * @param ragDatabase - Optional RAG database instance for context and storage
+ * @param fetchWithFallback - Function to perform API requests with fallback logic
+ * @returns An object containing the generated taint analysis text under the `analysis` key
+ */
 export async function generateAITaintAnalysis(vulnerability, apiKey, model = 'gemini-2.5-flash', settings = {}, ragDatabase, fetchWithFallback) {
   if (!apiKey) throw new Error('Gemini API key required');
 
@@ -603,6 +623,13 @@ export async function generateAITaintAnalysis(vulnerability, apiKey, model = 'ge
   return { analysis: text };
 }
 
+/**
+ * Executes a general AI query using the Gemini API with web search enabled.
+ *
+ * @param query - The user query to be answered by the AI
+ * @returns An object containing the AI-generated answer text
+ * @throws If the Gemini API key is missing, the API request fails, or the response is invalid
+ */
 export async function fetchGeneralAnswer(query: string, settings: any, fetchWithFallbackFn: any) {
   if (!settings.geminiApiKey) {
     throw new Error("Gemini API key required for AI responses");
