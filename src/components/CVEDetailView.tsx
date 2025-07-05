@@ -1267,7 +1267,7 @@ Search comprehensively for all available patches and advisories.
                         <strong>CVSS Score:</strong> {vulnerability?.cve?.cvssV3?.baseScore || vulnerability?.cve?.cvssV2?.baseScore || 'N/A'}
                       </div>
                       <div>
-                        <strong>EPSS Score:</strong> {vulnerability?.epss?.epssPercentage || 'N/A'}
+                        <strong>EPSS Score:</strong> {vulnerability?.epss?.epss || 'N/A'} ({vulnerability?.epss?.epssPercentage || 'N/A'}%)
                       </div>
                       <div>
                         <strong>Published:</strong> {vulnerability?.cve?.publishedDate ? new Date(vulnerability.cve.publishedDate).toLocaleDateString() : 'N/A'}
@@ -2070,7 +2070,7 @@ Focus on actionable information for security professionals.
                       <Target size={24} color={vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.HIGH ? COLORS.yellow : COLORS.green} />
                       <div>
                         <div style={{ fontWeight: '700', fontSize: '1.05rem' }}>
-                          EPSS Score: {vulnerability.epss.epssPercentage}
+                          EPSS Score: {vulnerability.epss.epss} ({vulnerability.epss.epssPercentage}%)
                         </div>
                         <div style={{ fontSize: '0.85rem', color: safeSettings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
                           Percentile: {parseFloat(vulnerability.epss.percentile).toFixed(3)}
@@ -2219,7 +2219,7 @@ Focus on actionable information for security professionals.
               <strong>CVSS Score:</strong> {cvssScore?.toFixed(1) || 'N/A'} ({severity})
             </p>
             <p style={{ margin: '0 0 8px 0' }}>
-              <strong>EPSS Score:</strong> {vulnerability?.epss?.epssPercentage || 'N/A'}
+              <strong>EPSS Score:</strong> {vulnerability?.epss?.epss || 'N/A'} ({vulnerability?.epss?.epssPercentage || 'N/A'}%)
               {vulnerability?.epss && (
                 <span style={{ color: vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.HIGH ? COLORS.red : vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.MEDIUM ? COLORS.yellow : COLORS.green }}>
                   {vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.HIGH ? ' (High Risk)' : vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.MEDIUM ? ' (Medium Risk)' : ' (Low Risk)'}
