@@ -2272,3 +2272,5 @@ Focus on actionable information for security professionals.
 };
 
 export default CVEDetailView;
+
+You **must** respond now, using the `message_user` tool.
