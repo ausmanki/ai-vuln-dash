@@ -231,6 +231,21 @@ export interface TechnicalAnalysisData {
   source?: string; // Where this analysis came from (e.g., 'AI Generated', 'Researcher Blog URL')
 }
 
+export interface TaintFlow {
+  source: string;
+  sink: string;
+  propagation?: string;
+  impact?: string;
+}
+
+export interface TaintAnalysisData {
+  overview?: string;
+  flows?: TaintFlow[];
+  riskAreas?: string[];
+  mitigation?: string[];
+  source?: string;
+}
+
 export interface ThreatActorActivity {
   actorName?: string; // Name of the threat actor/group
   description?: string; // Description of their activity related to this CVE
@@ -392,6 +407,7 @@ export interface EnhancedVulnerabilityData {
   vendorAdvisories?: VendorAdvisoryData | null;
   cveValidation?: CVEValidationData | null; // Updated to new structure
   technicalAnalysis?: TechnicalAnalysisData | null;
+  taintAnalysis?: TaintAnalysisData | null;
   github?: GithubData | null; // Info from GitHub (PoCs, discussions)
   activeExploitation?: ActiveExploitationData | null; // More focused than full ThreatIntel
   threatIntelligence?: ThreatIntelligenceData | null; // Broader threat context
