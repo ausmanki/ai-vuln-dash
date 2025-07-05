@@ -2025,7 +2025,7 @@ Focus on actionable information for security professionals.
               {tab === 'patches' && <Package size={16} />}
               {tab === 'brief' && <FileText size={16} />}
               {tab === 'ai-sources'
-                ? 'AI Sources'
+                ? 'AI Taint Analysis'
                 : tab === 'patches'
                 ? 'Patches'
                 : tab === 'brief'
