@@ -8,6 +8,7 @@ import CVSSDisplay from './CVSSDisplay';
 import { Brain, Database, Globe, Info, Loader2, Copy, RefreshCw, Package, CheckCircle, XCircle, AlertTriangle, Target, ChevronRight, FileText, ExternalLink, Search, Clock } from 'lucide-react';
 import TechnicalBrief from './TechnicalBrief';
 import ScoreChart from './ScoreChart';
+import AISourcesTab from './AISourcesTab';
 import { vendorPortalMap } from '../utils/vendorPortals';
 
 const CVEDetailView = ({ vulnerability }) => {
@@ -2133,109 +2134,7 @@ Focus on actionable information for security professionals.
             </div>
           )}
 
-          {activeTab === 'ai-sources' && (() => {
-            const cvssRisk = cvssScore >= 9.0 ? 'CRITICAL' : cvssScore >= 7.0 ? 'HIGH' : cvssScore >= 4.0 ? 'MEDIUM' : 'LOW';
-            const epssRisk = vulnerability?.epss?.epssFloat > CONSTANTS.EPSS_THRESHOLDS.HIGH ? 'HIGH' : 
-                            vulnerability?.epss?.epssFloat > CONSTANTS.EPSS_THRESHOLDS.MEDIUM ? 'MEDIUM' : 'LOW';
-            
-            return (
-              <div>
-                <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '24px' }}>
-                  AI-Discovered Intelligence Sources
-                </h2>
-
-                <div style={{
-                  ...styles.card,
-                  marginBottom: '24px',
-                  background: settings.darkMode ? COLORS.dark.background : COLORS.light.background
-                }}>
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    marginBottom: '16px'
-                  }}>
-                    <Brain size={24} color={COLORS.purple} />
-                    <div>
-                      <h3 style={{
-                        fontSize: '1.125rem',
-                        fontWeight: '600',
-                        margin: 0
-                      }}>
-                        AI Risk Assessment Summary
-                      </h3>
-                      <p style={{
-                        margin: '4px 0 0 0',
-                        fontSize: '0.875rem',
-                        color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText
-                      }}>
-                        Comprehensive analysis of {vulnerability?.cve?.id} based on multiple intelligence sources
-                      </p>
-                    </div>
-                  </div>
-
-                  <div style={{ 
-                    display: 'grid', 
-                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-                    gap: '16px',
-                    marginBottom: '20px'
-                  }}>
-                    <div style={{
-                      padding: '16px',
-                      borderRadius: '8px',
-                      background: cvssRisk === 'CRITICAL' ? `rgba(${utils.hexToRgb(COLORS.red)}, 0.1)` :
-                                 cvssRisk === 'HIGH' ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)` :
-                                 cvssRisk === 'MEDIUM' ? `rgba(${utils.hexToRgb(COLORS.blue)}, 0.1)` : 
-                                 `rgba(${utils.hexToRgb(COLORS.green)}, 0.1)`,
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderColor: cvssRisk === 'CRITICAL' ? `rgba(${utils.hexToRgb(COLORS.red)}, 0.3)` :
-                                  cvssRisk === 'HIGH' ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.3)` :
-                                  cvssRisk === 'MEDIUM' ? `rgba(${utils.hexToRgb(COLORS.blue)}, 0.3)` : 
-                                  `rgba(${utils.hexToRgb(COLORS.green)}, 0.3)`
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                        <Target size={16} color={
-                          cvssRisk === 'CRITICAL' ? COLORS.red :
-                          cvssRisk === 'HIGH' ? COLORS.yellow :
-                          cvssRisk === 'MEDIUM' ? COLORS.blue : COLORS.green
-                        } />
-                        <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>
-                          CVSS Risk: {cvssRisk}
-                        </div>
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
-                        Score: {cvssScore?.toFixed(1) || 'N/A'}
-                      </div>
-                    </div>
-
-                    <div style={{
-                      padding: '16px',
-                      borderRadius: '8px',
-                      background: epssRisk === 'HIGH' ? `rgba(${utils.hexToRgb(COLORS.red)}, 0.1)` :
-                                 epssRisk === 'MEDIUM' ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)` :
-                                 `rgba(${utils.hexToRgb(COLORS.green)}, 0.1)`,
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderColor: epssRisk === 'HIGH' ? `rgba(${utils.hexToRgb(COLORS.red)}, 0.3)` :
-                                  epssRisk === 'MEDIUM' ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.3)` :
-                                  `rgba(${utils.hexToRgb(COLORS.green)}, 0.3)`
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                        <Target size={16} color={epssRisk === 'HIGH' ? COLORS.red : epssRisk === 'MEDIUM' ? COLORS.yellow : COLORS.green} />
-                        <div style={{ fontWeight: '600', fontSize: '0.9rem' }}>
-                          EPSS Risk: {epssRisk}
-                        </div>
-                      </div>
-                      <div style={{ fontSize: '0.8rem', color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
-                        {vulnerability?.epss?.epssPercentage || 'N/A'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })()}
+          {activeTab === 'ai-sources' && <AISourcesTab vulnerability={vulnerability} />}
 
           {activeTab === 'patches' && renderEnhancedPatchesTab()}
 
