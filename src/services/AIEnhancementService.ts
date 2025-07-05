@@ -234,7 +234,7 @@ REQUIRED SEARCHES:
 CURRENT CVE DATA:
 - CVE: ${cveId}
 - CVSS: ${cveData?.cvssV3?.baseScore || 'Unknown'} (${cveData?.cvssV3?.baseSeverity || 'Unknown'})
- - EPSS: ${epssData?.epssPercentage || 'Unknown'}
+ - EPSS: ${epssData?.epss || 'Unknown'} (${epssData?.epssPercentage || 'Unknown'}%)
 - Description: ${cveData?.description?.substring(0, 300) || 'No description'}
 
 Return findings in JSON format with HIGH confidence only for verified sources:
@@ -419,7 +419,7 @@ export async function generateAIAnalysis(vulnerability, apiKey, model, settings 
   }
 
   const cveId = vulnerability.cve.id;
-  const ragQuery = `${cveId} ${vulnerability.cve.description.substring(0, 200)} vulnerability analysis security impact mitigation threat intelligence EPSS ${vulnerability.epss?.epssPercentage || 'N/A'} CVSS ${vulnerability.cve.cvssV3?.baseScore || 'N/A'} ${vulnerability.kev?.listed ? 'CISA KEV active exploitation' : ''}`;
+  const ragQuery = `${cveId} ${vulnerability.cve.description.substring(0, 200)} vulnerability analysis security impact mitigation threat intelligence EPSS ${vulnerability.epss?.epss || 'N/A'} (${vulnerability.epss?.epssPercentage || 'N/A'}%) CVSS ${vulnerability.cve.cvssV3?.baseScore || 'N/A'} ${vulnerability.kev?.listed ? 'CISA KEV active exploitation' : ''}`;
 
   console.log(`🔍 RAG Query: "${ragQuery.substring(0, 100)}..."`);
 
@@ -507,7 +507,7 @@ export async function generateAIAnalysis(vulnerability, apiKey, model, settings 
 
     if (analysisText.length > 500 && ragDatabase && ragDatabase.initialized) {
       await ragDatabase.addDocument(
-        `Enhanced CVE Analysis: ${cveId}\n\nCVSS: ${vulnerability.cve.cvssV3?.baseScore || 'N/A'}\nEPSS: ${vulnerability.epss?.epssPercentage || 'N/A'}\nCISA KEV: ${vulnerability.kev?.listed ? 'Yes' : 'No'}\nValidated: ${vulnerability.validation ? 'Yes' : 'No'}\nConfidence: ${vulnerability.confidence?.overall || 'Unknown'}\n\n${analysisText}`,
+        `Enhanced CVE Analysis: ${cveId}\n\nCVSS: ${vulnerability.cve.cvssV3?.baseScore || 'N/A'}\nEPSS: ${vulnerability.epss?.epss || 'N/A'} (${vulnerability.epss?.epssPercentage || 'N/A'}%)\nCISA KEV: ${vulnerability.kev?.listed ? 'Yes' : 'No'}\nValidated: ${vulnerability.validation ? 'Yes' : 'No'}\nConfidence: ${vulnerability.confidence?.overall || 'Unknown'}\n\n${analysisText}`,
         {
           title: `Enhanced RAG Security Analysis - ${cveId}`,
           category: 'enhanced-analysis',

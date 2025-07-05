@@ -272,7 +272,7 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
                           <strong>CVSS {cvssVersion}:</strong>
                           <span className={stylesModule.severityBadge} style={{ color: severityColor }}> {cvssScore} ({cvssSeverity})</span>
                         </div>
-                        <div><strong>EPSS:</strong> {resultData.epss?.epssPercentage || 'N/A'}</div>
+                        <div><strong>EPSS:</strong> {resultData.epss?.epss || 'N/A'} ({resultData.epss?.epssPercentage || 'N/A'}%)</div>
                         <div><strong>KEV:</strong> {resultData.kev?.listed ? <span style={{color: COLORS.red, fontWeight:'bold'}}>LISTED</span> : 'Not Listed'}</div>
                         <div><strong>Threat Level:</strong> {resultData.threatLevel || 'N/A'}</div>
                         <div style={{ gridColumn: '1 / -1', marginTop: '8px', whiteSpace: 'pre-wrap', maxHeight: '60px', overflowY: 'auto', fontSize: '0.85rem', color: styles.subtitle.color, borderTop: `1px dashed ${styles.border}`, paddingTop: '8px' }}>

@@ -170,7 +170,7 @@ export class UserAssistantAgent {
       const epssData = await APIService.fetchEPSSData(cveId, () => {}) as EPSSData | null;
       if (epssData && epssData.epss) {
         return {
-          text: `The EPSS score for ${cveId} is ${epssData.epssPercentage} (Percentile: ${epssData.percentile}). This data was last updated on ${epssData.date}.`,
+          text: `The EPSS score for ${cveId} is ${epssData.epss} (${epssData.epssPercentage}%, Percentile: ${epssData.percentile}). This data was last updated on ${epssData.date}.`,
           sender: 'bot',
           id: Date.now().toString(),
           data: epssData
@@ -405,7 +405,7 @@ export class UserAssistantAgent {
           responseText += `CVSS v2: ${vulnerabilityDataForAISummary.cve.cvssV2.baseScore} (${vulnerabilityDataForAISummary.cve.cvssV2.severity})\n`;
         }
         if (vulnerabilityDataForAISummary.epss) {
-          responseText += `EPSS: ${vulnerabilityDataForAISummary.epss.epssPercentage} (Percentile: ${vulnerabilityDataForAISummary.epss.percentile})\n`;
+          responseText += `EPSS: ${vulnerabilityDataForAISummary.epss.epss} (${vulnerabilityDataForAISummary.epss.epssPercentage}%, Percentile: ${vulnerabilityDataForAISummary.epss.percentile})\n`;
         }
         if (vulnerabilityDataForAISummary.kev?.listed) {
             responseText += `CISA KEV: LISTED (Known Exploited)\n`;
@@ -425,7 +425,7 @@ export class UserAssistantAgent {
             fallbackText += `- CVSS v3 Score: ${vulnerabilityDataForAISummary.cve.cvssV3.baseScore} (${vulnerabilityDataForAISummary.cve.cvssV3.baseSeverity})\n`;
         }
         if (vulnerabilityDataForAISummary.epss) {
-            fallbackText += `- EPSS Score: ${vulnerabilityDataForAISummary.epss.epssPercentage}\n`;
+            fallbackText += `- EPSS Score: ${vulnerabilityDataForAISummary.epss.epss} (${vulnerabilityDataForAISummary.epss.epssPercentage}%)\n`;
         }
         return {
           text: fallbackText,
