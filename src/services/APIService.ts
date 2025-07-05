@@ -29,6 +29,7 @@ import {
   fetchPatchesAndAdvisories as fetchPatchesAndAdvisoriesInternal,
   fetchAIThreatIntelligence as fetchAIThreatIntelligenceInternal,
   generateAIAnalysis as generateAIAnalysisInternal,
+  generateAITaintAnalysis as generateAITaintAnalysisInternal,
   fetchGeneralAnswer as fetchGeneralAnswerInternal,
 } from './AIEnhancementService';
 
@@ -54,6 +55,10 @@ export class APIService {
 
   static async generateAIAnalysis(vulnerability, apiKey, model, settings = {}) {
     return generateAIAnalysisInternal(vulnerability, apiKey, model, settings, ragDatabase, fetchWithFallback, buildEnhancedAnalysisPrompt, generateEnhancedFallbackAnalysis);
+  }
+
+  static async generateAITaintAnalysis(vulnerability, apiKey, model, settings = {}) {
+    return generateAITaintAnalysisInternal(vulnerability, apiKey, model, settings, fetchWithFallback);
   }
 
   static async fetchGeneralAnswer(query, settings = {}) {

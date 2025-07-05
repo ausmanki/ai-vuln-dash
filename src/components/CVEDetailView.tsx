@@ -2134,7 +2134,7 @@ Focus on actionable information for security professionals.
             </div>
           )}
 
-          {activeTab === 'ai-sources' && <AISourcesTab />}
+          {activeTab === 'ai-sources' && <AISourcesTab vulnerability={vulnerability} />}
 
           {activeTab === 'patches' && renderEnhancedPatchesTab()}
 
