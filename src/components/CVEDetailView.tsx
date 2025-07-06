@@ -471,7 +471,7 @@ const CVEDetailView = ({ vulnerability }) => {
     },
 
     // Assess urgency level based on vulnerability characteristics
-    assessUrgencyLevel: (vulnerability) => {
+    assessUrgencyLevel: (vulnerability, advisories = []) => {
       let urgencyScore = 0;
       let factors = [];
       
@@ -508,6 +508,19 @@ const CVEDetailView = ({ vulnerability }) => {
       if (vulnerability?.exploits?.found) {
         urgencyScore += 20;
         factors.push('Public Exploits Available');
+      }
+
+      // Vendor advisories published
+      if (advisories && advisories.length > 0) {
+        urgencyScore += 10;
+        factors.push('Vendor Advisories Published');
+      }
+
+      // Keyword analysis on description
+      const descriptionText = vulnerability?.cve?.description?.toLowerCase() || '';
+      if (/remote code execution|privilege escalation|denial of service/.test(descriptionText)) {
+        urgencyScore += 5;
+        factors.push('High impact keywords in description');
       }
       
       // Age of vulnerability
@@ -856,7 +869,7 @@ const CVEDetailView = ({ vulnerability }) => {
         searchStrategies: PatchDiscovery.generateSearchStrategies(cveId, components),
         packageManagers: PatchDiscovery.generatePackageManagerGuidance(components, cveId, description),
         remediationSteps: PatchDiscovery.generateRemediationSteps(cveId, components),
-        urgencyLevel: PatchDiscovery.assessUrgencyLevel(vulnerability),
+        urgencyLevel: PatchDiscovery.assessUrgencyLevel(vulnerability, verified.advisories),
         searchSummary,
         generatedAt: new Date().toISOString(),
         searchPerformed: true,
@@ -968,11 +981,14 @@ const CVEDetailView = ({ vulnerability }) => {
                   <div style={{ fontSize: '0.8rem', fontWeight: '600', color: getSeverityColor(patchGuidance.urgencyLevel.level) }}>
                     {patchGuidance.urgencyLevel.level} PRIORITY
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
-                    {patchGuidance.urgencyLevel.timeframe}
-                  </div>
+                <div style={{ fontSize: '0.7rem', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                  {patchGuidance.urgencyLevel.timeframe}
+                </div>
+                <div style={{ fontSize: '0.75rem', marginTop: '4px', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
+                  Severity of the vuln: {patchGuidance.urgencyLevel.level}. AI prioritizes: {patchGuidance.urgencyLevel.description}
                 </div>
               </div>
+            </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '12px', marginBottom: '16px' }}>
                 <div style={{ textAlign: 'center', padding: '12px', background: safeSettings.darkMode ? COLORS.dark.surface : COLORS.light.surface, borderRadius: '8px' }}>
