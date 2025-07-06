@@ -878,7 +878,7 @@ const CVEDetailView = ({ vulnerability }) => {
       };
 
       setPatchGuidance(guidance);
-      setActiveTab('patches');
+      setActiveTab('overview');
 
       const totalFound = guidance.totalFound;
       const verifiedCount = guidance.verifiedCount;
@@ -1911,7 +1911,7 @@ Focus on actionable information for security professionals.
           gap: '4px',
           flexWrap: 'wrap'
         }}>
-          {['overview', 'ai-sources', 'patches', 'brief'].map((tab) => (
+          {['overview', 'ai-sources', 'brief'].map((tab) => (
             <button
               key={tab}
               style={{
@@ -1936,12 +1936,9 @@ Focus on actionable information for security professionals.
             >
               {tab === 'overview' && <Info size={16} />}
               {tab === 'ai-sources' && <Globe size={16} />}
-              {tab === 'patches' && <Package size={16} />}
               {tab === 'brief' && <FileText size={16} />}
               {tab === 'ai-sources'
                 ? 'AI Taint Analysis'
-                : tab === 'patches'
-                ? 'Patches'
                 : tab === 'brief'
                 ? 'Tech Brief'
                 : tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -2049,8 +2046,6 @@ Focus on actionable information for security professionals.
           )}
 
           {activeTab === 'ai-sources' && <AISourcesTab vulnerability={vulnerability} />}
-
-          {activeTab === 'patches' && renderEnhancedPatchesTab()}
 
           {activeTab === 'brief' && (
             <div>
