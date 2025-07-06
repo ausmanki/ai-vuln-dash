@@ -69,7 +69,7 @@ const TechnicalBrief: React.FC<TechnicalBriefProps> = ({
     return { cveId, status, priority, confidence };
   };
 
-  // Parse the markdown content into sections
+  // Parse the markdown content into sections with AI-generated structure awareness
   const parseSections = (content: string): Section[] => {
     const lines = content.split('\n');
     const sections: Section[] = [];
@@ -78,39 +78,55 @@ const TechnicalBrief: React.FC<TechnicalBriefProps> = ({
     let inHeaderSection = true;
     let lineIndex = 0;
 
-    console.log('Parsing content with', lines.length, 'lines');
+    console.log('Parsing AI-generated content with', lines.length, 'lines');
 
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       const trimmedLine = line.trim();
       
       // Check for headers (# ## ### etc.)
       const headerMatch = trimmedLine.match(/^(#{1,6})\s+(.+)$/);
       
       if (headerMatch) {
-        // Save previous section if exists
-        if (currentSection) {
-          currentSection.content = currentSection.content.trim();
-          console.log(`Adding section: ${currentSection.title}, content length: ${currentSection.content.length}`);
-          sections.push(currentSection);
+        const headerLevel = headerMatch[1].length;
+        const headerTitle = headerMatch[2].trim();
+        
+        // For AI-generated content, we want to capture main sections (##)
+        // and include subsections (###) as content
+        if (headerLevel === 2) {
+          // This is a main section (##)
+          // Save previous section if exists
+          if (currentSection) {
+            currentSection.content = currentSection.content.trim();
+            console.log(`Adding section: ${currentSection.title}, content length: ${currentSection.content.length}`);
+            sections.push(currentSection);
+          }
+          
+          inHeaderSection = false;
+          const id = headerTitle.toLowerCase()
+            .replace(/[^\w\s-()]/g, '')
+            .replace(/\s+/g, '-')
+            .replace(/-+/g, '-')
+            .replace(/^-|-$/g, '');
+          
+          currentSection = {
+            id: id || `section-${lineIndex}`,
+            title: headerTitle,
+            content: '',
+            level: headerLevel
+          };
+          
+          console.log(`Found main section header: ${headerTitle} (level ${headerLevel}, id: ${id})`);
+        } else if (headerLevel >= 3 || headerLevel === 1) {
+          // This is a subsection (### or ####) or title (#), include it in current section content
+          if (currentSection) {
+            currentSection.content += line + '\n';
+          } else if (inHeaderSection) {
+            // This might be the main title, handle specially
+            headerContent.push(line);
+          }
+          console.log(`Including in content: ${headerTitle} (level ${headerLevel})`);
         }
-        
-        inHeaderSection = false;
-        const level = headerMatch[1].length;
-        const title = headerMatch[2];
-        const id = title.toLowerCase()
-          .replace(/[^\w\s-()]/g, '')
-          .replace(/\s+/g, '-')
-          .replace(/-+/g, '-')
-          .replace(/^-|-$/g, '');
-        
-        currentSection = {
-          id: id || `section-${lineIndex}`,
-          title,
-          content: '',
-          level
-        };
-        
-        console.log(`Found header: ${title} (level ${level}, id: ${id})`);
       } else {
         if (inHeaderSection) {
           // This is header content (status, priority, etc.)
@@ -131,20 +147,44 @@ const TechnicalBrief: React.FC<TechnicalBriefProps> = ({
       sections.push(currentSection);
     }
 
-    // Add header content as the first section if it exists
+    // Process header content to create overview section
     if (headerContent.length > 0) {
       const headerContentStr = headerContent.join('\n').trim();
       if (headerContentStr) {
-        sections.unshift({
-          id: 'header-info',
-          title: 'Overview',
-          content: headerContentStr,
-          level: 1
-        });
+        // Extract everything before the first ## section as overview
+        const overviewLines: string[] = [];
+        let foundFirstSection = false;
+        
+        for (const line of headerContent) {
+          if (line.trim().match(/^#{2}\s+/)) {
+            foundFirstSection = true;
+            break;
+          }
+          overviewLines.push(line);
+        }
+        
+        if (overviewLines.length > 0) {
+          const overviewContent = overviewLines.join('\n').trim();
+          if (overviewContent) {
+            sections.unshift({
+              id: 'header-info',
+              title: 'Overview',
+              content: overviewContent,
+              level: 1
+            });
+          }
+        }
       }
     }
 
     console.log(`Total sections parsed: ${sections.length}`);
+    sections.forEach((section, index) => {
+      console.log(`Section ${index}: "${section.title}" - ${section.content.length} chars`);
+      if (section.content.length < 50) {
+        console.log(`  Content preview: "${section.content.substring(0, 100)}"`);
+      }
+    });
+    
     return sections;
   };
 
