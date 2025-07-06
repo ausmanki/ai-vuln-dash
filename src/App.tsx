@@ -16,6 +16,7 @@ import EmptyState from './components/EmptyState';
 import ChatInterface from './components/ChatInterface';
 import BulkUploadComponent from './components/BulkUploadComponent'; // Added
 import ErrorBoundary from './components/ErrorBoundary'; // Added ErrorBoundary
+import Footer from './components/Footer';
 // import { AppContext } from './contexts/AppContext'; // Will be imported from AppContext.ts
 import { useNotifications } from './hooks/useNotifications';
 import { useSettings } from './hooks/useSettings';
@@ -290,6 +291,8 @@ const App = () => {
             bulkProgress={bulkProgress}
           />
         )}
+
+        <Footer />
       </div>
     </ErrorBoundary>
     </AppContext.Provider>
