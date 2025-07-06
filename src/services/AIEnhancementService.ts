@@ -1,12 +1,107 @@
 import { CONSTANTS } from '../utils/constants';
 
-// Enhanced patch and advisory retrieval integrated into AI analysis
-export async function fetchPatchesAndAdvisories(cveId, cveData, settings, setLoadingSteps, fetchWithFallback, parsePatchAndAdvisoryResponse, getHeuristicPatchesAndAdvisories) {
+interface GroundingMetadata {
+  groundingChunks?: Array<{
+    web?: {
+      uri: string;
+      title?: string;
+    };
+    retrievalQueries?: string[];
+  }>;
+  webSearchQueries?: string[];
+  searchEntryPoint?: {
+    renderedContent?: string;
+  };
+  groundingSupports?: Array<{
+    segment?: {
+      text?: string;
+      startIndex?: number;
+      endIndex?: number;
+    };
+    groundingChunkIndices?: number[];
+    confidenceScores?: number[];
+  }>;
+}
+
+interface ExtractedGroundingInfo {
+  sources: Array<{
+    url: string;
+    title: string;
+    queries?: string[];
+  }>;
+  extractedText: string[];
+  searchQueries: string[];
+  confidence: number;
+}
+
+/**
+ * Extract useful information from grounding metadata when text response is missing
+ */
+function extractFromGroundingMetadata(groundingMetadata: GroundingMetadata): ExtractedGroundingInfo {
+  const info: ExtractedGroundingInfo = {
+    sources: [],
+    extractedText: [],
+    searchQueries: [],
+    confidence: 0
+  };
+
+  // Extract web search queries
+  if (groundingMetadata.webSearchQueries) {
+    info.searchQueries = groundingMetadata.webSearchQueries;
+  }
+
+  // Extract sources from grounding chunks
+  if (groundingMetadata.groundingChunks) {
+    for (const chunk of groundingMetadata.groundingChunks) {
+      if (chunk.web?.uri) {
+        info.sources.push({
+          url: chunk.web.uri,
+          title: chunk.web.title || 'Unknown',
+          queries: chunk.retrievalQueries || []
+        });
+      }
+    }
+  }
+
+  // Extract text from search entry point
+  if (groundingMetadata.searchEntryPoint?.renderedContent) {
+    info.extractedText.push(groundingMetadata.searchEntryPoint.renderedContent);
+  }
+
+  // Extract supported text segments
+  if (groundingMetadata.groundingSupports) {
+    for (const support of groundingMetadata.groundingSupports) {
+      if (support.segment?.text) {
+        info.extractedText.push(support.segment.text);
+      }
+      // Calculate confidence from scores
+      if (support.confidenceScores?.length) {
+        const avgScore = support.confidenceScores.reduce((a, b) => a + b, 0) / support.confidenceScores.length;
+        info.confidence = Math.max(info.confidence, avgScore);
+      }
+    }
+  }
+
+  return info;
+}
+
+/**
+ * Enhanced patch search that reads description first and extracts vendor information
+ */
+export async function fetchPatchesAndAdvisories(
+  cveId: string, 
+  cveData: any, 
+  settings: any, 
+  setLoadingSteps: any, 
+  fetchWithFallback: any, 
+  parsePatchAndAdvisoryResponse: any, 
+  getHeuristicPatchesAndAdvisories: any
+) {
   const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
-  updateSteps(prev => [...prev, `🔍 Searching for patches and advisories for ${cveId}...`]);
+  updateSteps(prev => [...prev, `📖 Reading ${cveId} description to extract vendor information...`]);
 
   if (!settings.geminiApiKey) {
-    updateSteps(prev => [...prev, `⚠️ Using heuristic patch detection - API key required for comprehensive search`]);
+    updateSteps(prev => [...prev, `⚠️ API key required for intelligent analysis`]);
     return getHeuristicPatchesAndAdvisories(cveId, cveData);
   }
 
@@ -14,97 +109,251 @@ export async function fetchPatchesAndAdvisories(cveId, cveData, settings, setLoa
   const isWebSearchCapable = model.includes('2.0') || model.includes('2.5');
 
   if (!isWebSearchCapable) {
-    updateSteps(prev => [...prev, `⚠️ Using heuristic patch detection - model doesn't support web search`]);
+    updateSteps(prev => [...prev, `⚠️ Web search not supported by model`]);
     return getHeuristicPatchesAndAdvisories(cveId, cveData);
   }
 
-  const patchSearchPrompt = `Search for patches, security updates, and advisories for ${cveId}. Find ACTUAL download links and advisory pages.
+  const description = cveData?.description || 'No description available';
 
-REQUIRED SEARCHES:
-1. **Vendor Patches**: Search for official vendor security updates
-   - "${cveId} Microsoft security update download"
-   - "${cveId} Red Hat patch RHSA security advisory"
-   - "${cveId} Oracle security patch update"
-   - "${cveId} Adobe security update download"
-   - "${cveId} vendor patch download link"
+  // Clear, step-by-step prompt that forces description reading
+  const analysisPrompt = `IMPORTANT: You MUST analyze the CVE description to extract vendor and product information BEFORE searching.
 
-2. **Distribution Patches**: Search Linux distribution patches
-   - "${cveId} Ubuntu security update USN"
-   - "${cveId} Debian security advisory DSA"
-   - "${cveId} CentOS RHEL patch update"
+CVE: ${cveId}
+DESCRIPTION: "${description}"
 
-3. **Security Advisories**: Find official security advisories
-   - "${cveId} security advisory CERT"
-   - "${cveId} vendor security bulletin"
-   - "${cveId} security alert notification"
+MANDATORY EXTRACTION TASK:
+Carefully read the description above and extract ALL of the following that you can find:
 
-CVE Details:
-- CVE: ${cveId}
-- Description: ${cveData?.description?.substring(0, 400) || 'Unknown'}
-- Affected Products: Extract from description
+1. VENDOR - The company that makes the product (e.g., ASUS, Cisco, Microsoft, Apache)
+2. PRODUCT - The specific product name (e.g., RT-AX55, Windows Server, Tomcat)  
+3. VERSION/FIRMWARE - Any version numbers (e.g., 3.0.0.4.386.51598, 2019, 9.0.45)
+4. MODEL - Hardware model if mentioned (e.g., RT-AX55, DIR-850L)
+5. COMPONENT - Specific component if mentioned (e.g., authentication module)
+6. PACKAGE - Software package if mentioned (e.g., openssh-server)
 
-EXTRACTION REQUIREMENTS:
-- Find ACTUAL patch download URLs (not search pages or general vendor pages).
-- Extract vendor security advisory links that are specific to the CVE.
-- Get patch version numbers and release dates if available.
-- Identify affected product versions if specified in the advisory.
-- Note patch availability status (e.g., "Available", "Superseded", "Unavailable").
-- For each patch and advisory, provide a citationUrl which is the direct URL of the page confirming the information.
+EXTRACTION PATTERNS TO LOOK FOR:
+- "On [VENDOR] [PRODUCT] [VERSION] devices" → Extract vendor, product, version
+- "[VENDOR] [MODEL] firmware [VERSION]" → Extract vendor, model, firmware version  
+- "[PACKAGE] before [VERSION]" → Extract package and version
+- "vulnerability in [COMPONENT]" → Extract component
 
-NEGATIVE CONSTRAINTS:
-- Do not invent URLs or patch details not found in sources.
-- Do not list a patch if a direct link to its official announcement or download page is not discovered.
-- Do not list general vendor security pages as advisories unless they specifically mention the CVE.
+EXAMPLE EXTRACTION:
+Description: "On ASUS RT-AX55 3.0.0.4.386.51598 devices, authenticated attackers can perform OS command injection"
+You MUST extract: vendor=ASUS, product=RT-AX55, model=RT-AX55, version=3.0.0.4.386.51598
 
-Return JSON with actual findings:
+YOUR EXTRACTION FROM THE DESCRIPTION ABOVE:
 {
+  "extracted": {
+    "vendor": "[WHAT YOU FOUND or null]",
+    "product": "[WHAT YOU FOUND or null]", 
+    "version": "[WHAT YOU FOUND or null]",
+    "model": "[WHAT YOU FOUND or null]",
+    "component": "[WHAT YOU FOUND or null]",
+    "package": "[WHAT YOU FOUND or null]"
+  }
+}
+
+AFTER EXTRACTION, CREATE TARGETED SEARCHES:
+Based on what you extracted above, search for:
+
+If vendor="ASUS" and product="RT-AX55":
+- "ASUS RT-AX55 ${cveId} security advisory"
+- "ASUS RT-AX55 firmware update security"
+- "site:asus.com RT-AX55 security patch"
+
+If vendor="Microsoft" and product found:
+- "Microsoft [product] ${cveId} security update"
+- "site:microsoft.com ${cveId} patch"
+
+SEARCH AND RETURN:
+{
+  "analysisSteps": {
+    "descriptionRead": true,
+    "extracted": {
+      "vendor": "[extracted vendor]",
+      "product": "[extracted product]",
+      "version": "[extracted version]",
+      "model": "[extracted model]",
+      "component": "[extracted component]",
+      "package": "[extracted package]"
+    },
+    "searchQueriesUsed": [
+      "[actual search queries you used based on extraction]"
+    ]
+  },
   "patches": [
     {
-      "vendor": "vendor name",
-      "product": "affected product",
-      "patchVersion": "patch version",
-      "downloadUrl": "ACTUAL download URL found for the patch",
-      "advisoryUrl": "URL of the vendor advisory page for this patch",
-      "releaseDate": "patch release date",
-      "description": "patch description",
-      "confidence": "HIGH/MEDIUM/LOW based on source directness",
-      "patchType": "Security Update/Hotfix/Critical Patch",
-      "citationUrl": "URL of the page confirming this specific patch information"
+      "vendor": "[vendor from extraction]",
+      "product": "[product from extraction]",
+      "patchVersion": "[version found]",
+      "downloadUrl": "[actual URL found]",
+      "advisoryUrl": "[advisory URL]",
+      "releaseDate": "[date]",
+      "description": "[description]",
+      "patchType": "Firmware Update/Security Patch",
+      "confidence": "HIGH/MEDIUM/LOW",
+      "citationUrl": "[source URL]"
     }
   ],
   "advisories": [
     {
-      "source": "source organization (e.g. Microsoft, CERT)",
-      "advisoryId": "advisory ID (CVE, RHSA, etc)",
-      "title": "advisory title",
-      "url": "direct advisory URL for this CVE",
-      "severity": "advisory severity",
-      "publishDate": "publish date",
-      "description": "advisory description",
-      "confidence": "HIGH/MEDIUM/LOW based on source directness",
-      "type": "Security Advisory/Bulletin/Alert",
-      "citationUrl": "URL of the page confirming this specific advisory"
+      "source": "[vendor name]",
+      "advisoryId": "${cveId}",
+      "title": "[advisory title]",
+      "url": "[advisory URL]",
+      "severity": "[severity]",
+      "description": "[description]",
+      "confidence": "HIGH/MEDIUM/LOW",
+      "type": "Security Advisory",
+      "citationUrl": "[source URL]"
     }
   ],
   "searchSummary": {
-    "patchesFound": number,
-    "advisoriesFound": number,
-    "vendorsSearched": ["vendor names"],
-    "searchTimestamp": "current timestamp"
+    "patchesFound": [number],
+    "advisoriesFound": [number],
+    "vendorsSearched": ["list of vendors searched"]
   }
 }
 
-CRITICAL: Only include URLs that were actually found in search results. Do not generate or guess URLs. Ensure citationUrl is provided for each entry.`;
+CRITICAL: You MUST show the extraction results in your response. Do NOT skip the extraction step.`;
 
   try {
     const requestBody = {
       contents: [{
-        parts: [{ text: patchSearchPrompt }]
+        parts: [{ text: analysisPrompt }]
       }],
       generationConfig: {
         temperature: 0.1,
         topK: 1,
         topP: 0.9,
+        maxOutputTokens: 8192,
+        candidateCount: 1
+      },
+      tools: [{
+        google_search: {}
+      }]
+    };
+
+    updateSteps(prev => [...prev, `🔍 AI analyzing description and extracting vendor details...`]);
+
+    const response = await fetchWithFallback(
+      `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    let result = { patches: [], advisories: [], analysisSteps: {} };
+
+    if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+      const aiResponse = data.candidates[0].content.parts[0].text;
+      result = parseDescriptionBasedResponse(aiResponse, cveId);
+      
+      // Show what was extracted
+      if (result.analysisSteps?.extracted) {
+        const extracted = Object.entries(result.analysisSteps.extracted)
+          .filter(([_, value]) => value && value !== 'null')
+          .map(([key, value]) => `${key}: ${value}`)
+          .join(', ');
+        
+        if (extracted) {
+          updateSteps(prev => [...prev, `✅ Extracted from description: ${extracted}`]);
+        } else {
+          updateSteps(prev => [...prev, `⚠️ No vendor information found in description`]);
+        }
+      }
+      
+      // Show search queries used
+      if (result.analysisSteps?.searchQueriesUsed?.length > 0) {
+        updateSteps(prev => [...prev, `🔎 Performed ${result.analysisSteps.searchQueriesUsed.length} targeted searches`]);
+      }
+      
+    } else if (data.candidates?.[0]?.groundingMetadata) {
+      updateSteps(prev => [...prev, `📊 Extracting from search metadata...`]);
+      result = extractFromGroundingWithContext(data.candidates[0].groundingMetadata, cveId, description);
+    } else {
+      updateSteps(prev => [...prev, `⚠️ No usable response - using heuristics`]);
+      return getHeuristicPatchesAndAdvisories(cveId, cveData);
+    }
+
+    // Always enhance with heuristics
+    const heuristicData = getHeuristicPatchesAndAdvisories(cveId, cveData);
+    
+    // Merge patches and advisories
+    const mergedPatches = [...(result.patches || []), ...(heuristicData.patches || [])];
+    const mergedAdvisories = [...(result.advisories || []), ...(heuristicData.advisories || [])];
+    
+    return {
+      patches: mergedPatches,
+      advisories: mergedAdvisories,
+      searchSummary: {
+        ...(result.searchSummary || {}),
+        enhancedWithHeuristics: true,
+        descriptionAnalyzed: true,
+        extractionSuccessful: !!(result.analysisSteps?.extracted?.vendor),
+        targetedSearchPerformed: !!(result.analysisSteps?.searchQueriesUsed?.length > 0),
+        totalPatchesFound: mergedPatches.length,
+        totalAdvisoriesFound: mergedAdvisories.length,
+        patchesFound: mergedPatches.length,
+        advisoriesFound: mergedAdvisories.length
+      }
+    };
+
+  } catch (error) {
+    console.error('Description analysis error:', error);
+    updateSteps(prev => [...prev, `⚠️ Analysis failed: ${error.message}`]);
+    return getHeuristicPatchesAndAdvisories(cveId, cveData);
+  }
+}
+
+/**
+ * Enhanced threat intelligence that extracts from grounding metadata
+ */
+export async function fetchAIThreatIntelligence(
+  cveId: string,
+  cveData: any,
+  epssData: any,
+  settings: any,
+  setLoadingSteps: any,
+  ragDatabase: any,
+  fetchWithFallback: any,
+  parseAIThreatIntelligence: any,
+  performHeuristicAnalysis: any
+) {
+  const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
+
+  if (!settings.geminiApiKey) {
+    throw new Error('Gemini API key required');
+  }
+
+  const model = settings.geminiModel || 'gemini-2.5-flash';
+  const isWebSearchCapable = model.includes('2.0') || model.includes('2.5');
+
+  if (!isWebSearchCapable) {
+    updateSteps(prev => [...prev, `⚠️ Model doesn't support web search`]);
+    return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
+  }
+
+  updateSteps(prev => [...prev, `🤖 Searching for ${cveId} threat intelligence...`]);
+
+  const searchPrompt = createEnhancedThreatSearchPrompt(cveId, cveData, epssData);
+
+  try {
+    const requestBody = {
+      contents: [{
+        parts: [{ text: searchPrompt }]
+      }],
+      generationConfig: {
+        temperature: 0.05,
+        topK: 1,
+        topP: 0.8,
         maxOutputTokens: 4096,
         candidateCount: 1
       },
@@ -123,253 +372,47 @@ CRITICAL: Only include URLs that were actually found in search results. Do not g
     );
 
     if (!response.ok) {
-      throw new Error(`Patch search API error: ${response.status}`);
+      throw new Error(`API error: ${response.status}`);
     }
 
     const data = await response.json();
-    let aiResponseContent = null;
-
+    
     if (!data.candidates || data.candidates.length === 0) {
-      console.error(`AI Patch/Advisory API response missing candidates for ${cveId}:`, JSON.stringify(data, null, 2));
-      updateSteps(prev => [...prev, `⚠️ AI patch/advisory response missing candidates, using heuristic for ${cveId}`]);
-      return getHeuristicPatchesAndAdvisories(cveId, cveData);
-    }
-
-    const candidate = data.candidates[0];
-
-    if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0 && candidate.content.parts[0].text) {
-      aiResponseContent = candidate.content.parts[0].text;
-      updateSteps(prev => [...prev, `✅ AI completed patch and advisory search for ${cveId}`]);
-    } else if (candidate.groundingMetadata) {
-      console.log(`AI Patch/Advisory: Only groundingMetadata returned for ${cveId}. Falling back to heuristic detection.`);
-      updateSteps(prev => [...prev, `⚠️ AI patch/advisory response lacked text. Using heuristic data for ${cveId}`]);
-      return getHeuristicPatchesAndAdvisories(cveId, cveData);
-    } else {
-      console.error(`AI Patch/Advisory API response candidate missing content/grounding for ${cveId}:`, JSON.stringify(data, null, 2));
-      updateSteps(prev => [...prev, `⚠️ AI patch/advisory response candidate malformed, using heuristic for ${cveId}`]);
-      return getHeuristicPatchesAndAdvisories(cveId, cveData);
-    }
-
-    const patchData = parsePatchAndAdvisoryResponse(aiResponseContent, cveId);
-
-    // Enhance with heuristic patches as fallback
-    const heuristicData = getHeuristicPatchesAndAdvisories(cveId, cveData);
-
-    return {
-      patches: [...(patchData.patches || []), ...(heuristicData.patches || [])],
-      advisories: [...(patchData.advisories || []), ...(heuristicData.advisories || [])],
-      searchSummary: {
-        ...patchData.searchSummary,
-        enhancedWithHeuristics: true,
-        totalPatchesFound: (patchData.patches?.length || 0) + (heuristicData.patches?.length || 0),
-        totalAdvisoriesFound: (patchData.advisories?.length || 0) + (heuristicData.advisories?.length || 0)
-      }
-    };
-
-  } catch (error) {
-    console.error('AI patch search failed:', error);
-    updateSteps(prev => [...prev, `⚠️ AI patch search failed: ${error.message} - using heuristic detection`]);
-    return getHeuristicPatchesAndAdvisories(cveId, cveData);
-  }
-}
-
-export async function fetchAIThreatIntelligence(cveId, cveData, epssData, settings, setLoadingSteps, ragDatabase, fetchWithFallback, parseAIThreatIntelligence, performHeuristicAnalysis) {
-  const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
-
-  if (!settings.geminiApiKey) {
-    throw new Error('Gemini API key required for AI-powered threat intelligence');
-  }
-
-  const model = settings.geminiModel || 'gemini-2.5-flash';
-  const isWebSearchCapable = model.includes('2.0') || model.includes('2.5');
-
-  if (!isWebSearchCapable) {
-    updateSteps(prev => [...prev, `⚠️ Model ${model} doesn't support web search - using heuristic analysis`]);
-    return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
-  }
-
-  updateSteps(prev => [...prev, `🤖 AI searching web for real-time ${cveId} threat intelligence...`]);
-
-  // Enhanced extractive prompt with specific CISA KEV verification
-  const searchPrompt = `You are a cybersecurity analyst researching ${cveId}. Use web search to EXTRACT ONLY factual information from verified sources.
-
-CRITICAL: For CISA KEV verification, you MUST search the official CISA Known Exploited Vulnerabilities catalog directly.
-
-EXTRACTION RULES:
-- ONLY extract information that is explicitly stated in search results
-- DO NOT infer, generate, or guess any information
-- DO NOT include URLs unless they appear in actual search results
-- DO NOT make predictions or estimates
-- ONLY report findings with source attribution
-- For CISA KEV: MUST find explicit confirmation in official CISA sources
-- Do not invent URLs, technical details, or threat actor names not found directly in sources.
-
-REQUIRED SEARCHES:
-1. **CISA KEV Verification (MANDATORY)**:
-   - Search: "site:cisa.gov Known Exploited Vulnerabilities ${cveId}"
-   - Search: "CISA KEV catalog ${cveId}"
-   - Search: "${cveId} CISA emergency directive"
-   - ONLY mark as KEV listed if found in official CISA sources
-   - Extract due date, vendor, product if found
-
-2. **Active Exploitation Evidence**:
-   - Search: "${cveId} active exploitation in the wild"
-   - Search: "${cveId} ransomware APT campaigns"
-   - ONLY report if confirmed by security firms or government sources
-
-3. **Public Exploit Verification**:
-   - Search: "${cveId} exploit github poc proof of concept"
-   - Search: "${cveId} exploit-db metasploit modules"
-   - ONLY include actual repository links found in search results
-
-4. **Vendor Security Advisories**:
-   - Search: "${cveId} security advisory patch vendor"
-   - Search: "${cveId} Microsoft Red Hat Oracle Adobe security bulletin"
-   - ONLY report vendor advisories that are explicitly found
-
-5. **Technical Analysis Sources**:
-   - Search: "${cveId} technical analysis vulnerability details"
-   - Search: "${cveId} security research analysis"
-
-CURRENT CVE DATA:
-- CVE: ${cveId}
-- CVSS: ${cveData?.cvssV3?.baseScore || 'Unknown'} (${cveData?.cvssV3?.baseSeverity || 'Unknown'})
- - EPSS: ${epssData?.epss || 'Unknown'} (${epssData?.epssPercentage || 'Unknown'}%)
-- Description: ${cveData?.description?.substring(0, 300) || 'No description'}
-
-Return findings in JSON format with HIGH confidence only for verified sources:
-{
-  "cisaKev": {
-    "listed": boolean (ONLY true if found in official CISA sources),
-    "details": "extracted details from CISA or empty string",
-    "source": "CISA official source name or empty",
-    "dueDate": "extracted due date or empty",
-    "vendorProject": "extracted vendor/project or empty",
-    "confidence": "HIGH only if found in official CISA sources, otherwise LOW",
-    "searchQueries": ["list of search queries used"],
-    "aiDiscovered": true
-  },
-  "activeExploitation": {
-    "confirmed": boolean (ONLY true if confirmed by credible sources),
-    "details": "extracted details with source attribution",
-    "sources": ["list of credible sources that confirm this"],
-    "threatActors": ["extracted threat actor names"],
-    "confidence": "HIGH/MEDIUM/LOW based on source credibility",
-    "aiDiscovered": true
-  },
-  "exploitDiscovery": {
-    "found": boolean (ONLY true if actual exploits found in search),
-    "totalCount": number (count from actual search results only),
-    "exploits": [
-      {
-        "type": "extracted exploit type",
-        "url": "actual URL found in search results or empty",
-        "source": "source name where found (e.g., GitHub, Exploit-DB)",
-        "description": "extracted description of the exploit",
-        "reliability": "HIGH/MEDIUM/LOW based on source and details",
-        "citationUrl": "URL of the page confirming this specific exploit"
-      }
-    ],
-    "githubRepos": number (actual count from search),
-    "exploitDbEntries": number (actual count from search),
-    "confidence": "HIGH/MEDIUM/LOW based on findings",
-    "aiDiscovered": true
-  },
-  "vendorAdvisories": {
-    "found": boolean,
-    "count": number (actual count from search),
-    "advisories": [
-      {
-        "vendor": "extracted vendor name",
-        "title": "extracted advisory title",
-        "url": "URL to the specific advisory page",
-        "patchAvailable": boolean (only if explicitly stated),
-        "severity": "extracted severity rating",
-        "source": "source organization that published the advisory (e.g., Microsoft, Red Hat)"
-      }
-    ],
-    "confidence": "HIGH/MEDIUM/LOW",
-    "aiDiscovered": true
-  },
-  "extractionSummary": {
-    "sourcesSearched": number,
-    "officialSourcesFound": number,
-    "cisaSourcesChecked": boolean,
-    "extractionMethod": "WEB_SEARCH_EXTRACTION",
-    "confidenceLevel": "HIGH/MEDIUM/LOW",
-    "searchTimestamp": "current timestamp"
-  }
-}
-
-CRITICAL REQUIREMENTS:
-- For CISA KEV: Must find in official CISA government sources
-- All confidence levels must reflect actual source quality found
-- Include search queries used for transparency
-- Only mark as "found" what was actually discovered in search results
-- Provide source attribution for all findings`;
-
-  try {
-    const requestBody = {
-      contents: [{
-        parts: [{ text: searchPrompt }]
-      }],
-      generationConfig: {
-        temperature: 0.05, // Reduced temperature for more factual responses
-        topK: 1,
-        topP: 0.8,
-        maxOutputTokens: 4096, // Reduced to limit hallucination
-        candidateCount: 1
-      },
-      tools: [{
-        google_search: {}
-      }]
-    };
-
-    const response = await fetchWithFallback(
-      `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      }
-    );
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(`AI Threat Intelligence API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
-    }
-
-    const data = await response.json();
-    let aiResponseContent = null; // Can be string (text response) or object (groundingMetadata)
-
-    if (!data.candidates || data.candidates.length === 0) {
-      console.error('AI Threat Intelligence API response missing candidates:', JSON.stringify(data, null, 2));
-      // Fallback to heuristic if no candidates are provided at all
-      updateSteps(prev => [...prev, `⚠️ AI response missing candidates, falling back for ${cveId}`]);
+      updateSteps(prev => [...prev, `⚠️ No response candidates`]);
       return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
     }
 
     const candidate = data.candidates[0];
+    let findings = null;
 
-    if (candidate.content && candidate.content.parts && candidate.content.parts.length > 0 && candidate.content.parts[0].text) {
-      aiResponseContent = candidate.content.parts[0].text;
-      updateSteps(prev => [...prev, `✅ AI completed web-based CISA KEV and threat intelligence analysis for ${cveId}`]);
-    } else if (candidate.groundingMetadata) {
-      console.log(`AI Threat Intelligence: Only groundingMetadata returned for ${cveId}. Falling back to heuristic analysis.`);
-      updateSteps(prev => [...prev, `⚠️ AI threat intelligence response lacked text. Using heuristic analysis for ${cveId}`]);
-      return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
+    // Try text response first
+    if (candidate.content?.parts?.[0]?.text) {
+      const aiResponseContent = candidate.content.parts[0].text;
+      updateSteps(prev => [...prev, `✅ AI completed threat intelligence analysis`]);
+      findings = parseAIThreatIntelligence(aiResponseContent, cveId, setLoadingSteps);
+    }
+    // Extract from grounding metadata
+    else if (candidate.groundingMetadata) {
+      updateSteps(prev => [...prev, `📊 Extracting threat data from search results...`]);
+      
+      findings = extractThreatIntelFromGrounding(
+        candidate.groundingMetadata,
+        cveId,
+        cveData,
+        epssData
+      );
+      
+      findings.extractedFromGrounding = true;
     } else {
-      console.error('AI Threat Intelligence API response candidate missing content parts or grounding metadata:', JSON.stringify(data, null, 2));
-      // Fallback to heuristic if candidate structure is unexpected
-      updateSteps(prev => [...prev, `⚠️ AI response candidate malformed, falling back for ${cveId}`]);
+      updateSteps(prev => [...prev, `⚠️ No usable response`]);
       return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
     }
 
-    const findings = parseAIThreatIntelligence(aiResponseContent, cveId, setLoadingSteps);
-
-    // Add enhanced extraction metadata for web-based validation
+    // Enhance with metadata
     findings.extractionMetadata = {
-      extractionMethod: 'WEB_SEARCH_EXTRACTION_WITH_CISA_VERIFICATION',
+      extractionMethod: candidate.content?.parts?.[0]?.text 
+        ? 'TEXT_RESPONSE_EXTRACTION'
+        : 'GROUNDING_METADATA_EXTRACTION',
       hallucinationMitigation: true,
       extractiveApproach: true,
       temperatureUsed: 0.05,
@@ -378,13 +421,14 @@ CRITICAL REQUIREMENTS:
       webSearchValidation: true
     };
 
+    // Store in RAG if available
     if (ragDatabase?.initialized) {
       await ragDatabase.addDocument(
-        `AI Web-Based Threat Intelligence for ${cveId}: CISA KEV: ${findings.cisaKev.listed ? 'LISTED' : 'Not Listed'}, Active Exploitation: ${findings.activeExploitation?.confirmed ? 'CONFIRMED' : 'None'}, Public Exploits: ${findings.exploitDiscovery?.totalCount || 0}, Threat Level: ${findings.overallThreatLevel}. ${findings.summary}`,
+        `AI Threat Intelligence for ${cveId}: CISA KEV: ${findings.cisaKev?.listed ? 'LISTED' : 'Not Listed'}, Active Exploitation: ${findings.activeExploitation?.confirmed ? 'CONFIRMED' : 'None'}, Public Exploits: ${findings.exploitDiscovery?.totalCount || 0}`,
         {
-          title: `AI Web Threat Intelligence - ${cveId}`,
-          category: 'ai-web-intelligence',
-          tags: ['ai-web-search', 'threat-intelligence', cveId.toLowerCase(), 'extraction-based'],
+          title: `AI Threat Intelligence - ${cveId}`,
+          category: 'ai-threat-intelligence',
+          tags: ['ai-search', 'threat-intel', cveId.toLowerCase()],
           source: 'gemini-web-search'
         }
       );
@@ -393,12 +437,431 @@ CRITICAL REQUIREMENTS:
     return findings;
 
   } catch (error) {
-    console.error('AI Threat Intelligence error:', error);
-    updateSteps(prev => [...prev, `⚠️ AI web search failed: ${error.message} - using fallback analysis`]);
+    console.error('Threat intelligence error:', error);
+    updateSteps(prev => [...prev, `⚠️ Search failed: ${error.message}`]);
     return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
   }
 }
 
+/**
+ * Create enhanced threat search prompt
+ */
+function createEnhancedThreatSearchPrompt(cveId: string, cveData: any, epssData: any): string {
+  return `Search for ${cveId} threat intelligence. Extract ONLY factual information from search results.
+
+REQUIRED SEARCHES:
+1. "site:cisa.gov Known Exploited Vulnerabilities ${cveId}" - Check CISA KEV listing
+2. "${cveId} active exploitation ransomware" - Find exploitation evidence
+3. "${cveId} exploit github poc" - Search for public exploits
+4. "${cveId} security advisory patch" - Find vendor advisories
+
+CVE Context:
+- CVE: ${cveId}
+- CVSS: ${cveData?.cvssV3?.baseScore || 'Unknown'}
+- EPSS: ${epssData?.epss || 'Unknown'}%
+- Description: ${cveData?.description?.substring(0, 300) || 'Unknown'}
+
+Extract and return in JSON format:
+{
+  "cisaKev": {
+    "listed": boolean (true ONLY if found on official CISA site),
+    "details": "extracted CISA details or empty",
+    "source": "CISA URL or empty",
+    "dueDate": "date or empty",
+    "confidence": "HIGH if found on CISA, else LOW"
+  },
+  "activeExploitation": {
+    "confirmed": boolean,
+    "details": "extracted details",
+    "sources": ["source URLs"],
+    "threatActors": ["actor names if found"],
+    "confidence": "HIGH/MEDIUM/LOW"
+  },
+  "exploitDiscovery": {
+    "found": boolean,
+    "totalCount": number,
+    "exploits": [{
+      "type": "type",
+      "url": "actual URL or empty",
+      "source": "GitHub/ExploitDB/etc",
+      "description": "description"
+    }],
+    "confidence": "HIGH/MEDIUM/LOW"
+  }
+}
+
+Include ONLY information found in search results. Do not generate URLs or details.`;
+}
+
+/**
+ * Extract threat intelligence from grounding metadata
+ */
+function extractThreatIntelFromGrounding(
+  groundingMetadata: GroundingMetadata,
+  cveId: string,
+  cveData: any,
+  epssData: any
+): any {
+  const groundingInfo = extractFromGroundingMetadata(groundingMetadata);
+  
+  const findings = {
+    cisaKev: {
+      listed: false,
+      details: '',
+      source: '',
+      dueDate: '',
+      confidence: 'LOW',
+      searchQueries: [],
+      aiDiscovered: true
+    },
+    activeExploitation: {
+      confirmed: false,
+      details: '',
+      sources: [],
+      threatActors: [],
+      confidence: 'LOW',
+      aiDiscovered: true
+    },
+    exploitDiscovery: {
+      found: false,
+      totalCount: 0,
+      exploits: [],
+      githubRepos: 0,
+      exploitDbEntries: 0,
+      confidence: 'LOW',
+      aiDiscovered: true
+    },
+    vendorAdvisories: {
+      found: false,
+      count: 0,
+      advisories: [],
+      confidence: 'LOW',
+      aiDiscovered: true
+    },
+    extractionSummary: {
+      sourcesSearched: groundingInfo.sources.length,
+      officialSourcesFound: 0,
+      cisaSourcesChecked: false,
+      extractionMethod: 'GROUNDING_METADATA_EXTRACTION',
+      confidenceLevel: 'MEDIUM',
+      searchTimestamp: new Date().toISOString()
+    }
+  };
+
+  // Analyze sources for threat intelligence
+  for (const source of groundingInfo.sources) {
+    const url = source.url.toLowerCase();
+    
+    // Check for CISA KEV
+    if (url.includes('cisa.gov') && url.includes('known-exploited')) {
+      findings.cisaKev.listed = true;
+      findings.cisaKev.source = source.url;
+      findings.cisaKev.confidence = 'HIGH';
+      findings.cisaKev.details = `Found in CISA KEV catalog`;
+      findings.extractionSummary.cisaSourcesChecked = true;
+      findings.extractionSummary.officialSourcesFound++;
+    }
+    
+    // Check for exploitation evidence
+    if (url.includes('exploit') || url.includes('ransomware') || url.includes('attack')) {
+      findings.activeExploitation.confirmed = true;
+      findings.activeExploitation.sources.push(source.url);
+      findings.activeExploitation.details = source.title || 'Active exploitation reported';
+      findings.activeExploitation.confidence = 'MEDIUM';
+    }
+    
+    // Check for exploit code
+    if (url.includes('github.com') && (url.includes('exploit') || url.includes('poc'))) {
+      findings.exploitDiscovery.found = true;
+      findings.exploitDiscovery.totalCount++;
+      findings.exploitDiscovery.githubRepos++;
+      findings.exploitDiscovery.exploits.push({
+        type: 'GitHub PoC',
+        url: source.url,
+        source: 'GitHub',
+        description: source.title || 'Exploit code repository',
+        reliability: 'MEDIUM',
+        citationUrl: source.url
+      });
+    }
+    
+    // Check for vendor advisories
+    if (url.includes('security') && (url.includes('advisory') || url.includes('bulletin'))) {
+      findings.vendorAdvisories.found = true;
+      findings.vendorAdvisories.count++;
+      findings.vendorAdvisories.advisories.push({
+        vendor: extractVendorFromUrl(url),
+        title: source.title || 'Security Advisory',
+        url: source.url,
+        patchAvailable: url.includes('patch') || url.includes('update'),
+        severity: 'Unknown',
+        source: extractVendorFromUrl(url)
+      });
+    }
+  }
+
+  // Set confidence levels based on findings
+  if (findings.cisaKev.listed || findings.activeExploitation.confirmed) {
+    findings.extractionSummary.confidenceLevel = 'HIGH';
+  }
+
+  return findings;
+}
+
+/**
+ * Extract vendor name from URL
+ */
+function extractVendorFromUrl(url: string): string {
+  const vendorPatterns = {
+    'microsoft.com': 'Microsoft',
+    'redhat.com': 'Red Hat',
+    'oracle.com': 'Oracle',
+    'adobe.com': 'Adobe',
+    'cisco.com': 'Cisco',
+    'ubuntu.com': 'Ubuntu',
+    'debian.org': 'Debian',
+    'apache.org': 'Apache',
+    'github.com': 'GitHub',
+    'cisa.gov': 'CISA',
+    'asus.com': 'ASUS',
+    'd-link.com': 'D-Link',
+    'dlink.com': 'D-Link',
+    'tp-link.com': 'TP-Link',
+    'netgear.com': 'Netgear',
+    'fortinet.com': 'Fortinet',
+    'vmware.com': 'VMware',
+    'juniper.net': 'Juniper'
+  };
+  
+  for (const [pattern, vendor] of Object.entries(vendorPatterns)) {
+    if (url.includes(pattern)) {
+      return vendor;
+    }
+  }
+  
+  try {
+    const urlObj = new URL(url);
+    return urlObj.hostname.split('.')[0];
+  } catch {
+    return 'Unknown';
+  }
+}
+
+/**
+ * Extract version from URL
+ */
+function extractVersionFromUrl(url: string): string | null {
+  // Common version patterns in URLs
+  const patterns = [
+    /v?(\d+\.\d+\.\d+(?:\.\d+)*)/,
+    /version[_-]?(\d+\.\d+(?:\.\d+)*)/,
+    /firmware[_-]?v?(\d+\.\d+(?:\.\d+)*)/i,
+    /-(\d+\.\d+\.\d+)\./,
+    /\/(\d+\.\d+)\//
+  ];
+  
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) {
+      return match[1];
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Parse response that includes description analysis
+ */
+function parseDescriptionBasedResponse(response: string, cveId: string): any {
+  try {
+    const jsonMatch = response.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+      const data = JSON.parse(jsonMatch[0]);
+      
+      // Extract the core patch/advisory data while preserving analysis steps
+      const result = {
+        patches: data.patches || [],
+        advisories: data.advisories || [],
+        searchSummary: data.searchSummary || {
+          patchesFound: data.patches?.length || 0,
+          advisoriesFound: data.advisories?.length || 0,
+          enhancedWithAnalysis: true
+        }
+      };
+      
+      // Store analysis steps separately if available
+      if (data.analysisSteps) {
+        result.analysisSteps = data.analysisSteps;
+      }
+      
+      return result;
+    }
+  } catch (error) {
+    console.error('Failed to parse description-based response:', error);
+  }
+  
+  return { 
+    patches: [], 
+    advisories: [], 
+    searchSummary: { patchesFound: 0, advisoriesFound: 0 } 
+  };
+}
+
+/**
+ * Extract from grounding with description context
+ */
+function extractFromGroundingWithContext(groundingMetadata: any, cveId: string, description: string): any {
+  // First, manually extract from description
+  const extracted = extractInfoFromDescription(description);
+  
+  const groundingInfo = extractFromGroundingMetadata(groundingMetadata);
+  const patches = [];
+  const advisories = [];
+
+  for (const source of groundingInfo.sources) {
+    const url = source.url;
+    const title = source.title || '';
+    const urlLower = url.toLowerCase();
+    
+    // Match against extracted vendor
+    if (extracted.vendor && urlLower.includes(extracted.vendor.toLowerCase())) {
+      if (urlLower.includes('download') || urlLower.includes('firmware') || urlLower.includes('update')) {
+        patches.push({
+          vendor: extracted.vendor,
+          product: extracted.product || extracted.model || 'Unknown',
+          patchVersion: extractVersionFromUrl(url) || 'Latest',
+          downloadUrl: url,
+          advisoryUrl: url,
+          description: title || 'Security patch',
+          confidence: 'HIGH',
+          patchType: extracted.model ? 'Firmware Update' : 'Security Patch',
+          basedOnExtraction: true,
+          citationUrl: url
+        });
+      } else {
+        advisories.push({
+          source: extracted.vendor,
+          advisoryId: cveId,
+          title: title || `Security Advisory for ${cveId}`,
+          url: url,
+          severity: 'Unknown',
+          description: `${extracted.vendor} security advisory`,
+          confidence: 'HIGH',
+          type: 'Vendor Advisory',
+          affectedProduct: extracted.product || extracted.model || 'Unknown',
+          basedOnExtraction: true,
+          citationUrl: url
+        });
+      }
+    }
+  }
+
+  return {
+    patches: patches,
+    advisories: advisories,
+    searchSummary: {
+      descriptionAnalyzed: true,
+      extractionSuccessful: !!(extracted.vendor),
+      searchQueries: groundingInfo.searchQueries,
+      sourcesFound: groundingInfo.sources.length,
+      extractedFromGrounding: true,
+      confidence: groundingInfo.confidence,
+      patchesFound: patches.length,
+      advisoriesFound: advisories.length
+    },
+    analysisSteps: {
+      descriptionRead: true,
+      extracted: extracted,
+      searchQueriesUsed: groundingMetadata.webSearchQueries || []
+    }
+  };
+}
+
+/**
+ * Manual extraction from description as fallback
+ */
+function extractInfoFromDescription(description: string): any {
+  const extracted = {
+    vendor: null,
+    product: null,
+    component: null,
+    version: null,
+    model: null,
+    package: null,
+    os: null
+  };
+
+  // Pattern matching for common formats
+  const patterns = {
+    // "On VENDOR PRODUCT VERSION devices"
+    devicePattern: /On\s+(\w+)\s+([\w\-]+)\s+([\d.]+(?:\.\d+)*)\s+devices/i,
+    // "VENDOR MODEL firmware VERSION"
+    firmwarePattern: /(\w+)\s+([\w\-]+)\s+firmware\s+([\d.]+(?:\.\d+)*)/i,
+    // "PACKAGE before VERSION"
+    packagePattern: /([\w\-]+)\s+(?:package\s+)?before\s+([\d.]+(?:\.\d+)*)/i,
+    // "VENDOR PRODUCT version VERSION"
+    versionPattern: /(\w+)\s+([\w\s\-]+)\s+version\s+([\d.]+(?:\.\d+)*)/i,
+    // Component pattern
+    componentPattern: /vulnerability\s+in\s+(?:the\s+)?([\w\s\-]+)\s+(?:component|module|function)/i
+  };
+
+  // Try device pattern first (like ASUS example)
+  const deviceMatch = description.match(patterns.devicePattern);
+  if (deviceMatch) {
+    extracted.vendor = deviceMatch[1];
+    extracted.product = deviceMatch[2];
+    extracted.model = deviceMatch[2];
+    extracted.version = deviceMatch[3];
+    return extracted;
+  }
+
+  // Try other patterns
+  for (const [key, pattern] of Object.entries(patterns)) {
+    const match = description.match(pattern);
+    if (match) {
+      switch (key) {
+        case 'firmwarePattern':
+          extracted.vendor = match[1];
+          extracted.model = match[2];
+          extracted.version = match[3];
+          break;
+        case 'packagePattern':
+          extracted.package = match[1];
+          extracted.version = match[2];
+          break;
+        case 'versionPattern':
+          extracted.vendor = match[1];
+          extracted.product = match[2].trim();
+          extracted.version = match[3];
+          break;
+        case 'componentPattern':
+          extracted.component = match[1].trim();
+          break;
+      }
+    }
+  }
+
+  // Known vendor detection
+  const knownVendors = [
+    'ASUS', 'Cisco', 'Microsoft', 'Oracle', 'Apache', 'Adobe',
+    'D-Link', 'TP-Link', 'Netgear', 'VMware', 'Fortinet', 'Juniper',
+    'Huawei', 'Sophos', 'Palo Alto', 'F5', 'Citrix', 'IBM'
+  ];
+
+  if (!extracted.vendor) {
+    for (const vendor of knownVendors) {
+      if (description.includes(vendor)) {
+        extracted.vendor = vendor;
+        break;
+      }
+    }
+  }
+
+  return extracted;
+}
+
+// Include the other functions directly
 export async function generateAIAnalysis(vulnerability, apiKey, model, settings = {}, ragDatabase, fetchWithFallback, buildEnhancedAnalysisPrompt, generateEnhancedFallbackAnalysis) {
   if (!apiKey) throw new Error('Gemini API key required');
 
