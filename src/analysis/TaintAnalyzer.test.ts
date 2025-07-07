@@ -29,4 +29,28 @@ describe('TaintAnalyzer', () => {
     const res = analyzer.analyze(code);
     expect(res.flows.length).toBe(0);
   });
+
+  it('flags vulnerable module versions', () => {
+    const entries: CVEEntry[] = [
+      {
+        id: 'CVE-2022-22965',
+        functions: ['springBind'],
+        description: 'Spring binding RCE',
+        severity: 'CRITICAL',
+        module: 'spring-beans',
+        version: '5.2.12.RELEASE'
+      }
+    ];
+    const map = buildCVEMap(entries);
+    const analyzer = new TaintAnalyzer(map);
+    const code = `
+      function input() { return 'bad'; }
+      const user = input();
+      springBind(user);
+    `;
+    const deps = { 'spring-beans': '5.2.12.RELEASE' };
+    const res = analyzer.analyze(code, deps);
+    expect(res.flows.length).toBe(1);
+    expect(res.flows[0].sink.cve?.id).toBe('CVE-2022-22965');
+  });
 });
