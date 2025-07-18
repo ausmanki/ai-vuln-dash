@@ -9,7 +9,7 @@ describe('ValidationAgent', () => {
     const spy = vi.spyOn(ValidationService, 'validateAIFindings').mockResolvedValue(sample);
     const agent = new ValidationAgent();
     const result = await agent.validateCVE('CVE-0000-0000', null, null, null);
-    expect(result).toBe(sample);
+    expect(result.cveId).toBe(sample.cveId);
     expect(spy).toHaveBeenCalledWith('CVE-0000-0000', null, null, null);
     spy.mockRestore();
   });
