@@ -2712,3 +2712,11 @@ export class UserAssistantAgent {
     return { text: summaryText, sender: 'bot', id: Date.now().toString() };
   }
 }
+
+import { describe, it } from "vitest";
+
+describe("UserAssistantAgent", () => {
+  it("placeholder", () => {
+    // TODO: implement tests
+  });
+});
