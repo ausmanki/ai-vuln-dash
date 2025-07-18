@@ -954,16 +954,21 @@ export async function generateAIAnalysis(vulnerability, apiKey, model, settings 
 
   const prompt = buildEnhancedAnalysisPrompt(vulnerability, ragContext, relevantDocs.length);
 
-  const requestBody = {
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: {
-      temperature: 0.1,
-      topK: 1,
-      topP: 0.8,
-      maxOutputTokens: 8192,
-      candidateCount: 1
-    }
-  };
+  const requestBody: any = useGemini
+    ? {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.1,
+          topK: 1,
+          topP: 0.8,
+          maxOutputTokens: 8192,
+          candidateCount: 1,
+        },
+      }
+    : {
+        model,
+        messages: [{ role: 'user', content: prompt }],
+      };
 
   const isWebSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
   if (useGemini && isWebSearchCapable) {
