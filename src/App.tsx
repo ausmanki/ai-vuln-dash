@@ -187,7 +187,7 @@ const App = () => {
                 minHeight: '44px',
               }}>
                 <Brain size={16} />
-                {settings.geminiApiKey ? 'AI Ready' : 'AI Offline'}
+                {settings.geminiApiKey || settings.openAiApiKey ? 'AI Ready' : 'AI Offline'}
               </div>
               
               <button

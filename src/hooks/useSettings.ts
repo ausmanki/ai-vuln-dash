@@ -6,6 +6,8 @@ export const useSettings = () => {
     geminiApiKey: '',
     geminiModel: 'gemini-2.5-flash',
     nvdApiKey: '',
+    openAiApiKey: '',
+    openAiModel: 'gpt-4o',
     enableRAG: true
   });
 

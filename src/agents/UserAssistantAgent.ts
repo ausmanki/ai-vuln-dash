@@ -18,6 +18,7 @@ import {
 } from '../types/cveData';
 import { generateRemediationPlan } from '../utils/remediation';
 import { extractComponentNames } from '../utils/componentUtils';
+import { CONSTANTS } from '../utils/constants';
 
 const CVE_REGEX = /CVE-\d{4}-\d{4,7}/gi;
 
@@ -138,17 +139,43 @@ export class UserAssistantAgent {
   }
 
   private async handleGeneralQuery(query: string): Promise<ChatResponse> {
+    if (this.settings.openAiApiKey) {
+      try {
+        const model = this.settings.openAiModel || 'gpt-4o';
+        const res = await fetch(`${CONSTANTS.API_ENDPOINTS.OPENAI}/chat/completions`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${this.settings.openAiApiKey}`
+          },
+          body: JSON.stringify({
+            model,
+            messages: [{ role: 'user', content: query }]
+          })
+        });
+        if (!res.ok) {
+          throw new Error(`OpenAI error: ${res.status}`);
+        }
+        const data = await res.json();
+        const text = data.choices?.[0]?.message?.content || 'No response';
+        return { text, sender: 'bot', id: Date.now().toString() };
+      } catch (error: any) {
+        console.error('OpenAI request failed:', error);
+        return { text: 'Failed to fetch response from OpenAI.', sender: 'system', id: Date.now().toString(), error: error.message };
+      }
+    }
+
     let response = `I understand you're asking about cybersecurity. `;
-    
+
     response += `To provide you with the most helpful information, could you:\n\n`;
     response += `• Specify a CVE ID (like CVE-2024-1234) if you're asking about a specific vulnerability\n`;
     response += `• Let me know what aspect you're most concerned about (patches, exploits, business impact)\n`;
     response += `• Share any relevant context about your environment or industry\n\n`;
-    
+
     if (this.conversationContext.recentCVEs.length > 0) {
       response += `We were recently discussing: ${this.conversationContext.recentCVEs.join(', ')}. Would you like to continue with any of these?`;
     }
-    
+
     return {
       text: response,
       sender: 'bot',
