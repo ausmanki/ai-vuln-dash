@@ -89,26 +89,27 @@ function extractFromGroundingMetadata(groundingMetadata: GroundingMetadata): Ext
  * Enhanced patch search that reads description first and extracts vendor information
  */
 export async function fetchPatchesAndAdvisories(
-  cveId: string, 
-  cveData: any, 
-  settings: any, 
-  setLoadingSteps: any, 
-  fetchWithFallback: any, 
-  parsePatchAndAdvisoryResponse: any, 
+  cveId: string,
+  cveData: any,
+  settings: any,
+  setLoadingSteps: any,
+  fetchWithFallback: any,
+  parsePatchAndAdvisoryResponse: any,
   getHeuristicPatchesAndAdvisories: any
 ) {
   const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
   updateSteps(prev => [...prev, `📖 Reading ${cveId} description to extract vendor information...`]);
 
-  if (!settings.geminiApiKey) {
+  if (!settings.geminiApiKey && !settings.openAiApiKey) {
     updateSteps(prev => [...prev, `⚠️ API key required for intelligent analysis`]);
     return getHeuristicPatchesAndAdvisories(cveId, cveData);
   }
 
-  const model = settings.geminiModel || 'gemini-2.5-flash';
-  const isWebSearchCapable = model.includes('2.0') || model.includes('2.5');
+  const useGemini = !settings.openAiApiKey && !!settings.geminiApiKey;
+  const model = useGemini ? (settings.geminiModel || 'gemini-2.5-flash') : (settings.openAiModel || 'gpt-4o');
+  const isWebSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
 
-  if (!isWebSearchCapable) {
+  if (useGemini && !isWebSearchCapable) {
     updateSteps(prev => [...prev, `⚠️ Web search not supported by model`]);
     return getHeuristicPatchesAndAdvisories(cveId, cveData);
   }
@@ -218,32 +219,36 @@ SEARCH AND RETURN:
 CRITICAL: You MUST show the extraction results in your response. Do NOT skip the extraction step.`;
 
   try {
-    const requestBody = {
-      contents: [{
-        parts: [{ text: analysisPrompt }]
-      }],
-      generationConfig: {
-        temperature: 0.1,
-        topK: 1,
-        topP: 0.9,
-        maxOutputTokens: 8192,
-        candidateCount: 1
-      },
-      tools: [{
-        google_search: {}
-      }]
-    };
+    const requestBody: any = useGemini
+      ? {
+          contents: [{ parts: [{ text: analysisPrompt }] }],
+          generationConfig: {
+            temperature: 0.1,
+            topK: 1,
+            topP: 0.9,
+            maxOutputTokens: 8192,
+            candidateCount: 1
+          },
+          tools: [{ google_search: {} }]
+        }
+      : {
+          model,
+          messages: [{ role: 'user', content: analysisPrompt }]
+        };
 
     updateSteps(prev => [...prev, `🔍 AI analyzing description and extracting vendor details...`]);
 
-    const response = await fetchWithFallback(
-      `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      }
-    );
+    const apiUrl = useGemini
+      ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`
+      : `${CONSTANTS.API_ENDPOINTS.OPENAI}/chat/completions`;
+    const headers: any = { 'Content-Type': 'application/json' };
+    if (!useGemini) headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
+
+    const response = await fetchWithFallback(apiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody)
+    });
 
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`);
@@ -252,35 +257,45 @@ CRITICAL: You MUST show the extraction results in your response. Do NOT skip the
     const data = await response.json();
     let result = { patches: [], advisories: [], analysisSteps: {} };
 
-    if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-      const aiResponse = data.candidates[0].content.parts[0].text;
-      result = parseDescriptionBasedResponse(aiResponse, cveId);
-      
-      // Show what was extracted
-      if (result.analysisSteps?.extracted) {
-        const extracted = Object.entries(result.analysisSteps.extracted)
-          .filter(([_, value]) => value && value !== 'null')
-          .map(([key, value]) => `${key}: ${value}`)
-          .join(', ');
-        
-        if (extracted) {
-          updateSteps(prev => [...prev, `✅ Extracted from description: ${extracted}`]);
-        } else {
-          updateSteps(prev => [...prev, `⚠️ No vendor information found in description`]);
+    if (useGemini) {
+      if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+        const aiResponse = data.candidates[0].content.parts[0].text;
+        result = parseDescriptionBasedResponse(aiResponse, cveId);
+
+        // Show what was extracted
+        if (result.analysisSteps?.extracted) {
+          const extracted = Object.entries(result.analysisSteps.extracted)
+            .filter(([_, value]) => value && value !== 'null')
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(', ');
+
+          if (extracted) {
+            updateSteps(prev => [...prev, `✅ Extracted from description: ${extracted}`]);
+          } else {
+            updateSteps(prev => [...prev, `⚠️ No vendor information found in description`]);
+          }
         }
+
+        // Show search queries used
+        if (result.analysisSteps?.searchQueriesUsed?.length > 0) {
+          updateSteps(prev => [...prev, `🔎 Performed ${result.analysisSteps.searchQueriesUsed.length} targeted searches`]);
+        }
+
+      } else if (data.candidates?.[0]?.groundingMetadata) {
+        updateSteps(prev => [...prev, `📊 Extracting from search metadata...`]);
+        result = extractFromGroundingWithContext(data.candidates[0].groundingMetadata, cveId, description);
+      } else {
+        updateSteps(prev => [...prev, `⚠️ No usable response - using heuristics`]);
+        return getHeuristicPatchesAndAdvisories(cveId, cveData);
       }
-      
-      // Show search queries used
-      if (result.analysisSteps?.searchQueriesUsed?.length > 0) {
-        updateSteps(prev => [...prev, `🔎 Performed ${result.analysisSteps.searchQueriesUsed.length} targeted searches`]);
-      }
-      
-    } else if (data.candidates?.[0]?.groundingMetadata) {
-      updateSteps(prev => [...prev, `📊 Extracting from search metadata...`]);
-      result = extractFromGroundingWithContext(data.candidates[0].groundingMetadata, cveId, description);
     } else {
-      updateSteps(prev => [...prev, `⚠️ No usable response - using heuristics`]);
-      return getHeuristicPatchesAndAdvisories(cveId, cveData);
+      const text = data.choices?.[0]?.message?.content;
+      if (!text) {
+        updateSteps(prev => [...prev, `⚠️ No usable response - using heuristics`]);
+        return getHeuristicPatchesAndAdvisories(cveId, cveData);
+      }
+      result = parseDescriptionBasedResponse(text, cveId);
+    
     }
 
     // Always enhance with heuristics
