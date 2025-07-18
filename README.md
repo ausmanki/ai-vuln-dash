@@ -208,11 +208,9 @@ npm start
 1. **Optional: NVD API Key** (Higher rate limits)
    - Get free API key: [NVD API](https://nvd.nist.gov/developers/request-an-api-key)
 
-2. **AI Analysis: Gemini API Key** (Enhanced intelligence)
-   - Get API key: [Google AI Studio](https://makersuite.google.com/app/apikey)
-
-3. **AI Analysis: OpenAI API Key** (Chatbot responses)
-   - Get API key: [OpenAI Dashboard](https://platform.openai.com/)
+2. **AI Analysis: Gemini or OpenAI API Key**
+   - Gemini key: [Google AI Studio](https://makersuite.google.com/app/apikey)
+   - OpenAI key: [OpenAI Dashboard](https://platform.openai.com/)
 
 4. **Configure in Settings**:
    - Click "Settings" in the top-right corner
@@ -240,7 +238,7 @@ npm start
 
 ### **🤖 AI-Enhanced Analysis**
 ```
-1. Configure Gemini API key in settings
+1. Configure Gemini or OpenAI API key in settings
 2. Enable AI analysis for each vulnerability
 3. Get 3000+ word comprehensive security assessment
 ```

@@ -329,14 +329,15 @@ export async function fetchAIThreatIntelligence(
 ) {
   const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
 
-  if (!settings.geminiApiKey) {
-    throw new Error('Gemini API key required');
+  if (!settings.geminiApiKey && !settings.openAiApiKey) {
+    throw new Error('Gemini or OpenAI API key required');
   }
 
-  const model = settings.geminiModel || 'gemini-2.5-flash';
-  const isWebSearchCapable = model.includes('2.0') || model.includes('2.5');
+  const useGemini = !!settings.geminiApiKey;
+  const model = useGemini ? (settings.geminiModel || 'gemini-2.5-flash') : (settings.openAiModel || 'gpt-4o');
+  const isWebSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
 
-  if (!isWebSearchCapable) {
+  if (useGemini && !isWebSearchCapable) {
     updateSteps(prev => [...prev, `⚠️ Model doesn't support web search`]);
     return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
   }
@@ -346,80 +347,100 @@ export async function fetchAIThreatIntelligence(
   const searchPrompt = createEnhancedThreatSearchPrompt(cveId, cveData, epssData);
 
   try {
-    const requestBody = {
-      contents: [{
-        parts: [{ text: searchPrompt }]
-      }],
-      generationConfig: {
-        temperature: 0.05,
-        topK: 1,
-        topP: 0.8,
-        maxOutputTokens: 4096,
-        candidateCount: 1
-      },
-      tools: [{
-        google_search: {}
-      }]
-    };
+    const requestBody = useGemini
+      ? {
+          contents: [{ parts: [{ text: searchPrompt }] }],
+          generationConfig: {
+            temperature: 0.05,
+            topK: 1,
+            topP: 0.8,
+            maxOutputTokens: 4096,
+            candidateCount: 1
+          },
+          tools: [{ google_search: {} }]
+        }
+      : {
+          model,
+          messages: [{ role: 'user', content: searchPrompt }]
+        };
 
-    const response = await fetchWithFallback(
-      `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      }
-    );
+    const apiUrl = useGemini
+      ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`
+      : `${CONSTANTS.API_ENDPOINTS.OPENAI}/chat/completions`;
+    const headers: any = { 'Content-Type': 'application/json' };
+    if (!useGemini) headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
+
+    const response = await fetchWithFallback(apiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody)
+    });
 
     if (!response.ok) {
       throw new Error(`API error: ${response.status}`);
     }
 
     const data = await response.json();
-    
-    if (!data.candidates || data.candidates.length === 0) {
-      updateSteps(prev => [...prev, `⚠️ No response candidates`]);
-      return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
-    }
 
-    const candidate = data.candidates[0];
     let findings = null;
 
-    // Try text response first
-    if (candidate.content?.parts?.[0]?.text) {
-      const aiResponseContent = candidate.content.parts[0].text;
-      updateSteps(prev => [...prev, `✅ AI completed threat intelligence analysis`]);
-      findings = parseAIThreatIntelligence(aiResponseContent, cveId, setLoadingSteps);
-    }
-    // Extract from grounding metadata
-    else if (candidate.groundingMetadata) {
-      updateSteps(prev => [...prev, `📊 Extracting threat data from search results...`]);
-      
-      findings = extractThreatIntelFromGrounding(
-        candidate.groundingMetadata,
-        cveId,
-        cveData,
-        epssData
-      );
-      
-      findings.extractedFromGrounding = true;
-    } else {
-      updateSteps(prev => [...prev, `⚠️ No usable response`]);
-      return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
-    }
+    if (useGemini) {
+      if (!data.candidates || data.candidates.length === 0) {
+        updateSteps(prev => [...prev, `⚠️ No response candidates`]);
+        return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
+      }
 
-    // Enhance with metadata
-    findings.extractionMetadata = {
-      extractionMethod: candidate.content?.parts?.[0]?.text 
-        ? 'TEXT_RESPONSE_EXTRACTION'
-        : 'GROUNDING_METADATA_EXTRACTION',
-      hallucinationMitigation: true,
-      extractiveApproach: true,
-      temperatureUsed: 0.05,
-      maxTokensUsed: 4096,
-      cisaVerificationPerformed: true,
-      webSearchValidation: true
-    };
+      const candidate = data.candidates[0];
+
+      if (candidate.content?.parts?.[0]?.text) {
+        const aiResponseContent = candidate.content.parts[0].text;
+        updateSteps(prev => [...prev, `✅ AI completed threat intelligence analysis`]);
+        findings = parseAIThreatIntelligence(aiResponseContent, cveId, setLoadingSteps);
+      } else if (candidate.groundingMetadata) {
+        updateSteps(prev => [...prev, `📊 Extracting threat data from search results...`]);
+
+        findings = extractThreatIntelFromGrounding(
+          candidate.groundingMetadata,
+          cveId,
+          cveData,
+          epssData
+        );
+
+        findings.extractedFromGrounding = true;
+      } else {
+        updateSteps(prev => [...prev, `⚠️ No usable response`]);
+        return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
+      }
+
+      findings.extractionMetadata = {
+        extractionMethod: candidate.content?.parts?.[0]?.text
+          ? 'TEXT_RESPONSE_EXTRACTION'
+          : 'GROUNDING_METADATA_EXTRACTION',
+        hallucinationMitigation: true,
+        extractiveApproach: true,
+        temperatureUsed: 0.05,
+        maxTokensUsed: 4096,
+        cisaVerificationPerformed: true,
+        webSearchValidation: true
+      };
+    } else {
+      const text = data.choices?.[0]?.message?.content;
+      if (!text) {
+        updateSteps(prev => [...prev, `⚠️ No usable response`]);
+        return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
+      }
+      updateSteps(prev => [...prev, `✅ AI completed threat intelligence analysis`]);
+      findings = parseAIThreatIntelligence(text, cveId, setLoadingSteps);
+      findings.extractionMetadata = {
+        extractionMethod: 'TEXT_RESPONSE_ONLY',
+        hallucinationMitigation: true,
+        extractiveApproach: true,
+        temperatureUsed: 0.05,
+        maxTokensUsed: 4096,
+        cisaVerificationPerformed: false,
+        webSearchValidation: false
+      };
+    }
 
     // Store in RAG if available
     if (ragDatabase?.initialized) {
@@ -429,7 +450,7 @@ export async function fetchAIThreatIntelligence(
           title: `AI Threat Intelligence - ${cveId}`,
           category: 'ai-threat-intelligence',
           tags: ['ai-search', 'threat-intel', cveId.toLowerCase()],
-          source: 'gemini-web-search'
+          source: useGemini ? 'gemini-web-search' : 'openai'
         }
       );
     }
@@ -863,21 +884,23 @@ function extractInfoFromDescription(description: string): any {
 
 // Include the other functions directly
 export async function generateAIAnalysis(vulnerability, apiKey, model, settings = {}, ragDatabase, fetchWithFallback, buildEnhancedAnalysisPrompt, generateEnhancedFallbackAnalysis) {
-  if (!apiKey) throw new Error('Gemini API key required');
+  if (!apiKey && !settings.openAiApiKey) throw new Error('Gemini or OpenAI API key required');
+
+  const useGemini = !!apiKey;
 
   const now = Date.now();
   // @ts-ignore
   const lastRequest = window.lastGeminiRequest || 0;
 
-  if ((now - lastRequest) < CONSTANTS.RATE_LIMITS.GEMINI_COOLDOWN) {
+  if (useGemini && (now - lastRequest) < CONSTANTS.RATE_LIMITS.GEMINI_COOLDOWN) {
     const waitTime = Math.ceil((CONSTANTS.RATE_LIMITS.GEMINI_COOLDOWN - (now - lastRequest)) / 1000);
     throw new Error(`Rate limit protection: Please wait ${waitTime} more seconds. Free Gemini API has strict limits.`);
   }
   // @ts-ignore
-  window.lastGeminiRequest = now;
+  if (useGemini) window.lastGeminiRequest = now;
 
   if (ragDatabase) {
-    await ragDatabase.ensureInitialized(apiKey);
+    await ragDatabase.ensureInitialized(useGemini ? apiKey : null);
     console.log(`📊 RAG Database Status: ${ragDatabase.documents.length} documents available (${ragDatabase.geminiApiKey ? 'Gemini embeddings' : 'local embeddings'})`);
   }
 
@@ -927,45 +950,58 @@ export async function generateAIAnalysis(vulnerability, apiKey, model, settings 
     }
   };
 
-  const isWebSearchCapable = model.includes('2.0') || model.includes('2.5');
-  if (isWebSearchCapable) {
+  const isWebSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  if (useGemini && isWebSearchCapable) {
     requestBody.tools = [{ google_search: {} }];
   }
 
-  const apiUrl = `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${apiKey}`;
+  const apiUrl = useGemini
+    ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${apiKey}`
+    : `${CONSTANTS.API_ENDPOINTS.OPENAI}/chat/completions`;
 
   try {
+    const headers: any = { 'Content-Type': 'application/json' };
+    if (!useGemini) headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
     const response = await fetchWithFallback(apiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
 
-      if (response.status === 429) {
-        throw new Error('Gemini API rate limit exceeded. Please wait a few minutes before trying again.');
-      }
+      if (useGemini) {
+        if (response.status === 429) {
+          throw new Error('Gemini API rate limit exceeded. Please wait a few minutes before trying again.');
+        }
 
-      if (response.status === 401 || response.status === 403) {
-        throw new Error('Invalid Gemini API key. Please check your API key in settings.');
-      }
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('Invalid Gemini API key. Please check your API key in settings.');
+        }
 
-      throw new Error(`Gemini API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+        throw new Error(`Gemini API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      } else {
+        throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+      }
     }
 
     const data = await response.json();
-    const content = data.candidates?.[0]?.content;
-
-    if (!content?.parts?.[0]?.text) {
-      throw new Error('Invalid response from Gemini API');
-    }
-
-    const analysisText = content.parts[0].text;
-
-    if (!analysisText || analysisText.trim().length === 0) {
-      throw new Error('Empty analysis received from Gemini API');
+    let analysisText;
+    if (useGemini) {
+      const content = data.candidates?.[0]?.content;
+      if (!content?.parts?.[0]?.text) {
+        throw new Error('Invalid response from Gemini API');
+      }
+      analysisText = content.parts[0].text;
+      if (!analysisText || analysisText.trim().length === 0) {
+        throw new Error('Empty analysis received from Gemini API');
+      }
+    } else {
+      analysisText = data.choices?.[0]?.message?.content;
+      if (!analysisText) {
+        throw new Error('Invalid response from OpenAI API');
+      }
     }
 
     if (analysisText.length > 500 && ragDatabase && ragDatabase.initialized) {
@@ -1019,25 +1055,36 @@ export async function generateAIAnalysis(vulnerability, apiKey, model, settings 
 }
 
 export async function fetchGeneralAnswer(query: string, settings: any, fetchWithFallbackFn: any) {
-  if (!settings.geminiApiKey) {
-    throw new Error("Gemini API key required for AI responses");
+  if (!settings.geminiApiKey && !settings.openAiApiKey) {
+    throw new Error("Gemini or OpenAI API key required for AI responses");
   }
-  const model = settings.geminiModel || "gemini-2.5-flash";
-  const requestBody = {
-    contents: [{ parts: [{ text: query }] }],
-    generationConfig: { temperature: 0.3, topK: 1, topP: 0.8, maxOutputTokens: 1024, candidateCount: 1 },
-    tools: [{ google_search: {} }]
-  };
-  const response = await fetchWithFallbackFn(`${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`, {
+  const useGemini = !!settings.geminiApiKey;
+  const model = useGemini ? (settings.geminiModel || "gemini-2.5-flash") : (settings.openAiModel || 'gpt-4o');
+  const requestBody = useGemini
+    ? {
+        contents: [{ parts: [{ text: query }] }],
+        generationConfig: { temperature: 0.3, topK: 1, topP: 0.8, maxOutputTokens: 1024, candidateCount: 1 },
+        tools: [{ google_search: {} }]
+      }
+    : {
+        model,
+        messages: [{ role: 'user', content: query }]
+      };
+  const apiUrl = useGemini
+    ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`
+    : `${CONSTANTS.API_ENDPOINTS.OPENAI}/chat/completions`;
+  const headers: any = { "Content-Type": "application/json" };
+  if (!useGemini) headers["Authorization"] = `Bearer ${settings.openAiApiKey}`;
+  const response = await fetchWithFallbackFn(apiUrl, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers,
     body: JSON.stringify(requestBody)
   });
   if (!response.ok) {
     throw new Error(`General AI query error: ${response.status}`);
   }
   const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  const text = useGemini ? data.candidates?.[0]?.content?.parts?.[0]?.text : data.choices?.[0]?.message?.content;
   if (!text) {
     throw new Error("Invalid AI response");
   }
@@ -1051,37 +1098,47 @@ export async function generateAITaintAnalysis(
   settings: any = {},
   fetchWithFallbackFn: any
 ) {
-  if (!apiKey) throw new Error('Gemini API key required');
+  if (!apiKey && !settings.openAiApiKey) throw new Error('Gemini or OpenAI API key required');
+
+  const useGemini = !!apiKey;
 
   const prompt = `Perform conceptual taint analysis for ${vulnerability?.cve?.id} based on the following description:\n${vulnerability?.cve?.description}`;
 
-  const requestBody: any = {
-    contents: [{ parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.1, topK: 1, topP: 0.8, maxOutputTokens: 2048, candidateCount: 1 }
-  };
+  const requestBody: any = useGemini
+    ? {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: { temperature: 0.1, topK: 1, topP: 0.8, maxOutputTokens: 2048, candidateCount: 1 }
+      }
+    : {
+        model: settings.openAiModel || 'gpt-4o',
+        messages: [{ role: 'user', content: prompt }]
+      };
 
-  const isWebSearchCapable = model.includes('2.0') || model.includes('2.5');
-  if (isWebSearchCapable) {
+  const isWebSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  if (useGemini && isWebSearchCapable) {
     requestBody.tools = [{ google_search: {} }];
   }
 
-  const response = await fetchWithFallbackFn(
-    `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(requestBody)
-    }
-  );
+  const apiUrl = useGemini
+    ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${apiKey}`
+    : `${CONSTANTS.API_ENDPOINTS.OPENAI}/chat/completions`;
+  const headers: any = { 'Content-Type': 'application/json' };
+  if (!useGemini) headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
+
+  const response = await fetchWithFallbackFn(apiUrl, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify(requestBody)
+  });
 
   if (!response.ok) {
-    throw new Error(`Gemini API error: ${response.status}`);
+    throw new Error(useGemini ? `Gemini API error: ${response.status}` : `OpenAI API error: ${response.status}`);
   }
 
   const data = await response.json();
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  const text = useGemini ? data.candidates?.[0]?.content?.parts?.[0]?.text : data.choices?.[0]?.message?.content;
   if (!text) {
-    throw new Error('Invalid response from Gemini API');
+    throw new Error(useGemini ? 'Invalid response from Gemini API' : 'Invalid response from OpenAI API');
   }
   return { analysis: text };
 }
