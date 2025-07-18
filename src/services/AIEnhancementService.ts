@@ -1002,6 +1002,14 @@ export async function generateAIAnalysis(vulnerability, apiKey, model, settings 
 
         throw new Error(`Gemini API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
       } else {
+        if (response.status === 429) {
+          throw new Error('OpenAI API rate limit exceeded. Please wait a few minutes before trying again.');
+        }
+
+        if (response.status === 401 || response.status === 403) {
+          throw new Error('Invalid OpenAI API key. Please check your API key in settings.');
+        }
+
         throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
       }
     }
@@ -1101,6 +1109,16 @@ export async function fetchGeneralAnswer(query: string, settings: any, fetchWith
     body: JSON.stringify(requestBody)
   });
   if (!response.ok) {
+    if (!useGemini) {
+      if (response.status === 429) {
+        throw new Error('OpenAI API rate limit exceeded. Please wait a few minutes before trying again.');
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Invalid OpenAI API key. Please check your API key in settings.');
+      }
+    }
+
     throw new Error(`General AI query error: ${response.status}`);
   }
   const data = await response.json();
@@ -1152,6 +1170,16 @@ export async function generateAITaintAnalysis(
   });
 
   if (!response.ok) {
+    if (!useGemini) {
+      if (response.status === 429) {
+        throw new Error('OpenAI API rate limit exceeded. Please wait a few minutes before trying again.');
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        throw new Error('Invalid OpenAI API key. Please check your API key in settings.');
+      }
+    }
+
     throw new Error(useGemini ? `Gemini API error: ${response.status}` : `OpenAI API error: ${response.status}`);
   }
 
