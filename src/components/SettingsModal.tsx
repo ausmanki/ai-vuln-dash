@@ -7,7 +7,7 @@ import { COLORS } from '../utils/constants';
 const SettingsModal = ({ isOpen, onClose }) => {
   const { settings, setSettings, addNotification } = useContext(AppContext);
   const [localSettings, setLocalSettings] = useState(settings);
-  const [showKeys, setShowKeys] = useState({ gemini: false, nvd: false });
+  const [showKeys, setShowKeys] = useState({ gemini: false, nvd: false, openai: false });
   const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
 
   useEffect(() => {
@@ -113,6 +113,49 @@ const SettingsModal = ({ isOpen, onClose }) => {
               <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
               <option value="gemini-2.0-pro">Gemini 2.0 Pro</option>
               <option value="gemini-2.0-flash">Gemini 2.0 Flash</option>
+            </select>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '1rem', fontWeight: '600', marginBottom: '8px' }}>
+              OpenAI API Key
+            </label>
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showKeys.openai ? 'text' : 'password'}
+                style={styles.input}
+                placeholder="Enter your OpenAI API key"
+                value={localSettings.openAiApiKey || ''}
+                onChange={(e) => setLocalSettings(prev => ({ ...prev, openAiApiKey: e.target.value }))}
+              />
+              <button
+                style={{
+                  position: 'absolute',
+                  right: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: '4px'
+                }}
+                onClick={() => setShowKeys(prev => ({ ...prev, openai: !prev.openai }))}
+              >
+                {showKeys.openai ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '1rem', fontWeight: '600', marginBottom: '8px' }}>
+              OpenAI Model
+            </label>
+            <select
+              style={styles.input}
+              value={localSettings.openAiModel || 'gpt-4o'}
+              onChange={(e) => setLocalSettings(prev => ({ ...prev, openAiModel: e.target.value }))}
+            >
+              <option value="gpt-4o">GPT-4o</option>
             </select>
           </div>
 

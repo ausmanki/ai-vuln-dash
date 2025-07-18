@@ -76,6 +76,7 @@ We've built the world's first **AI-Powered Real-Time Vulnerability Intelligence 
 ```
 ✅ Real-Time API Integration: NIST NVD + FIRST EPSS + CISA KEV
 ✅ AI-Powered Analysis: Gemini 2.0 with Web Grounding
+✅ Conversational Chatbot: OpenAI GPT-4o
 ✅ RAG-Enhanced Intelligence: Self-learning threat database
 ✅ Executive Decision Support: Business-ready risk assessments
 ```
@@ -210,10 +211,14 @@ npm start
 2. **AI Analysis: Gemini API Key** (Enhanced intelligence)
    - Get API key: [Google AI Studio](https://makersuite.google.com/app/apikey)
 
-3. **Configure in Settings**:
+3. **AI Analysis: OpenAI API Key** (Chatbot responses)
+   - Get API key: [OpenAI Dashboard](https://platform.openai.com/)
+
+4. **Configure in Settings**:
    - Click "Settings" in the top-right corner
    - Add your API keys
    - Select Gemini model (2.0 recommended for web grounding)
+   - Select OpenAI model (GPT-4o recommended)
 
 ---
 
@@ -277,6 +282,7 @@ CVE Input → API Aggregation → AI Analysis → Risk Scoring → Decision Supp
 - **FIRST EPSS**: Exploitation probability
 - **CISA KEV**: Known exploited vulnerabilities
 - **Gemini AI**: Advanced analysis and web search
+- **OpenAI GPT-4o**: Conversational chatbot assistance
 
 ---
 

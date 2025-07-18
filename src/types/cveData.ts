@@ -452,6 +452,8 @@ export interface AgentSettings {
   geminiApiKey?: string;
   nvdApiKey?: string;
   geminiModel?: string;
+  openAiApiKey?: string;
+  openAiModel?: string;
   [key: string]: any; // Allow other settings
 }
 
