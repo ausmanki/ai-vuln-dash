@@ -35,14 +35,16 @@ const SearchComponent = () => {
     }
 
     // Initialize AI settings for web search fallbacks
-    if (settings.geminiApiKey) {
+    if (settings.geminiApiKey || settings.openAiApiKey) {
       setGlobalAISettings({
         geminiApiKey: settings.geminiApiKey,
-        geminiModel: settings.geminiModel || 'gemini-1.5-flash'
+        geminiModel: settings.geminiModel || 'gemini-1.5-flash',
+        openAiApiKey: settings.openAiApiKey,
+        openAiModel: settings.openAiModel || 'gpt-4o'
       });
       console.log('🤖 AI settings initialized for web search fallbacks');
     } else {
-      console.warn('⚠️ No Gemini API key found - AI web search fallbacks will not be available');
+      console.warn('⚠️ No Gemini or OpenAI API key found - AI web search fallbacks will not be available');
     }
 
     // Initialize loading state and steps
@@ -249,7 +251,26 @@ const SearchComponent = () => {
           </div>
         )}
 
-        {!settings.geminiApiKey && (
+        {!settings.geminiApiKey && settings.openAiApiKey && (
+          <div style={{
+            marginTop: '24px',
+            padding: '12px 16px',
+            background: `rgba(${utils.hexToRgb(COLORS.blue)}, 0.1)`,
+            borderRadius: '8px',
+            border: `1px solid rgba(${utils.hexToRgb(COLORS.blue)}, 0.2)`,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            fontSize: '0.875rem',
+            color: COLORS.blue,
+            fontWeight: '500'
+          }}>
+            <Brain size={16} />
+            OpenAI Analysis Mode - No Web Search
+          </div>
+        )}
+
+        {!settings.geminiApiKey && !settings.openAiApiKey && (
           <div style={{
             marginTop: '24px',
             padding: '12px 16px',
@@ -263,7 +284,7 @@ const SearchComponent = () => {
             color: COLORS.yellow,
             fontWeight: '500'
           }}>
-            ⚠️ Configure Gemini API Key for AI Web Search Fallbacks
+            ⚠️ Configure Gemini or OpenAI API Key for AI Features
           </div>
         )}
       </div>
