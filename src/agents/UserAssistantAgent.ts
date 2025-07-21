@@ -25,6 +25,8 @@ interface ConversationContext {
   currentTopic?: string;
   lastIntent?: string;
   recentCVEs: string[];
+  recentIntents: string[];
+  flags: string[];
   userExpertiseLevel: 'beginner' | 'intermediate' | 'expert';
   emergencyMode: boolean;
 }
@@ -66,9 +68,49 @@ export class UserAssistantAgent {
     this.cacheTTL = this.settings.cacheTTL ?? this.DEFAULT_CACHE_TTL;
     this.conversationContext = {
       recentCVEs: [],
+      recentIntents: [],
+      flags: [],
       userExpertiseLevel: 'intermediate',
       emergencyMode: false
     };
+  }
+
+  // Basic query analysis for multi-intent understanding and sentiment
+  private analyzeQuery(query: string): { intents: string[]; sentiment: 'neutral' | 'urgent' | 'confused'; confidence: number } {
+    const lower = query.toLowerCase();
+    const intents: string[] = [];
+    let confidence = 0.5;
+    if (/(patch|fix|update)/.test(lower)) { intents.push('patch_info'); confidence += 0.1; }
+    if (/(exploit|poc)/.test(lower)) { intents.push('exploit_info'); confidence += 0.1; }
+    if (/(risk|assessment)/.test(lower)) { intents.push('risk_assessment'); confidence += 0.1; }
+    if (/(validate|verify|legitimate)/.test(lower)) { intents.push('validation'); confidence += 0.1; }
+
+    let sentiment: 'neutral' | 'urgent' | 'confused' = 'neutral';
+    if (/(urgent|asap|immediately|!)/.test(lower)) sentiment = 'urgent';
+    if (/(\?|help|how do i)/.test(lower)) sentiment = 'confused';
+
+    return { intents, sentiment, confidence: Math.min(confidence, 1) };
+  }
+
+  private updateConversationContext(intents: string[]): void {
+    if (intents.length === 0) return;
+    this.conversationContext.lastIntent = intents[0];
+    this.conversationContext.recentIntents.unshift(intents[0]);
+    if (this.conversationContext.recentIntents.length > 5) {
+      this.conversationContext.recentIntents.pop();
+    }
+  }
+
+  private generateFollowUps(intents: string[], cveId?: string): string[] {
+    const suggestions: string[] = [];
+    if (cveId) {
+      if (!intents.includes('patch_info')) suggestions.push(`Ask for patch details on ${cveId}`);
+      if (!intents.includes('exploit_info')) suggestions.push(`Check for exploits related to ${cveId}`);
+      if (!intents.includes('risk_assessment')) suggestions.push(`Request a risk assessment for ${cveId}`);
+    } else {
+      suggestions.push('Provide a CVE ID for targeted analysis');
+    }
+    return suggestions;
   }
 
   // Main query handler
@@ -78,7 +120,10 @@ export class UserAssistantAgent {
       if (query.toLowerCase().trim() === '/help') {
         return this.generateHelpMessage();
       }
-      
+
+      const analysis = this.analyzeQuery(query);
+      this.updateConversationContext(analysis.intents);
+
       // Extract CVE ID from query
       const cveMatches = Array.from(query.matchAll(CVE_REGEX));
       let operationalCveId: string | null = null;
@@ -89,14 +134,40 @@ export class UserAssistantAgent {
       } else {
         operationalCveId = this.currentCveIdForSession;
       }
-      
-      // Handle CVE-specific queries
-      if (operationalCveId) {
-        return await this.handleCVEQuery(query, operationalCveId);
+
+      if (!operationalCveId && analysis.intents.length === 0) {
+        return {
+          text: 'Could you specify which CVE or security topic you need help with?',
+          sender: 'bot',
+          id: Date.now().toString(),
+          confidence: analysis.confidence
+        };
       }
       
-      // Handle general queries
-      return await this.handleGeneralQuery(query);
+      let response: ChatResponse;
+
+      // Handle CVE-specific queries
+      if (operationalCveId) {
+        response = await this.handleCVEQuery(query, operationalCveId);
+      } else {
+        // Handle general queries
+        response = await this.handleGeneralQuery(query);
+      }
+
+      if (analysis.sentiment === 'urgent') {
+        response.text = `🚨 ${response.text}`;
+      } else if (analysis.sentiment === 'confused') {
+        response.text = `Let me break that down for you.\n\n${response.text}`;
+      }
+
+      const followUps = this.generateFollowUps(analysis.intents, operationalCveId || undefined);
+      if (followUps.length > 0) {
+        response.text += `\n\n**You might also:**\n- ${followUps.join('\n- ')}`;
+      }
+
+      response.confidence = analysis.confidence;
+      response.followUps = followUps;
+      return response;
       
     } catch (error: any) {
       console.error('Error in handleQuery:', error);
