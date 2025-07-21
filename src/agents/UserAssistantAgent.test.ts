@@ -18,8 +18,7 @@ import {
 } from '../types/cveData';
 import { generateRemediationPlan } from '../utils/remediation';
 import { extractComponentNames } from '../utils/componentUtils';
-
-const CVE_REGEX = /CVE-\d{4}-\d{4,7}/gi;
+import { CVE_REGEX } from '../utils/cveRegex';
 
 interface ConversationContext {
   currentTopic?: string;
