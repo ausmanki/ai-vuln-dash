@@ -52,6 +52,7 @@ export class UserAssistantAgent {
   private conversationContext: ConversationContext;
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
   private readonly DEFAULT_CACHE_TTL = 300000; // 5 minutes
+  private cacheTTL: number;
   private readonly DEFAULT_RETRY_CONFIG: RetryConfig = {
     maxRetries: 3,
     baseDelay: 1000,
@@ -61,6 +62,8 @@ export class UserAssistantAgent {
 
   constructor(settings?: AgentSettings) {
     this.settings = settings || {};
+    // Allow overriding the default cache TTL via settings
+    this.cacheTTL = this.settings.cacheTTL ?? this.DEFAULT_CACHE_TTL;
     this.conversationContext = {
       recentCVEs: [],
       userExpertiseLevel: 'intermediate',
@@ -2488,7 +2491,7 @@ export class UserAssistantAgent {
   private async getCachedOrFetch<T>(
     key: string,
     fetcher: () => Promise<T>,
-    ttl: number = this.DEFAULT_CACHE_TTL
+    ttl: number = this.cacheTTL
   ): Promise<T> {
     const cached = this.cache.get(key);
     if (cached && Date.now() - cached.timestamp < ttl) {
@@ -2542,6 +2545,11 @@ export class UserAssistantAgent {
 
   public setBulkAnalysisResults(results: BulkAnalysisResult[]): void {
     this.bulkAnalysisResults = results;
+  }
+
+  public clearCache(): void {
+    // Allow tests or callers to reset the cached data
+    this.cache.clear();
   }
 
   public generateBulkAnalysisSummary(): ChatResponse {
