@@ -84,4 +84,10 @@ describe('UserAssistantAgent', () => {
     expect(fetcher).toHaveBeenCalledTimes(2);
     expect(res).toBe('b');
   });
+
+  it('isActualDispute detects dispute keywords', () => {
+    const agent = new UserAssistantAgent();
+    const res = (agent as any).isActualDispute('Vendor disputes this issue and marked as false positive', 'CVE-2023-1234');
+    expect(res).toBe(true);
+  });
 });

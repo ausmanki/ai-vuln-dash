@@ -456,6 +456,35 @@ export class UserAssistantAgent {
     return 0;
   }
 
+  // Legacy keyword-based dispute detection used as a fallback
+  private isActualDispute(text: string, cveId: string): boolean {
+    if (!text) return false;
+    const lower = text.toLowerCase();
+    const indicators = [
+      'vendor dispute',
+      'vendor disputes',
+      'false positive',
+      'not a vulnerability',
+      'rejected',
+      'withdrawn',
+      'invalid',
+      "won't fix",
+      'wontfix',
+      'not exploitable',
+      'no patch because',
+      'excluded'
+    ];
+
+    if (cveId) {
+      const idLower = cveId.toLowerCase();
+      if (lower.includes(`rejected ${idLower}`) || lower.includes(`withdrawn ${idLower}`)) {
+        return true;
+      }
+    }
+
+    return indicators.some(ind => lower.includes(ind));
+  }
+
   // Combine traditional and ML dispute analysis
   private combineDisputeAnalysis(traditionalResult: boolean, mlResult: any): {
     isDisputed: boolean;
