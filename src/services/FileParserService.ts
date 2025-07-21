@@ -1,6 +1,5 @@
 // Regex to identify CVE patterns (e.g., CVE-YYYY-NNNN or CVE-YYYY-NNNNN...)
-// This should be kept consistent with the one in UserAssistantAgent.ts or centralized if used in many places.
-const CVE_REGEX = /CVE-\d{4}-\d{4,7}/gi; // Added 'g' flag for global match
+import { CVE_REGEX } from '../utils/cveRegex';
 
 /**
  * Reads a CSV file and extracts all valid CVE ID patterns from its content.
