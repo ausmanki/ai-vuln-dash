@@ -64,4 +64,24 @@ describe('UserAssistantAgent', () => {
     const summary = agent.generateBulkAnalysisSummary();
     expect(summary.text).toContain("don't have any bulk analysis results");
   });
+
+  it('respects custom cache TTL', async () => {
+    const agent = new UserAssistantAgent({ cacheTTL: 0 });
+    const fetcher = vi.fn().mockResolvedValueOnce('a').mockResolvedValueOnce('b');
+    const res1 = await (agent as any).getCachedOrFetch('k', fetcher);
+    const res2 = await (agent as any).getCachedOrFetch('k', fetcher);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(res1).toBe('a');
+    expect(res2).toBe('b');
+  });
+
+  it('clearCache forces refetch', async () => {
+    const agent = new UserAssistantAgent({ cacheTTL: 10000 });
+    const fetcher = vi.fn().mockResolvedValueOnce('a').mockResolvedValueOnce('b');
+    await (agent as any).getCachedOrFetch('k', fetcher);
+    agent.clearCache();
+    const res = await (agent as any).getCachedOrFetch('k', fetcher);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(res).toBe('b');
+  });
 });

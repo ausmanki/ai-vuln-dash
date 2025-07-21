@@ -454,6 +454,7 @@ export interface AgentSettings {
   geminiModel?: string;
   openAiApiKey?: string;
   openAiModel?: string;
+  cacheTTL?: number; // TTL for caching in milliseconds
   [key: string]: any; // Allow other settings
 }
 
