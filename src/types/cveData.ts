@@ -465,6 +465,8 @@ export interface ChatResponse<T = any> {
   // For UserAssistantAgent
   id?: string;
   sender?: 'user' | 'bot' | 'system';
+  confidence?: number;
+  followUps?: string[];
 }
 
 export interface BulkAnalysisResult {
