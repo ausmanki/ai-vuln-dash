@@ -55,10 +55,14 @@ export class ResearchAgent {
     // Create AI settings object for all data fetching operations
     const aiSettingsForFetch = {
         geminiApiKey: apiKeys.geminiApiKey || settings.geminiApiKey,
-        geminiModel: settings.geminiModel || 'gemini-1.5-flash'
+        geminiModel: settings.geminiModel || 'gemini-1.5-flash',
+        openAiApiKey: settings.openAiApiKey,
+        openAiModel: settings.openAiModel || 'gpt-4o'
     };
 
-    this.updateSteps(`🤖 AI fallback configured with model: ${aiSettingsForFetch.geminiModel}`);
+    const activeModel = aiSettingsForFetch.geminiApiKey ?
+        aiSettingsForFetch.geminiModel : aiSettingsForFetch.openAiModel;
+    this.updateSteps(`🤖 AI fallback configured with model: ${activeModel}`);
 
     // Enhanced: Pass AI settings to ALL data fetching functions for web search fallback
     const [cveResult, epssResult, cisaKevResult] = await Promise.allSettled([
