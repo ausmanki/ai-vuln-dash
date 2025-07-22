@@ -233,8 +233,7 @@ CRITICAL: You MUST show the extraction results in your response. Do NOT skip the
         }
       : {
           model,
-          messages: [{ role: 'user', content: analysisPrompt }],
-          tools: [{ type: 'web-search' }]
+          messages: [{ role: 'user', content: analysisPrompt }]
         };
 
     updateSteps(prev => [...prev, `🔍 AI analyzing description and extracting vendor details...`]);
@@ -377,8 +376,7 @@ export async function fetchAIThreatIntelligence(
         }
       : {
           model,
-          messages: [{ role: 'user', content: searchPrompt }],
-          tools: [{ type: 'web-search' }]
+          messages: [{ role: 'user', content: searchPrompt }]
         };
 
     const apiUrl = useGemini
@@ -975,8 +973,6 @@ export async function generateAIAnalysis(vulnerability, apiKey, model, settings 
   const isWebSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
   if (useGemini && isWebSearchCapable) {
     requestBody.tools = [{ google_search: {} }];
-  } else if (!useGemini) {
-    requestBody.tools = [{ type: 'web-search' }];
   }
 
   const apiUrl = useGemini
@@ -1092,8 +1088,7 @@ export async function fetchGeneralAnswer(query: string, settings: any, fetchWith
       }
       : {
           model,
-          messages: [{ role: 'user', content: query }],
-          tools: [{ type: 'web-search' }]
+          messages: [{ role: 'user', content: query }]
         };
   const apiUrl = useGemini
     ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`
@@ -1136,15 +1131,12 @@ export async function generateAITaintAnalysis(
       }
     : {
         model: settings.openAiModel || 'gpt-4o',
-        messages: [{ role: 'user', content: prompt }],
-        tools: [{ type: 'web-search' }]
+        messages: [{ role: 'user', content: prompt }]
       };
 
   const isWebSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
   if (useGemini && isWebSearchCapable) {
     requestBody.tools = [{ google_search: {} }];
-  } else if (!useGemini) {
-    requestBody.tools = [{ type: 'web-search' }];
   }
 
   const apiUrl = useGemini
