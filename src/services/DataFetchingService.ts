@@ -39,29 +39,39 @@ Search terms: CISA Known Exploited Vulnerabilities catalog KEV official list`;
 
     console.log('Making AI web search request for URL:', url);
 
-    // Use the correct Gemini API endpoint with proper Google Search tool
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${aiSettings.geminiModel || 'gemini-2.5-flash'}:generateContent`, {
-      method: 'POST',
-      headers: {
-        'x-goog-api-key': aiSettings.geminiApiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: searchPrompt
-          }]
-        }],
-        tools: [{
-          google_search: {} // Correct tool name for grounded generation
-        }],
-        generationConfig: {
-          temperature: 0.1,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 2048
+    const useGemini = !!aiSettings.geminiApiKey;
+    const model = useGemini ? (aiSettings.geminiModel || 'gemini-2.5-flash') : (aiSettings.openAiModel || 'gpt-4o');
+    const apiUrl = useGemini
+      ? `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
+      : `${CONSTANTS.API_ENDPOINTS.OPENAI}/chat/completions`;
+
+    const requestBody: any = useGemini
+      ? {
+          contents: [{ parts: [{ text: searchPrompt }] }],
+          tools: [{ google_search: {} }],
+          generationConfig: {
+            temperature: 0.1,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 2048
+          }
         }
-      })
+      : {
+          model,
+          messages: [{ role: 'user', content: searchPrompt }]
+        };
+
+    const headers: any = { 'Content-Type': 'application/json' };
+    if (useGemini) {
+      headers['x-goog-api-key'] = aiSettings.geminiApiKey;
+    } else {
+      headers['Authorization'] = `Bearer ${aiSettings.openAiApiKey}`;
+    }
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {
@@ -72,27 +82,36 @@ Search terms: CISA Known Exploited Vulnerabilities catalog KEV official list`;
 
     const data = await response.json();
     
-    // Handle grounded response structure
-    const candidate = data.candidates?.[0];
-    if (!candidate) {
-      throw new Error('No candidate response from Gemini API');
+    let aiResponse = '';
+    let groundingMetadata: any = {};
+    let searchQueries: any[] = [];
+    let groundingSupports: any[] = [];
+
+    if (useGemini) {
+      const candidate = data.candidates?.[0];
+      if (!candidate) {
+        throw new Error('No candidate response from Gemini API');
+      }
+
+      aiResponse = candidate.content?.parts?.[0]?.text || '';
+      groundingMetadata = candidate.groundingMetadata || {};
+      searchQueries = groundingMetadata.searchQueries || [];
+      groundingSupports = groundingMetadata.groundingSupports || [];
+
+      if (!aiResponse) {
+        throw new Error('No response content from Gemini API');
+      }
+
+      console.log('AI web search response received, length:', aiResponse.length);
+      console.log('Grounding queries used:', searchQueries);
+      console.log('Number of grounding supports:', groundingSupports.length);
+    } else {
+      aiResponse = data.choices?.[0]?.message?.content || '';
+      if (!aiResponse) {
+        throw new Error('No response content from OpenAI API');
+      }
+      console.log('AI response received from OpenAI, length:', aiResponse.length);
     }
-
-    // Extract the main text content
-    const aiResponse = candidate.content?.parts?.[0]?.text || '';
-    
-    // Extract grounding metadata if available
-    const groundingMetadata = candidate.groundingMetadata || {};
-    const searchQueries = groundingMetadata.searchQueries || [];
-    const groundingSupports = groundingMetadata.groundingSupports || [];
-
-    if (!aiResponse) {
-      throw new Error('No response content from Gemini API');
-    }
-
-    console.log('AI web search response received, length:', aiResponse.length);
-    console.log('Grounding queries used:', searchQueries);
-    console.log('Number of grounding supports:', groundingSupports.length);
 
     // Parse the AI response into structured data
     const parsedContent = parseAIWebSearchResponse(aiResponse, url, groundingMetadata);
@@ -405,11 +424,13 @@ async function fetchWithFallback(url: string, options: RequestInit = {}, aiSetti
     
     console.log('AI Settings check:', {
       hasGeminiKey: !!activeAISettings?.geminiApiKey,
+      hasOpenAIKey: !!activeAISettings?.openAiApiKey,
       geminiModel: activeAISettings?.geminiModel,
-      globalSettingsAvailable: !!globalAISettings?.geminiApiKey
+      openAiModel: activeAISettings?.openAiModel,
+      globalSettingsAvailable: !!(globalAISettings?.geminiApiKey || globalAISettings?.openAiApiKey)
     });
-    
-    if (activeAISettings?.geminiApiKey) {
+
+    if (activeAISettings?.geminiApiKey || activeAISettings?.openAiApiKey) {
       console.log('Using AI web search to fetch content for:', url);
       try {
         const aiResponse = await fetchWithAIWebSearch(url, activeAISettings);
@@ -431,8 +452,10 @@ async function fetchWithFallback(url: string, options: RequestInit = {}, aiSetti
       console.log('AI Settings debug:', {
         providedSettings: !!aiSettings,
         globalSettings: !!globalAISettings,
-        providedKey: !!aiSettings?.geminiApiKey,
-        globalKey: !!globalAISettings?.geminiApiKey
+        providedGeminiKey: !!aiSettings?.geminiApiKey,
+        providedOpenAIKey: !!aiSettings?.openAiApiKey,
+        globalGeminiKey: !!globalAISettings?.geminiApiKey,
+        globalOpenAIKey: !!globalAISettings?.openAiApiKey
       });
       return await tryCorsproxy(url);
     }
@@ -480,28 +503,39 @@ Focus on official CISA sources and government advisories. Return specific inform
 
     console.log(`Searching CISA KEV for ${cveId} with AI...`);
 
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${aiSettings.geminiModel || 'gemini-2.5-flash'}:generateContent`, {
-      method: 'POST',
-      headers: {
-        'x-goog-api-key': aiSettings.geminiApiKey,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        contents: [{
-          parts: [{
-            text: kevSearchPrompt
-          }]
-        }],
-        tools: [{
-          google_search: {} // Correct tool name
-        }],
-        generationConfig: {
-          temperature: 0.1,
-          topK: 40,
-          topP: 0.95,
-          maxOutputTokens: 1024
+    const useGemini = !!aiSettings.geminiApiKey;
+    const model = useGemini ? (aiSettings.geminiModel || 'gemini-2.5-flash') : (aiSettings.openAiModel || 'gpt-4o');
+    const apiUrl = useGemini
+      ? `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
+      : `${CONSTANTS.API_ENDPOINTS.OPENAI}/chat/completions`;
+
+    const requestBody: any = useGemini
+      ? {
+          contents: [{ parts: [{ text: kevSearchPrompt }] }],
+          tools: [{ google_search: {} }],
+          generationConfig: {
+            temperature: 0.1,
+            topK: 40,
+            topP: 0.95,
+            maxOutputTokens: 1024
+          }
         }
-      })
+      : {
+          model,
+          messages: [{ role: 'user', content: kevSearchPrompt }]
+        };
+
+    const headers: any = { 'Content-Type': 'application/json' };
+    if (useGemini) {
+      headers['x-goog-api-key'] = aiSettings.geminiApiKey;
+    } else {
+      headers['Authorization'] = `Bearer ${aiSettings.openAiApiKey}`;
+    }
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody)
     });
 
     if (!response.ok) {
@@ -511,9 +545,17 @@ Focus on official CISA sources and government advisories. Return specific inform
     }
 
     const data = await response.json();
-    const candidate = data.candidates?.[0];
-    const aiResponse = candidate?.content?.parts?.[0]?.text || '';
-    const groundingMetadata = candidate?.groundingMetadata || {};
+
+    let aiResponse = '';
+    let groundingMetadata: any = {};
+
+    if (useGemini) {
+      const candidate = data.candidates?.[0];
+      aiResponse = candidate?.content?.parts?.[0]?.text || '';
+      groundingMetadata = candidate?.groundingMetadata || {};
+    } else {
+      aiResponse = data.choices?.[0]?.message?.content || '';
+    }
 
     // Parse the response for KEV status
     const isListed = aiResponse.toLowerCase().includes('listed') && 
@@ -551,8 +593,14 @@ export async function fetchCISAKEVData(cveId: string, setLoadingSteps: any, ragD
   updateSteps((prev: any) => [...prev, `🏛️ Checking CISA KEV catalog for ${cveId}...`]);
 
   // Debug: Log AI settings availability
-  console.log('AI Settings available:', !!aiSettings?.geminiApiKey);
-  console.log('Global AI Settings available:', !!globalAISettings?.geminiApiKey);
+  console.log('AI Settings available:', {
+    gemini: !!aiSettings?.geminiApiKey,
+    openai: !!aiSettings?.openAiApiKey
+  });
+  console.log('Global AI Settings available:', {
+    gemini: !!globalAISettings?.geminiApiKey,
+    openai: !!globalAISettings?.openAiApiKey
+  });
 
   try {
     // First attempt: Try to get the full KEV catalog (will likely fail due to CORS)
