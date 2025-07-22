@@ -243,6 +243,12 @@ npm start
 3. Get 3000+ word comprehensive security assessment
 ```
 
+### 🕸️ Standalone Web Search Example
+Use the `scripts/ai-web-search.js` helper to quickly test AI-powered search. The script automatically selects Gemini grounding if `GEMINI_API_KEY` is set or OpenAI web search if `OPENAI_API_KEY` is provided.
+```bash
+node scripts/ai-web-search.js "what was a positive news story from today?"
+```
+
 ### **🗣️ Smart Assistant Commands**
 ```
 /help             - List available assistant commands
