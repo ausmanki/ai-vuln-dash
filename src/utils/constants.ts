@@ -3,7 +3,8 @@ export const CONSTANTS = {
     NVD: 'https://services.nvd.nist.gov/rest/json/cves/2.0',
     EPSS: 'https://api.first.org/data/v1/epss',
     GEMINI: 'https://generativelanguage.googleapis.com/v1beta/models',
-    OPENAI: 'https://api.openai.com/v1'
+    OPENAI: 'https://api.openai.com/v1',
+    OPENAI_RESPONSES: 'https://api.openai.com/v1/responses'
   },
   RATE_LIMITS: {
     GEMINI_COOLDOWN: 60000, // 1 minute

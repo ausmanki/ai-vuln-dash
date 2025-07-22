@@ -13,7 +13,7 @@ describe('fetchGeneralAnswer', () => {
     await fetchGeneralAnswer('hi', { openAiApiKey: 'key', openAiModel: 'gpt-4o' }, fetcher);
     const options = fetcher.mock.calls[0][1];
     const body = JSON.parse(options.body);
-    expect(body.tools).toEqual([{ type: 'web_search' }]);
+    expect(body.tools).toEqual([{ type: 'function', function: { name: 'web_search' } }]);
   });
 });
 
