@@ -217,7 +217,7 @@ export class UserAssistantAgent {
     if (this.settings.openAiApiKey) {
       try {
         const model = this.settings.openAiModel || 'gpt-4o';
-        const res = await fetch(`${CONSTANTS.API_ENDPOINTS.OPENAI}/chat/completions`, {
+        const res = await fetch(`${CONSTANTS.API_ENDPOINTS.OPENAI_RESPONSES}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -226,7 +226,7 @@ export class UserAssistantAgent {
           body: JSON.stringify({
             model,
             messages: [{ role: 'user', content: query }],
-            tools: [{ type: 'web_search' }]
+            tools: [{ type: 'function', function: { name: 'web_search' } }]
           })
         });
         if (!res.ok) {

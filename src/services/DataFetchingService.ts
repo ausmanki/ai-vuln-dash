@@ -43,7 +43,7 @@ Search terms: CISA Known Exploited Vulnerabilities catalog KEV official list`;
     const model = useGemini ? (aiSettings.geminiModel || 'gemini-2.5-flash') : (aiSettings.openAiModel || 'gpt-4o');
     const apiUrl = useGemini
       ? `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
-      : `${CONSTANTS.API_ENDPOINTS.OPENAI}/chat/completions`;
+      : `${CONSTANTS.API_ENDPOINTS.OPENAI_RESPONSES}`;
 
     const requestBody: any = useGemini
       ? {
@@ -59,7 +59,7 @@ Search terms: CISA Known Exploited Vulnerabilities catalog KEV official list`;
       : {
           model,
           messages: [{ role: 'user', content: searchPrompt }],
-          tools: [{ type: 'web_search' }]
+          tools: [{ type: 'function', function: { name: 'web_search' } }]
         };
 
     const headers: any = { 'Content-Type': 'application/json' };
@@ -508,7 +508,7 @@ Focus on official CISA sources and government advisories. Return specific inform
     const model = useGemini ? (aiSettings.geminiModel || 'gemini-2.5-flash') : (aiSettings.openAiModel || 'gpt-4o');
     const apiUrl = useGemini
       ? `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
-      : `${CONSTANTS.API_ENDPOINTS.OPENAI}/chat/completions`;
+      : `${CONSTANTS.API_ENDPOINTS.OPENAI_RESPONSES}`;
 
     const requestBody: any = useGemini
       ? {
@@ -524,7 +524,7 @@ Focus on official CISA sources and government advisories. Return specific inform
       : {
           model,
           messages: [{ role: 'user', content: kevSearchPrompt }],
-          tools: [{ type: 'web_search' }]
+          tools: [{ type: 'function', function: { name: 'web_search' } }]
         };
 
     const headers: any = { 'Content-Type': 'application/json' };

@@ -234,14 +234,14 @@ CRITICAL: You MUST show the extraction results in your response. Do NOT skip the
       : {
           model,
           messages: [{ role: 'user', content: analysisPrompt }],
-          tools: [{ type: 'web_search' }]
+          tools: [{ type: 'function', function: { name: 'web_search' } }]
         };
 
     updateSteps(prev => [...prev, `🔍 AI analyzing description and extracting vendor details...`]);
 
     const apiUrl = useGemini
       ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`
-      : `${CONSTANTS.API_ENDPOINTS.OPENAI}/chat/completions`;
+      : `${CONSTANTS.API_ENDPOINTS.OPENAI_RESPONSES}`;
     const headers: any = { 'Content-Type': 'application/json' };
     if (!useGemini) headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
 
@@ -378,12 +378,12 @@ export async function fetchAIThreatIntelligence(
       : {
           model,
           messages: [{ role: 'user', content: searchPrompt }],
-          tools: [{ type: 'web_search' }]
+          tools: [{ type: 'function', function: { name: 'web_search' } }]
         };
 
     const apiUrl = useGemini
       ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`
-      : `${CONSTANTS.API_ENDPOINTS.OPENAI}/chat/completions`;
+      : `${CONSTANTS.API_ENDPOINTS.OPENAI_RESPONSES}`;
     const headers: any = { 'Content-Type': 'application/json' };
     if (!useGemini) headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
 
@@ -982,12 +982,12 @@ export async function generateAIAnalysis(vulnerability, apiKey, model, settings 
   if (useGemini && geminiSearchCapable) {
     requestBody.tools = [{ google_search: {} }];
   } else if (!useGemini) {
-    requestBody.tools = [{ type: 'web_search' }];
+    requestBody.tools = [{ type: 'function', function: { name: 'web_search' } }];
   }
 
   const apiUrl = useGemini
     ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${apiKey}`
-    : `${CONSTANTS.API_ENDPOINTS.OPENAI}/chat/completions`;
+    : `${CONSTANTS.API_ENDPOINTS.OPENAI_RESPONSES}`;
 
   try {
     const headers: any = { 'Content-Type': 'application/json' };
@@ -1099,11 +1099,11 @@ export async function fetchGeneralAnswer(query: string, settings: any, fetchWith
       : {
           model,
           messages: [{ role: 'user', content: query }],
-          tools: [{ type: 'web_search' }]
+          tools: [{ type: 'function', function: { name: 'web_search' } }]
         };
   const apiUrl = useGemini
     ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`
-    : `${CONSTANTS.API_ENDPOINTS.OPENAI}/chat/completions`;
+    : `${CONSTANTS.API_ENDPOINTS.OPENAI_RESPONSES}`;
   const headers: any = { "Content-Type": "application/json" };
   if (!useGemini) headers["Authorization"] = `Bearer ${settings.openAiApiKey}`;
   const response = await fetchWithFallbackFn(apiUrl, {
@@ -1149,12 +1149,12 @@ export async function generateAITaintAnalysis(
   if (useGemini && geminiSearchCapable) {
     requestBody.tools = [{ google_search: {} }];
   } else if (!useGemini) {
-    requestBody.tools = [{ type: 'web_search' }];
+    requestBody.tools = [{ type: 'function', function: { name: 'web_search' } }];
   }
 
   const apiUrl = useGemini
     ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${apiKey}`
-    : `${CONSTANTS.API_ENDPOINTS.OPENAI}/chat/completions`;
+    : `${CONSTANTS.API_ENDPOINTS.OPENAI_RESPONSES}`;
   const headers: any = { 'Content-Type': 'application/json' };
   if (!useGemini) headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
 
