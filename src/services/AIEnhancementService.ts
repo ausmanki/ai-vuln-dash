@@ -709,11 +709,17 @@ function extractVersionFromUrl(url: string): string | null {
 /**
  * Parse response that includes description analysis
  */
-function parseDescriptionBasedResponse(response: string, cveId: string): any {
+export function parseDescriptionBasedResponse(response: string, cveId: string): any {
   try {
-    const jsonMatch = response.match(/\{[\s\S]*\}/);
-    if (jsonMatch) {
-      const data = JSON.parse(jsonMatch[0]);
+    // Remove common code block markers and trim
+    let cleaned = response.replace(/```(?:json)?/gi, '').trim();
+
+    // Isolate the first JSON object in the response
+    const first = cleaned.indexOf('{');
+    const last = cleaned.lastIndexOf('}');
+    if (first !== -1 && last !== -1 && last > first) {
+      const jsonString = cleaned.slice(first, last + 1);
+      const data = JSON.parse(jsonString);
       
       // Extract the core patch/advisory data while preserving analysis steps
       const result = {

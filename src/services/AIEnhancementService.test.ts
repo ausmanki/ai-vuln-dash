@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fetchGeneralAnswer } from './AIEnhancementService';
+import { fetchGeneralAnswer, parseDescriptionBasedResponse } from './AIEnhancementService';
 
 // Simple mock response for OpenAI
 const mockResponse = {
@@ -14,5 +14,15 @@ describe('fetchGeneralAnswer', () => {
     const options = fetcher.mock.calls[0][1];
     const body = JSON.parse(options.body);
     expect(body.tools).toBeUndefined();
+  });
+});
+
+describe('parseDescriptionBasedResponse', () => {
+  it('extracts JSON surrounded by text', () => {
+    const text = 'Intro text\n```json\n{ "patches": [], "advisories": [] }\n```\ntrailing';
+    const result = parseDescriptionBasedResponse(text, 'CVE-TEST');
+    expect(result.patches).toEqual([]);
+    expect(result.advisories).toEqual([]);
+    expect(result.searchSummary.patchesFound).toBe(0);
   });
 });
