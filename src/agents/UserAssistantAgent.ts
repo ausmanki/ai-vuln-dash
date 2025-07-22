@@ -1,4 +1,6 @@
 import { APIService } from '../services/APIService';
+import { fetchCISAKEVData } from '../services/DataFetchingService';
+import { RiskAssessmentAgent } from './RiskAssessmentAgent';
 import {
   AgentSettings,
   ChatResponse,
@@ -2263,6 +2265,82 @@ export class UserAssistantAgent {
     } catch (error: any) {
       return {
         text: `**Exploit Information for ${cveId}**\n\nI encountered an issue while searching for real-time exploit information. Here are the standard databases to check:\n\n🔗 **Exploit Databases:**\n• [ExploitDB Search](https://www.exploit-db.com/search?cve=${cveId})\n• [Packet Storm](https://packetstormsecurity.com/search/?q=${cveId})\n• [Metasploit Database](https://www.rapid7.com/db/?q=${cveId})\n\n**Error**: ${error.message}`,
+        sender: 'bot',
+        id: Date.now().toString(),
+        error: error.message
+      };
+    }
+  }
+
+  // Generate a concise risk assessment
+  private async getRiskAssessment(cveId: string): Promise<ChatResponse> {
+    try {
+      const cveData = await this.getCachedOrFetch(
+        `cve_${cveId}`,
+        () => APIService.fetchCVEData(cveId, this.settings?.nvdApiKey, () => {})
+      );
+
+      const epssData: EPSSData | null = await this.getCachedOrFetch(
+        `epss_${cveId}`,
+        () => APIService.fetchEPSSData(cveId, () => {})
+      ).catch(() => null);
+
+      const kevData: CisaKevDetails | null = await this.getCachedOrFetch(
+        `kev_${cveId}`,
+        () => fetchCISAKEVData(cveId, () => {}, null, null, this.settings)
+      ).catch(() => null);
+
+      const patchData: PatchData | null = await this.getCachedOrFetch(
+        `patch_${cveId}`,
+        () => APIService.fetchPatchesAndAdvisories(cveId, cveData, this.settings, () => {})
+      ).catch(() => null);
+
+      const exploitSearch = await this.searchForActualExploits(cveId);
+
+      const cvssScore = cveData?.cvssV3?.baseScore || cveData?.cvssV2?.baseScore || 0;
+      const epssScore = epssData ? parseFloat(epssData.epss) : 0;
+      const kevStatus = kevData?.listed ? 'YES' : 'NO';
+      const exploitsKnown = exploitSearch.exploits.length > 0 ? 'YES' : 'NO';
+
+      let patchInfo = 'Patch information unavailable';
+      if (patchData?.patches && patchData.patches.length > 0) {
+        const p = patchData.patches[0];
+        patchInfo = `Patch Available${p.releaseDate ? `, Released: ${p.releaseDate}` : ''}`;
+      } else if (patchData?.advisories && patchData.advisories.length > 0) {
+        patchInfo = 'Advisory available';
+      }
+
+      let businessPriority = 'P3 – Review in normal cycle';
+      if (kevData?.listed) {
+        businessPriority = 'P1 – Active exploitation';
+      } else if (cvssScore >= 9.0 || epssScore >= 0.7) {
+        businessPriority = 'P1 – Critical severity';
+      } else if (cvssScore >= 7.0 || epssScore >= 0.3) {
+        businessPriority = 'P2 – High severity';
+      }
+
+      let threatConfidence = 'Low – Limited intelligence';
+      if (kevData?.listed || exploitSearch.exploits.length > 0) {
+        threatConfidence = 'High – Verified threat activity';
+      } else if (epssScore >= 0.5) {
+        threatConfidence = 'Medium – Elevated EPSS score';
+      }
+
+      const assessment = RiskAssessmentAgent.generateAssessment({
+        cvssScore,
+        epssScore,
+        cisaKevStatus: kevStatus as 'YES' | 'NO',
+        exploitsKnown: exploitsKnown as 'YES' | 'NO',
+        vulnerabilityId: cveId,
+        patchInfo,
+        businessPriority,
+        threatIntelConfidence: threatConfidence
+      });
+
+      return { text: assessment.text, sender: 'bot', id: Date.now().toString() };
+    } catch (error: any) {
+      return {
+        text: `Risk assessment for ${cveId} failed: ${error.message}`,
         sender: 'bot',
         id: Date.now().toString(),
         error: error.message
