@@ -223,7 +223,8 @@ export class UserAssistantAgent {
           },
           body: JSON.stringify({
             model,
-            messages: [{ role: 'user', content: query }]
+            messages: [{ role: 'user', content: query }],
+            tools: [{ type: 'web_search' }]
           })
         });
         if (!res.ok) {

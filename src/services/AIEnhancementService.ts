@@ -107,9 +107,9 @@ export async function fetchPatchesAndAdvisories(
 
   const useGemini = !settings.openAiApiKey && !!settings.geminiApiKey;
   const model = useGemini ? (settings.geminiModel || 'gemini-2.5-flash') : (settings.openAiModel || 'gpt-4o');
-  const isWebSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
 
-  if (useGemini && !isWebSearchCapable) {
+  if (useGemini && !geminiSearchCapable) {
     updateSteps(prev => [...prev, `⚠️ Web search not supported by model`]);
     return getHeuristicPatchesAndAdvisories(cveId, cveData);
   }
@@ -233,7 +233,8 @@ CRITICAL: You MUST show the extraction results in your response. Do NOT skip the
         }
       : {
           model,
-          messages: [{ role: 'user', content: analysisPrompt }]
+          messages: [{ role: 'user', content: analysisPrompt }],
+          tools: [{ type: 'web_search' }]
         };
 
     updateSteps(prev => [...prev, `🔍 AI analyzing description and extracting vendor details...`]);
@@ -350,9 +351,9 @@ export async function fetchAIThreatIntelligence(
 
   const useGemini = !!settings.geminiApiKey;
   const model = useGemini ? (settings.geminiModel || 'gemini-2.5-flash') : (settings.openAiModel || 'gpt-4o');
-  const isWebSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
 
-  if (useGemini && !isWebSearchCapable) {
+  if (useGemini && !geminiSearchCapable) {
     updateSteps(prev => [...prev, `⚠️ Model doesn't support web search`]);
     return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
   }
@@ -373,10 +374,11 @@ export async function fetchAIThreatIntelligence(
             candidateCount: 1
           },
           tools: [{ google_search: {} }]
-        }
+        } 
       : {
           model,
-          messages: [{ role: 'user', content: searchPrompt }]
+          messages: [{ role: 'user', content: searchPrompt }],
+          tools: [{ type: 'web_search' }]
         };
 
     const apiUrl = useGemini
@@ -976,9 +978,11 @@ export async function generateAIAnalysis(vulnerability, apiKey, model, settings 
         messages: [{ role: 'user', content: prompt }],
       };
 
-  const isWebSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
-  if (useGemini && isWebSearchCapable) {
+  const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  if (useGemini && geminiSearchCapable) {
     requestBody.tools = [{ google_search: {} }];
+  } else if (!useGemini) {
+    requestBody.tools = [{ type: 'web_search' }];
   }
 
   const apiUrl = useGemini
@@ -1050,7 +1054,7 @@ export async function generateAIAnalysis(vulnerability, apiKey, model, settings 
       ragUsed: true,
       ragDocuments: relevantDocs.length,
       ragSources: relevantDocs.map(doc => doc.metadata?.title || 'Unknown').filter(Boolean),
-      webGrounded: isWebSearchCapable,
+      webGrounded: useGemini ? geminiSearchCapable : true,
       enhancedSources: vulnerability.enhancedSources || [],
       discoveredSources: vulnerability.discoveredSources || [],
       model: model,
@@ -1094,7 +1098,8 @@ export async function fetchGeneralAnswer(query: string, settings: any, fetchWith
       }
       : {
           model,
-          messages: [{ role: 'user', content: query }]
+          messages: [{ role: 'user', content: query }],
+          tools: [{ type: 'web_search' }]
         };
   const apiUrl = useGemini
     ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`
@@ -1140,9 +1145,11 @@ export async function generateAITaintAnalysis(
         messages: [{ role: 'user', content: prompt }]
       };
 
-  const isWebSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
-  if (useGemini && isWebSearchCapable) {
+  const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  if (useGemini && geminiSearchCapable) {
     requestBody.tools = [{ google_search: {} }];
+  } else if (!useGemini) {
+    requestBody.tools = [{ type: 'web_search' }];
   }
 
   const apiUrl = useGemini

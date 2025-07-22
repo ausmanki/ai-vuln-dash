@@ -58,7 +58,8 @@ Search terms: CISA Known Exploited Vulnerabilities catalog KEV official list`;
         }
       : {
           model,
-          messages: [{ role: 'user', content: searchPrompt }]
+          messages: [{ role: 'user', content: searchPrompt }],
+          tools: [{ type: 'web_search' }]
         };
 
     const headers: any = { 'Content-Type': 'application/json' };
@@ -522,7 +523,8 @@ Focus on official CISA sources and government advisories. Return specific inform
         }
       : {
           model,
-          messages: [{ role: 'user', content: kevSearchPrompt }]
+          messages: [{ role: 'user', content: kevSearchPrompt }],
+          tools: [{ type: 'web_search' }]
         };
 
     const headers: any = { 'Content-Type': 'application/json' };
