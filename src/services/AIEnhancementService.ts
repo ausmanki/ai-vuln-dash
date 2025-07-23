@@ -1,3 +1,4 @@
+// AIEnhancementService.ts - FIXED VERSION with proper OpenAI /responses endpoint support
 import { CONSTANTS } from '../utils/constants';
 
 interface GroundingMetadata {
@@ -86,7 +87,7 @@ function extractFromGroundingMetadata(groundingMetadata: GroundingMetadata): Ext
 }
 
 /**
- * Enhanced patch search that reads description first and extracts vendor information
+ * FIXED: Enhanced patch search with proper OpenAI /responses endpoint support
  */
 export async function fetchPatchesAndAdvisories(
   cveId: string,
@@ -98,152 +99,115 @@ export async function fetchPatchesAndAdvisories(
   getHeuristicPatchesAndAdvisories: any
 ) {
   const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
-  updateSteps(prev => [...prev, `📖 Reading ${cveId} description to extract vendor information...`]);
+  updateSteps(prev => [...prev, `🔍 Searching for patches and advisories for ${cveId}...`]);
 
   if (!settings.geminiApiKey && !settings.openAiApiKey) {
-    updateSteps(prev => [...prev, `⚠️ API key required for intelligent analysis`]);
+    updateSteps(prev => [...prev, `⚠️ API key required for patch search`]);
     return getHeuristicPatchesAndAdvisories(cveId, cveData);
   }
 
   const useGemini = !settings.openAiApiKey && !!settings.geminiApiKey;
   const model = useGemini ? (settings.geminiModel || 'gemini-2.5-flash') : (settings.openAiModel || 'gpt-4o');
   const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  
+  // OpenAI /responses endpoint DOES exist and supports web search
+  // Force gpt-4.1 for web search regardless of selected model
+  const openAiSearchCapable = !useGemini && (
+    model.includes('gpt-4') || 
+    model === 'gpt-4.1' ||
+    model === 'gpt-4o' ||
+    model === 'gpt-4-turbo'
+  );
+  
+  // Always use gpt-4.1 for /responses endpoint
+  const openAiModelForSearch = openAiSearchCapable ? 'gpt-4.1' : model;
+  
+  console.log('🚨 EMERGENCY DEBUG:');
+  console.log('- useGemini:', useGemini);
+  console.log('- model:', model);
+  console.log('- settings.openAiModel:', settings.openAiModel);
+  console.log('- openAiSearchCapable:', openAiSearchCapable, '(/responses endpoint available)');
 
   if (useGemini && !geminiSearchCapable) {
-    updateSteps(prev => [...prev, `⚠️ Web search not supported by model`]);
+    updateSteps(prev => [...prev, `⚠️ Web search not supported by Gemini model`]);
+    return getHeuristicPatchesAndAdvisories(cveId, cveData);
+  }
+
+  if (!useGemini && !openAiSearchCapable) {
+    updateSteps(prev => [...prev, `⚠️ Web search not supported by OpenAI model - use gpt-4.1 or gpt-4o`]);
     return getHeuristicPatchesAndAdvisories(cveId, cveData);
   }
 
   const description = cveData?.description || 'No description available';
 
-  // Clear, step-by-step prompt that forces description reading
-  const analysisPrompt = `IMPORTANT: You MUST analyze the CVE description to extract vendor and product information BEFORE searching.
+  // Enhanced prompt for web search
+  const analysisPrompt = `Search for security patches and advisories for ${cveId}.
 
-CVE: ${cveId}
-DESCRIPTION: "${description}"
+CVE Description: "${description}"
 
-MANDATORY EXTRACTION TASK:
-Carefully read the description above and extract ALL of the following that you can find:
+Search for:
+1. Official vendor security patches for ${cveId}
+2. Security advisories mentioning ${cveId}
+3. Firmware updates that fix ${cveId}
+4. Software updates addressing ${cveId}
 
-1. VENDOR - The company that makes the product (e.g., ASUS, Cisco, Microsoft, Apache)
-2. PRODUCT - The specific product name (e.g., RT-AX55, Windows Server, Tomcat)  
-3. VERSION/FIRMWARE - Any version numbers (e.g., 3.0.0.4.386.51598, 2019, 9.0.45)
-4. MODEL - Hardware model if mentioned (e.g., RT-AX55, DIR-850L)
-5. COMPONENT - Specific component if mentioned (e.g., authentication module)
-6. PACKAGE - Software package if mentioned (e.g., openssh-server)
+Focus on official vendor sources and security advisory sites.
 
-EXTRACTION PATTERNS TO LOOK FOR:
-- "On [VENDOR] [PRODUCT] [VERSION] devices" → Extract vendor, product, version
-- "[VENDOR] [MODEL] firmware [VERSION]" → Extract vendor, model, firmware version  
-- "[PACKAGE] before [VERSION]" → Extract package and version
-- "vulnerability in [COMPONENT]" → Extract component
-
-EXAMPLE EXTRACTION:
-Description: "On ASUS RT-AX55 3.0.0.4.386.51598 devices, authenticated attackers can perform OS command injection"
-You MUST extract: vendor=ASUS, product=RT-AX55, model=RT-AX55, version=3.0.0.4.386.51598
-
-YOUR EXTRACTION FROM THE DESCRIPTION ABOVE:
-{
-  "extracted": {
-    "vendor": "[WHAT YOU FOUND or null]",
-    "product": "[WHAT YOU FOUND or null]", 
-    "version": "[WHAT YOU FOUND or null]",
-    "model": "[WHAT YOU FOUND or null]",
-    "component": "[WHAT YOU FOUND or null]",
-    "package": "[WHAT YOU FOUND or null]"
-  }
-}
-
-AFTER EXTRACTION, CREATE TARGETED SEARCHES:
-Based on what you extracted above, search for:
-
-If vendor="ASUS" and product="RT-AX55":
-- "ASUS RT-AX55 ${cveId} security advisory"
-- "ASUS RT-AX55 firmware update security"
-- "site:asus.com RT-AX55 security patch"
-
-If vendor="Microsoft" and product found:
-- "Microsoft [product] ${cveId} security update"
-- "site:microsoft.com ${cveId} patch"
-
-SEARCH AND RETURN:
-{
-  "analysisSteps": {
-    "descriptionRead": true,
-    "extracted": {
-      "vendor": "[extracted vendor]",
-      "product": "[extracted product]",
-      "version": "[extracted version]",
-      "model": "[extracted model]",
-      "component": "[extracted component]",
-      "package": "[extracted package]"
-    },
-    "searchQueriesUsed": [
-      "[actual search queries you used based on extraction]"
-    ]
-  },
-  "patches": [
-    {
-      "vendor": "[vendor from extraction]",
-      "product": "[product from extraction]",
-      "patchVersion": "[version found]",
-      "downloadUrl": "[actual URL found]",
-      "advisoryUrl": "[advisory URL]",
-      "releaseDate": "[date]",
-      "description": "[description]",
-      "patchType": "Firmware Update/Security Patch",
-      "confidence": "HIGH/MEDIUM/LOW",
-      "citationUrl": "[source URL]"
-    }
-  ],
-  "advisories": [
-    {
-      "source": "[vendor name]",
-      "advisoryId": "${cveId}",
-      "title": "[advisory title]",
-      "url": "[advisory URL]",
-      "severity": "[severity]",
-      "description": "[description]",
-      "confidence": "HIGH/MEDIUM/LOW",
-      "type": "Security Advisory",
-      "citationUrl": "[source URL]"
-    }
-  ],
-  "searchSummary": {
-    "patchesFound": [number],
-    "advisoriesFound": [number],
-    "vendorsSearched": ["list of vendors searched"]
-  }
-}
-
-CRITICAL: You MUST show the extraction results in your response. Do NOT skip the extraction step.`;
+Please provide information about any patches, updates, or advisories you find for ${cveId}.`;
 
   try {
     const requestBody: any = useGemini
+    ? {
+        contents: [{ parts: [{ text: analysisPrompt }] }],
+        generationConfig: {
+          temperature: 0.1,
+          topK: 40,
+          topP: 0.95,
+          maxOutputTokens: 4096,
+          candidateCount: 1
+        },
+        tools: [{ google_search: {} }]
+      }
+    : openAiSearchCapable
       ? {
-          contents: [{ parts: [{ text: analysisPrompt }] }],
-          generationConfig: {
-            temperature: 0.1,
-            topK: 1,
-            topP: 0.9,
-            maxOutputTokens: 8192,
-            candidateCount: 1
-          },
-          tools: [{ google_search: {} }]
+          // FIXED: OpenAI /responses endpoint format with correct model and tool type
+          model: "gpt-4.1", // ALWAYS use "gpt-4.1" for /responses endpoint
+          tools: [{"type": "web_search_preview"}], // Use "web_search_preview" as per docs
+          input: analysisPrompt, // /responses uses 'input' not 'messages'
+          // NO max_tokens for /responses endpoint
         }
       : {
+          // Standard chat completions format (fallback)
           model,
-          messages: [{ role: 'user', content: analysisPrompt }],
-          tools: [{ type: 'function', function: { name: 'web_search' } }]
+          messages: [{ 
+            role: 'user', 
+            content: analysisPrompt 
+          }],
+          max_tokens: 4096,
+          temperature: 0.1
         };
 
-    updateSteps(prev => [...prev, `🔍 AI analyzing description and extracting vendor details...`]);
+  console.log('🔧 DEBUG: OpenAI search capable:', openAiSearchCapable);
+  console.log('🔧 DEBUG: Using model:', openAiSearchCapable ? "gpt-4.1" : model);
+  console.log('🔧 DEBUG: Request body format:', useGemini ? 'Gemini with web search' : openAiSearchCapable ? 'OpenAI /responses with web search' : 'OpenAI chat completions');
 
-    const apiUrl = useGemini
-      ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`
-      : `${CONSTANTS.API_ENDPOINTS.OPENAI_RESPONSES}`;
+  updateSteps(prev => [...prev, `🤖 AI searching for patches and advisories ${(useGemini && geminiSearchCapable) || (!useGemini && openAiSearchCapable) ? 'with web search' : 'without web search'}...`]);
+
+  const apiUrl = useGemini
+    ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`
+    : openAiSearchCapable
+      ? 'https://api.openai.com/v1/responses' // Use /responses for web search
+      : 'https://api.openai.com/v1/chat/completions'; // Use chat completions as fallback
+
+  console.log('🔧 DEBUG: API URL being used:', apiUrl);
+  console.log('🔧 DEBUG: Using web search endpoint:', openAiSearchCapable);
+
     const headers: any = { 'Content-Type': 'application/json' };
-    if (!useGemini) headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
+    
+    if (!useGemini) {
+      console.log('🔧 DEBUG: Setting OpenAI auth header');
+      headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
+    }
 
     const response = await fetchWithFallback(apiUrl, {
       method: 'POST',
@@ -252,52 +216,105 @@ CRITICAL: You MUST show the extraction results in your response. Do NOT skip the
     });
 
     if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+      const errorText = await response.text().catch(() => 'Unknown error');
+      console.error('API Error Response:', errorText);
+      
+      // Try to parse error for more details
+      try {
+        const errorData = JSON.parse(errorText);
+        console.error('Parsed error:', errorData);
+      } catch (e) {
+        // Ignore parsing errors
+      }
+      
+      throw new Error(`API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    let result = { patches: [], advisories: [], analysisSteps: {} };
+    let aiResponse = '';
+    let groundingMetadata: any = {};
 
     if (useGemini) {
       if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-        const aiResponse = data.candidates[0].content.parts[0].text;
-        result = parseDescriptionBasedResponse(aiResponse, cveId);
-
-        // Show what was extracted
-        if (result.analysisSteps?.extracted) {
-          const extracted = Object.entries(result.analysisSteps.extracted)
-            .filter(([_, value]) => value && value !== 'null')
-            .map(([key, value]) => `${key}: ${value}`)
-            .join(', ');
-
-          if (extracted) {
-            updateSteps(prev => [...prev, `✅ Extracted from description: ${extracted}`]);
-          } else {
-            updateSteps(prev => [...prev, `⚠️ No vendor information found in description`]);
-          }
-        }
-
-        // Show search queries used
-        if (result.analysisSteps?.searchQueriesUsed?.length > 0) {
-          updateSteps(prev => [...prev, `🔎 Performed ${result.analysisSteps.searchQueriesUsed.length} targeted searches`]);
-        }
-
+        aiResponse = data.candidates[0].content.parts[0].text;
+        groundingMetadata = data.candidates[0].groundingMetadata || {};
+        
+        updateSteps(prev => [...prev, `✅ Found patch information via Gemini web search`]);
       } else if (data.candidates?.[0]?.groundingMetadata) {
-        updateSteps(prev => [...prev, `📊 Extracting from search metadata...`]);
-        result = extractFromGroundingWithContext(data.candidates[0].groundingMetadata, cveId, description);
+        updateSteps(prev => [...prev, `📊 Extracting from Gemini search metadata...`]);
+        groundingMetadata = data.candidates[0].groundingMetadata;
+        aiResponse = 'Search completed - extracting from metadata';
       } else {
-        updateSteps(prev => [...prev, `⚠️ No usable response - using heuristics`]);
-        return getHeuristicPatchesAndAdvisories(cveId, cveData);
+        throw new Error('No usable response from Gemini API');
       }
     } else {
-      const text = data.choices?.[0]?.message?.content;
-      if (!text) {
-        updateSteps(prev => [...prev, `⚠️ No usable response - using heuristics`]);
-        return getHeuristicPatchesAndAdvisories(cveId, cveData);
+      // Handle OpenAI response (both /responses and /chat/completions)
+      let responseText = '';
+      
+      if (openAiSearchCapable) {
+        // FIXED: OpenAI /responses endpoint returns output as an array
+        console.log('📥 OpenAI /responses response structure:', Object.keys(data));
+        console.log('📥 data.output exists:', !!data.output);
+        console.log('📥 data.output type:', typeof data.output);
+        console.log('📥 Is data.output an array?:', Array.isArray(data.output));
+        
+        // Extract text from the output array structure
+        if (Array.isArray(data.output)) {
+          const messageObj = data.output.find(item => item.type === 'message' && item.content);
+          
+          if (messageObj && Array.isArray(messageObj.content)) {
+            const textObj = messageObj.content.find(item => item.type === 'output_text' && item.text);
+            
+            if (textObj && textObj.text) {
+              responseText = textObj.text;
+              console.log('📥 Found text in output array structure');
+            }
+          }
+        } else if (typeof data.output === 'string') {
+          responseText = data.output;
+        } else if (typeof data.text === 'string') {
+          responseText = data.text;
+        } else if (data.output && typeof data.output === 'object') {
+          responseText = data.output.text || data.output.content || data.output.message || JSON.stringify(data.output);
+        } else if (data.text && typeof data.text === 'object') {
+          responseText = data.text.content || data.text.text || JSON.stringify(data.text);
+        } else {
+          responseText = '';
+        }
+        
+        // Ensure responseText is a string
+        if (typeof responseText !== 'string') {
+          console.error('📥 responseText is not a string:', typeof responseText, responseText);
+          responseText = String(responseText);
+        }
+        
+        // Extract search metadata if available from /responses
+        if (data.search_results || data.web_results || data.sources) {
+          groundingMetadata = {
+            searchResults: data.search_results || data.web_results || [],
+            webSearchQueries: data.search_queries || [],
+            sources: data.sources || []
+          };
+        }
+        
+        console.log('📥 Final responseText length:', responseText?.length || 0);
+        updateSteps(prev => [...prev, `✅ Found patch information via OpenAI web search (/responses)`]);
+      } else {
+        // Standard chat completions response format
+        responseText = data.choices?.[0]?.message?.content || '';
+        updateSteps(prev => [...prev, `✅ Found patch information via OpenAI (standard completion)`]);
       }
-      result = parseDescriptionBasedResponse(text, cveId);
-    
+      
+      if (!responseText) {
+        console.error('No text in response. Full response:', JSON.stringify(data, null, 2));
+        throw new Error(`No usable response from OpenAI ${openAiSearchCapable ? '/responses' : 'chat completions'} API`);
+      }
+      
+      aiResponse = responseText;
     }
+
+    // Parse response more reliably
+    const result = parseTextResponseForPatches(aiResponse, cveId, groundingMetadata);
 
     // Always enhance with heuristics
     const heuristicData = getHeuristicPatchesAndAdvisories(cveId, cveData);
@@ -306,31 +323,30 @@ CRITICAL: You MUST show the extraction results in your response. Do NOT skip the
     const mergedPatches = [...(result.patches || []), ...(heuristicData.patches || [])];
     const mergedAdvisories = [...(result.advisories || []), ...(heuristicData.advisories || [])];
     
+    updateSteps(prev => [...prev, `📋 Found ${mergedPatches.length} patches and ${mergedAdvisories.length} advisories`]);
+    
     return {
       patches: mergedPatches,
       advisories: mergedAdvisories,
       searchSummary: {
-        ...(result.searchSummary || {}),
-        enhancedWithHeuristics: true,
-        descriptionAnalyzed: true,
-        extractionSuccessful: !!(result.analysisSteps?.extracted?.vendor),
-        targetedSearchPerformed: !!(result.analysisSteps?.searchQueriesUsed?.length > 0),
-        totalPatchesFound: mergedPatches.length,
-        totalAdvisoriesFound: mergedAdvisories.length,
         patchesFound: mergedPatches.length,
-        advisoriesFound: mergedAdvisories.length
+        advisoriesFound: mergedAdvisories.length,
+        enhancedWithHeuristics: true,
+        aiSearchPerformed: true,
+        webSearchUsed: useGemini ? geminiSearchCapable : openAiSearchCapable,
+        confidence: result.confidence || 'MEDIUM'
       }
     };
 
   } catch (error) {
-    console.error('Description analysis error:', error);
-    updateSteps(prev => [...prev, `⚠️ Analysis failed: ${error.message}`]);
+    console.error('Patch search error:', error);
+    updateSteps(prev => [...prev, `⚠️ AI search failed: ${error.message}`]);
     return getHeuristicPatchesAndAdvisories(cveId, cveData);
   }
 }
 
 /**
- * Enhanced threat intelligence that extracts from grounding metadata
+ * FIXED: Enhanced threat intelligence with proper OpenAI /responses endpoint support
  */
 export async function fetchAIThreatIntelligence(
   cveId: string,
@@ -352,15 +368,49 @@ export async function fetchAIThreatIntelligence(
   const useGemini = !!settings.geminiApiKey;
   const model = useGemini ? (settings.geminiModel || 'gemini-2.5-flash') : (settings.openAiModel || 'gpt-4o');
   const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  // Re-enable OpenAI web search - /responses endpoint is available
+  const openAiSearchCapable = !useGemini && (
+    model.includes('gpt-4') || 
+    model === 'gpt-4.1' ||
+    model === 'gpt-4o' ||
+    model === 'gpt-4-turbo'
+  );
+
+  console.log('🚨 Threat Intel DEBUG:');
+  console.log('- useGemini:', useGemini);
+  console.log('- model:', model);
+  console.log('- geminiSearchCapable:', geminiSearchCapable);
+  console.log('- openAiSearchCapable:', openAiSearchCapable, '(/responses endpoint available)');
 
   if (useGemini && !geminiSearchCapable) {
-    updateSteps(prev => [...prev, `⚠️ Model doesn't support web search`]);
+    updateSteps(prev => [...prev, `⚠️ Gemini model doesn't support web search`]);
     return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
   }
 
-  updateSteps(prev => [...prev, `🤖 Searching for ${cveId} threat intelligence...`]);
+  if (!useGemini && !openAiSearchCapable) {
+    updateSteps(prev => [...prev, `⚠️ OpenAI model doesn't support web search - use gpt-4.1`]);
+    return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
+  }
 
-  const searchPrompt = createEnhancedThreatSearchPrompt(cveId, cveData, epssData);
+  updateSteps(prev => [...prev, `🔍 Searching for threat intelligence on ${cveId}...`]);
+
+  // Enhanced threat intelligence prompt
+  const searchPrompt = `Search for threat intelligence information about ${cveId}.
+
+Look for:
+1. Is ${cveId} in the CISA Known Exploited Vulnerabilities catalog?
+2. Evidence of active exploitation of ${cveId}
+3. Public exploit code or proof-of-concept for ${cveId}
+4. Security vendor reports about ${cveId}
+5. Threat actor usage of ${cveId}
+
+CVE Details:
+- CVE: ${cveId}
+- Description: ${cveData?.description?.substring(0, 200) || 'Unknown'}
+- CVSS Score: ${cveData?.cvssV3?.baseScore || 'Unknown'}
+- EPSS Score: ${epssData?.epss || 'Unknown'}%
+
+Provide specific information about any threats, exploits, or active usage you find.`;
 
   try {
     const requestBody = useGemini
@@ -376,16 +426,24 @@ export async function fetchAIThreatIntelligence(
           tools: [{ google_search: {} }]
         } 
       : {
-          model,
-          messages: [{ role: 'user', content: searchPrompt }],
-          tools: [{ type: 'function', function: { name: 'web_search' } }]
+          // FIXED: OpenAI /responses endpoint format
+          model: "gpt-4.1", // MUST be "gpt-4.1"
+          tools: [{"type": "web_search_preview"}], // Correct tool type
+          input: searchPrompt // 'input' not 'messages'
+          // NO max_tokens for /responses
         };
 
     const apiUrl = useGemini
       ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`
-      : `${CONSTANTS.API_ENDPOINTS.OPENAI_RESPONSES}`;
+      : openAiSearchCapable
+        ? 'https://api.openai.com/v1/responses'
+        : 'https://api.openai.com/v1/chat/completions';
+
     const headers: any = { 'Content-Type': 'application/json' };
-    if (!useGemini) headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
+    if (!useGemini) {
+      console.log('🔧 DEBUG: Setting OpenAI auth header for threat intel');
+      headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
+    }
 
     const response = await fetchWithFallback(apiUrl, {
       method: 'POST',
@@ -394,80 +452,87 @@ export async function fetchAIThreatIntelligence(
     });
 
     if (!response.ok) {
-      throw new Error(`API error: ${response.status}`);
+      const errorText = await response.text().catch(() => 'Unknown error');
+      throw new Error(`API error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-
-    let findings = null;
+    let aiResponse = '';
+    let groundingMetadata: any = {};
 
     if (useGemini) {
-      if (!data.candidates || data.candidates.length === 0) {
-        updateSteps(prev => [...prev, `⚠️ No response candidates`]);
-        return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
-      }
-
-      const candidate = data.candidates[0];
-
-      if (candidate.content?.parts?.[0]?.text) {
-        const aiResponseContent = candidate.content.parts[0].text;
-        updateSteps(prev => [...prev, `✅ AI completed threat intelligence analysis`]);
-        findings = parseAIThreatIntelligence(aiResponseContent, cveId, setLoadingSteps);
-      } else if (candidate.groundingMetadata) {
-        updateSteps(prev => [...prev, `📊 Extracting threat data from search results...`]);
-
-        findings = extractThreatIntelFromGrounding(
-          candidate.groundingMetadata,
-          cveId,
-          cveData,
-          epssData
-        );
-
-        findings.extractedFromGrounding = true;
+      if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+        aiResponse = data.candidates[0].content.parts[0].text;
+        groundingMetadata = data.candidates[0].groundingMetadata || {};
+        updateSteps(prev => [...prev, `✅ Found threat intelligence via Gemini web search`]);
+      } else if (data.candidates?.[0]?.groundingMetadata) {
+        updateSteps(prev => [...prev, `📊 Extracting threat data from Gemini search results...`]);
+        groundingMetadata = data.candidates[0].groundingMetadata;
+        aiResponse = 'Threat intelligence search completed';
       } else {
-        updateSteps(prev => [...prev, `⚠️ No usable response`]);
-        return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
+        throw new Error('No usable response from Gemini API');
       }
-
-      findings.extractionMetadata = {
-        extractionMethod: candidate.content?.parts?.[0]?.text
-          ? 'TEXT_RESPONSE_EXTRACTION'
-          : 'GROUNDING_METADATA_EXTRACTION',
-        hallucinationMitigation: true,
-        extractiveApproach: true,
-        temperatureUsed: 0.05,
-        maxTokensUsed: 4096,
-        cisaVerificationPerformed: true,
-        webSearchValidation: true
-      };
     } else {
-      const text = data.choices?.[0]?.message?.content;
-      if (!text) {
-        updateSteps(prev => [...prev, `⚠️ No usable response`]);
-        return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
+      // FIXED: Handle OpenAI /responses endpoint response format
+      let text = '';
+      
+      // The /responses endpoint returns output as an array of objects
+      if (Array.isArray(data.output)) {
+        // Find the message object in the output array
+        const messageObj = data.output.find(item => item.type === 'message' && item.content);
+        
+        if (messageObj && Array.isArray(messageObj.content)) {
+          // Find the output_text object in the content array
+          const textObj = messageObj.content.find(item => item.type === 'output_text' && item.text);
+          
+          if (textObj && textObj.text) {
+            text = textObj.text;
+            console.log('Found text in output array structure');
+          }
+        }
+      } else if (typeof data.output === 'string') {
+        text = data.output;
+      } else if (typeof data.text === 'string') {
+        text = data.text;
+      } else if (data.output && typeof data.output === 'object') {
+        text = data.output.text || data.output.content || data.output.message || '';
+      } else if (data.text && typeof data.text === 'object') {
+        text = data.text.content || data.text.text || '';
       }
-      updateSteps(prev => [...prev, `✅ AI completed threat intelligence analysis`]);
-      findings = parseAIThreatIntelligence(text, cveId, setLoadingSteps);
-      findings.extractionMetadata = {
-        extractionMethod: 'TEXT_RESPONSE_ONLY',
-        hallucinationMitigation: true,
-        extractiveApproach: true,
-        temperatureUsed: 0.05,
-        maxTokensUsed: 4096,
-        cisaVerificationPerformed: false,
-        webSearchValidation: false
-      };
+      
+      if (!text) {
+        console.error('No output in response. Full response:', JSON.stringify(data, null, 2));
+        console.error('Available fields:', Object.keys(data));
+        console.error('data.output:', data.output);
+        console.error('data.text:', data.text);
+        throw new Error('No usable response from OpenAI /responses endpoint');
+      }
+      aiResponse = text;
+      
+      // Extract search metadata if available
+      if (data.search_results || data.web_results) {
+        groundingMetadata = {
+          searchResults: data.search_results || data.web_results,
+          webSearchQueries: data.search_queries || [],
+          sources: data.sources || []
+        };
+      }
+      
+      updateSteps(prev => [...prev, `✅ Found threat intelligence via OpenAI web search`]);
     }
+
+    // Parse threat intelligence more reliably
+    const findings = parseTextResponseForThreatIntel(aiResponse, cveId, groundingMetadata);
 
     // Store in RAG if available
     if (ragDatabase?.initialized) {
       await ragDatabase.addDocument(
-        `AI Threat Intelligence for ${cveId}: CISA KEV: ${findings.cisaKev?.listed ? 'LISTED' : 'Not Listed'}, Active Exploitation: ${findings.activeExploitation?.confirmed ? 'CONFIRMED' : 'None'}, Public Exploits: ${findings.exploitDiscovery?.totalCount || 0}`,
+        `Threat Intelligence for ${cveId}: CISA KEV: ${findings.cisaKev?.listed ? 'LISTED' : 'Not Listed'}, Active Exploitation: ${findings.activeExploitation?.confirmed ? 'CONFIRMED' : 'None'}, Public Exploits: ${findings.exploitDiscovery?.totalCount || 0}`,
         {
           title: `AI Threat Intelligence - ${cveId}`,
           category: 'ai-threat-intelligence',
           tags: ['ai-search', 'threat-intel', cveId.toLowerCase()],
-          source: useGemini ? 'gemini-web-search' : 'openai'
+          source: useGemini ? 'gemini-web-search' : 'openai-web-search'
         }
       );
     }
@@ -482,432 +547,21 @@ export async function fetchAIThreatIntelligence(
 }
 
 /**
- * Create enhanced threat search prompt
+ * FIXED: Enhanced AI analysis with proper OpenAI /responses endpoint support
  */
-function createEnhancedThreatSearchPrompt(cveId: string, cveData: any, epssData: any): string {
-  return `Search for ${cveId} threat intelligence. Extract ONLY factual information from search results.
-
-REQUIRED SEARCHES:
-1. "site:cisa.gov Known Exploited Vulnerabilities ${cveId}" - Check CISA KEV listing
-2. "${cveId} active exploitation ransomware" - Find exploitation evidence
-3. "${cveId} exploit github poc" - Search for public exploits
-4. "${cveId} security advisory patch" - Find vendor advisories
-
-CVE Context:
-- CVE: ${cveId}
-- CVSS: ${cveData?.cvssV3?.baseScore || 'Unknown'}
-- EPSS: ${epssData?.epss || 'Unknown'}%
-- Description: ${cveData?.description?.substring(0, 300) || 'Unknown'}
-
-Extract and return in JSON format:
-{
-  "cisaKev": {
-    "listed": boolean (true ONLY if found on official CISA site),
-    "details": "extracted CISA details or empty",
-    "source": "CISA URL or empty",
-    "dueDate": "date or empty",
-    "confidence": "HIGH if found on CISA, else LOW"
-  },
-  "activeExploitation": {
-    "confirmed": boolean,
-    "details": "extracted details",
-    "sources": ["source URLs"],
-    "threatActors": ["actor names if found"],
-    "confidence": "HIGH/MEDIUM/LOW"
-  },
-  "exploitDiscovery": {
-    "found": boolean,
-    "totalCount": number,
-    "exploits": [{
-      "type": "type",
-      "url": "actual URL or empty",
-      "source": "GitHub/ExploitDB/etc",
-      "description": "description"
-    }],
-    "confidence": "HIGH/MEDIUM/LOW"
+export async function generateAIAnalysis(
+  vulnerability: any, 
+  apiKey: string, 
+  model: string, 
+  settings: any = {}, 
+  ragDatabase: any, 
+  fetchWithFallback: any, 
+  buildEnhancedAnalysisPrompt: any, 
+  generateEnhancedFallbackAnalysis: any
+) {
+  if (!apiKey && !settings.openAiApiKey) {
+    throw new Error('Gemini or OpenAI API key required');
   }
-}
-
-Include ONLY information found in search results. Do not generate URLs or details.`;
-}
-
-/**
- * Extract threat intelligence from grounding metadata
- */
-function extractThreatIntelFromGrounding(
-  groundingMetadata: GroundingMetadata,
-  cveId: string,
-  cveData: any,
-  epssData: any
-): any {
-  const groundingInfo = extractFromGroundingMetadata(groundingMetadata);
-  
-  const findings = {
-    cisaKev: {
-      listed: false,
-      details: '',
-      source: '',
-      dueDate: '',
-      confidence: 'LOW',
-      searchQueries: [],
-      aiDiscovered: true
-    },
-    activeExploitation: {
-      confirmed: false,
-      details: '',
-      sources: [],
-      threatActors: [],
-      confidence: 'LOW',
-      aiDiscovered: true
-    },
-    exploitDiscovery: {
-      found: false,
-      totalCount: 0,
-      exploits: [],
-      githubRepos: 0,
-      exploitDbEntries: 0,
-      confidence: 'LOW',
-      aiDiscovered: true
-    },
-    vendorAdvisories: {
-      found: false,
-      count: 0,
-      advisories: [],
-      confidence: 'LOW',
-      aiDiscovered: true
-    },
-    extractionSummary: {
-      sourcesSearched: groundingInfo.sources.length,
-      officialSourcesFound: 0,
-      cisaSourcesChecked: false,
-      extractionMethod: 'GROUNDING_METADATA_EXTRACTION',
-      confidenceLevel: 'MEDIUM',
-      searchTimestamp: new Date().toISOString()
-    }
-  };
-
-  // Analyze sources for threat intelligence
-  for (const source of groundingInfo.sources) {
-    const url = source.url.toLowerCase();
-    
-    // Check for CISA KEV
-    if (url.includes('cisa.gov') && url.includes('known-exploited')) {
-      findings.cisaKev.listed = true;
-      findings.cisaKev.source = source.url;
-      findings.cisaKev.confidence = 'HIGH';
-      findings.cisaKev.details = `Found in CISA KEV catalog`;
-      findings.extractionSummary.cisaSourcesChecked = true;
-      findings.extractionSummary.officialSourcesFound++;
-    }
-    
-    // Check for exploitation evidence
-    if (url.includes('exploit') || url.includes('ransomware') || url.includes('attack')) {
-      findings.activeExploitation.confirmed = true;
-      findings.activeExploitation.sources.push(source.url);
-      findings.activeExploitation.details = source.title || 'Active exploitation reported';
-      findings.activeExploitation.confidence = 'MEDIUM';
-    }
-    
-    // Check for exploit code
-    if (url.includes('github.com') && (url.includes('exploit') || url.includes('poc'))) {
-      findings.exploitDiscovery.found = true;
-      findings.exploitDiscovery.totalCount++;
-      findings.exploitDiscovery.githubRepos++;
-      findings.exploitDiscovery.exploits.push({
-        type: 'GitHub PoC',
-        url: source.url,
-        source: 'GitHub',
-        description: source.title || 'Exploit code repository',
-        reliability: 'MEDIUM',
-        citationUrl: source.url
-      });
-    }
-    
-    // Check for vendor advisories
-    if (url.includes('security') && (url.includes('advisory') || url.includes('bulletin'))) {
-      findings.vendorAdvisories.found = true;
-      findings.vendorAdvisories.count++;
-      findings.vendorAdvisories.advisories.push({
-        vendor: extractVendorFromUrl(url),
-        title: source.title || 'Security Advisory',
-        url: source.url,
-        patchAvailable: url.includes('patch') || url.includes('update'),
-        severity: 'Unknown',
-        source: extractVendorFromUrl(url)
-      });
-    }
-  }
-
-  // Set confidence levels based on findings
-  if (findings.cisaKev.listed || findings.activeExploitation.confirmed) {
-    findings.extractionSummary.confidenceLevel = 'HIGH';
-  }
-
-  return findings;
-}
-
-/**
- * Extract vendor name from URL
- */
-function extractVendorFromUrl(url: string): string {
-  const vendorPatterns = {
-    'microsoft.com': 'Microsoft',
-    'redhat.com': 'Red Hat',
-    'oracle.com': 'Oracle',
-    'adobe.com': 'Adobe',
-    'cisco.com': 'Cisco',
-    'ubuntu.com': 'Ubuntu',
-    'debian.org': 'Debian',
-    'apache.org': 'Apache',
-    'github.com': 'GitHub',
-    'cisa.gov': 'CISA',
-    'asus.com': 'ASUS',
-    'd-link.com': 'D-Link',
-    'dlink.com': 'D-Link',
-    'tp-link.com': 'TP-Link',
-    'netgear.com': 'Netgear',
-    'fortinet.com': 'Fortinet',
-    'vmware.com': 'VMware',
-    'juniper.net': 'Juniper'
-  };
-  
-  for (const [pattern, vendor] of Object.entries(vendorPatterns)) {
-    if (url.includes(pattern)) {
-      return vendor;
-    }
-  }
-  
-  try {
-    const urlObj = new URL(url);
-    return urlObj.hostname.split('.')[0];
-  } catch {
-    return 'Unknown';
-  }
-}
-
-/**
- * Extract version from URL
- */
-function extractVersionFromUrl(url: string): string | null {
-  // Common version patterns in URLs
-  const patterns = [
-    /v?(\d+\.\d+\.\d+(?:\.\d+)*)/,
-    /version[_-]?(\d+\.\d+(?:\.\d+)*)/,
-    /firmware[_-]?v?(\d+\.\d+(?:\.\d+)*)/i,
-    /-(\d+\.\d+\.\d+)\./,
-    /\/(\d+\.\d+)\//
-  ];
-  
-  for (const pattern of patterns) {
-    const match = url.match(pattern);
-    if (match) {
-      return match[1];
-    }
-  }
-  
-  return null;
-}
-
-/**
- * Parse response that includes description analysis
- */
-export function parseDescriptionBasedResponse(response: string, cveId: string): any {
-  try {
-    // Remove common code block markers and trim
-    let cleaned = response.replace(/```(?:json)?/gi, '').trim();
-
-    // Isolate the first JSON object in the response
-    const first = cleaned.indexOf('{');
-    const last = cleaned.lastIndexOf('}');
-    if (first !== -1 && last !== -1 && last > first) {
-      const jsonString = cleaned.slice(first, last + 1);
-      const data = JSON.parse(jsonString);
-      
-      // Extract the core patch/advisory data while preserving analysis steps
-      const result = {
-        patches: data.patches || [],
-        advisories: data.advisories || [],
-        searchSummary: data.searchSummary || {
-          patchesFound: data.patches?.length || 0,
-          advisoriesFound: data.advisories?.length || 0,
-          enhancedWithAnalysis: true
-        }
-      };
-      
-      // Store analysis steps separately if available
-      if (data.analysisSteps) {
-        result.analysisSteps = data.analysisSteps;
-      }
-      
-      return result;
-    }
-  } catch (error) {
-    console.error('Failed to parse description-based response:', error);
-  }
-  
-  return { 
-    patches: [], 
-    advisories: [], 
-    searchSummary: { patchesFound: 0, advisoriesFound: 0 } 
-  };
-}
-
-/**
- * Extract from grounding with description context
- */
-function extractFromGroundingWithContext(groundingMetadata: any, cveId: string, description: string): any {
-  // First, manually extract from description
-  const extracted = extractInfoFromDescription(description);
-  
-  const groundingInfo = extractFromGroundingMetadata(groundingMetadata);
-  const patches = [];
-  const advisories = [];
-
-  for (const source of groundingInfo.sources) {
-    const url = source.url;
-    const title = source.title || '';
-    const urlLower = url.toLowerCase();
-    
-    // Match against extracted vendor
-    if (extracted.vendor && urlLower.includes(extracted.vendor.toLowerCase())) {
-      if (urlLower.includes('download') || urlLower.includes('firmware') || urlLower.includes('update')) {
-        patches.push({
-          vendor: extracted.vendor,
-          product: extracted.product || extracted.model || 'Unknown',
-          patchVersion: extractVersionFromUrl(url) || 'Latest',
-          downloadUrl: url,
-          advisoryUrl: url,
-          description: title || 'Security patch',
-          confidence: 'HIGH',
-          patchType: extracted.model ? 'Firmware Update' : 'Security Patch',
-          basedOnExtraction: true,
-          citationUrl: url
-        });
-      } else {
-        advisories.push({
-          source: extracted.vendor,
-          advisoryId: cveId,
-          title: title || `Security Advisory for ${cveId}`,
-          url: url,
-          severity: 'Unknown',
-          description: `${extracted.vendor} security advisory`,
-          confidence: 'HIGH',
-          type: 'Vendor Advisory',
-          affectedProduct: extracted.product || extracted.model || 'Unknown',
-          basedOnExtraction: true,
-          citationUrl: url
-        });
-      }
-    }
-  }
-
-  return {
-    patches: patches,
-    advisories: advisories,
-    searchSummary: {
-      descriptionAnalyzed: true,
-      extractionSuccessful: !!(extracted.vendor),
-      searchQueries: groundingInfo.searchQueries,
-      sourcesFound: groundingInfo.sources.length,
-      extractedFromGrounding: true,
-      confidence: groundingInfo.confidence,
-      patchesFound: patches.length,
-      advisoriesFound: advisories.length
-    },
-    analysisSteps: {
-      descriptionRead: true,
-      extracted: extracted,
-      searchQueriesUsed: groundingMetadata.webSearchQueries || []
-    }
-  };
-}
-
-/**
- * Manual extraction from description as fallback
- */
-function extractInfoFromDescription(description: string): any {
-  const extracted = {
-    vendor: null,
-    product: null,
-    component: null,
-    version: null,
-    model: null,
-    package: null,
-    os: null
-  };
-
-  // Pattern matching for common formats
-  const patterns = {
-    // "On VENDOR PRODUCT VERSION devices"
-    devicePattern: /On\s+(\w+)\s+([\w\-]+)\s+([\d.]+(?:\.\d+)*)\s+devices/i,
-    // "VENDOR MODEL firmware VERSION"
-    firmwarePattern: /(\w+)\s+([\w\-]+)\s+firmware\s+([\d.]+(?:\.\d+)*)/i,
-    // "PACKAGE before VERSION"
-    packagePattern: /([\w\-]+)\s+(?:package\s+)?before\s+([\d.]+(?:\.\d+)*)/i,
-    // "VENDOR PRODUCT version VERSION"
-    versionPattern: /(\w+)\s+([\w\s\-]+)\s+version\s+([\d.]+(?:\.\d+)*)/i,
-    // Component pattern
-    componentPattern: /vulnerability\s+in\s+(?:the\s+)?([\w\s\-]+)\s+(?:component|module|function)/i
-  };
-
-  // Try device pattern first (like ASUS example)
-  const deviceMatch = description.match(patterns.devicePattern);
-  if (deviceMatch) {
-    extracted.vendor = deviceMatch[1];
-    extracted.product = deviceMatch[2];
-    extracted.model = deviceMatch[2];
-    extracted.version = deviceMatch[3];
-    return extracted;
-  }
-
-  // Try other patterns
-  for (const [key, pattern] of Object.entries(patterns)) {
-    const match = description.match(pattern);
-    if (match) {
-      switch (key) {
-        case 'firmwarePattern':
-          extracted.vendor = match[1];
-          extracted.model = match[2];
-          extracted.version = match[3];
-          break;
-        case 'packagePattern':
-          extracted.package = match[1];
-          extracted.version = match[2];
-          break;
-        case 'versionPattern':
-          extracted.vendor = match[1];
-          extracted.product = match[2].trim();
-          extracted.version = match[3];
-          break;
-        case 'componentPattern':
-          extracted.component = match[1].trim();
-          break;
-      }
-    }
-  }
-
-  // Known vendor detection
-  const knownVendors = [
-    'ASUS', 'Cisco', 'Microsoft', 'Oracle', 'Apache', 'Adobe',
-    'D-Link', 'TP-Link', 'Netgear', 'VMware', 'Fortinet', 'Juniper',
-    'Huawei', 'Sophos', 'Palo Alto', 'F5', 'Citrix', 'IBM'
-  ];
-
-  if (!extracted.vendor) {
-    for (const vendor of knownVendors) {
-      if (description.includes(vendor)) {
-        extracted.vendor = vendor;
-        break;
-      }
-    }
-  }
-
-  return extracted;
-}
-
-// Include the other functions directly
-export async function generateAIAnalysis(vulnerability, apiKey, model, settings = {}, ragDatabase, fetchWithFallback, buildEnhancedAnalysisPrompt, generateEnhancedFallbackAnalysis) {
-  if (!apiKey && !settings.openAiApiKey) throw new Error('Gemini or OpenAI API key required');
 
   const useGemini = !!apiKey;
 
@@ -924,43 +578,30 @@ export async function generateAIAnalysis(vulnerability, apiKey, model, settings 
 
   if (ragDatabase) {
     await ragDatabase.ensureInitialized(useGemini ? apiKey : null);
-    console.log(`📊 RAG Database Status: ${ragDatabase.documents.length} documents available (${ragDatabase.geminiApiKey ? 'Gemini embeddings' : 'local embeddings'})`);
+    console.log(`📊 RAG Database Status: ${ragDatabase.documents.length} documents available`);
   }
 
   const cveId = vulnerability.cve.id;
-  const ragQuery = `${cveId} ${vulnerability.cve.description.substring(0, 200)} vulnerability analysis security impact mitigation threat intelligence EPSS ${vulnerability.epss?.epss || 'N/A'} (${vulnerability.epss?.epssPercentage || 'N/A'}%) CVSS ${vulnerability.cve.cvssV3?.baseScore || 'N/A'} ${vulnerability.kev?.listed ? 'CISA KEV active exploitation' : ''}`;
-
-  console.log(`🔍 RAG Query: "${ragQuery.substring(0, 100)}..."`);
+  const ragQuery = `${cveId} ${vulnerability.cve.description.substring(0, 200)} vulnerability analysis security impact mitigation threat intelligence EPSS ${vulnerability.epss?.epss || 'N/A'} CVSS ${vulnerability.cve.cvssV3?.baseScore || 'N/A'}`;
 
   let relevantDocs = [];
-  let ragContext = 'No specific security knowledge found in database. Initializing knowledge base for future queries.';
+  let ragContext = 'No specific security knowledge found in database.';
 
   if (ragDatabase && ragDatabase.initialized) {
     relevantDocs = await ragDatabase.search(ragQuery, 15);
-    console.log(`📚 RAG Retrieved: ${relevantDocs.length} relevant documents (${relevantDocs.filter(d => d.embeddingType === 'gemini').length} with Gemini embeddings)`);
+    console.log(`📚 RAG Retrieved: ${relevantDocs.length} relevant documents`);
 
     if (relevantDocs.length > 0) {
       ragContext = relevantDocs.map((doc, index) =>
-        `[Security Knowledge ${index + 1}] ${doc.metadata.title} (Relevance: ${(doc.similarity * 100).toFixed(1)}%, ${doc.embeddingType || 'local'} embedding):\n${doc.content.substring(0, 800)}...`
+        `[Security Knowledge ${index + 1}] ${doc.metadata.title} (Relevance: ${(doc.similarity * 100).toFixed(1)}%):\n${doc.content.substring(0, 800)}...`
       ).join('\n\n');
-    } else {
-      console.log('🔄 No specific matches found, trying broader search...');
-      const broaderQuery = `vulnerability security analysis ${vulnerability.cve.cvssV3?.baseSeverity || 'unknown'} severity`;
-      const broaderDocs = await ragDatabase.search(broaderQuery, 8);
-      console.log(`📚 Broader RAG Search: ${broaderDocs.length} documents found`);
-
-      if (broaderDocs.length > 0) {
-        const broaderContext = broaderDocs.map((doc, index) =>
-          `[General Security Knowledge ${index + 1}] ${doc.metadata.title} (${doc.embeddingType || 'local'} embedding):\n${doc.content.substring(0, 600)}...`
-        ).join('\n\n');
-
-        relevantDocs.push(...broaderDocs);
-        ragContext = broaderContext;
-      }
     }
   }
 
   const prompt = buildEnhancedAnalysisPrompt(vulnerability, ragContext, relevantDocs.length);
+
+  const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  const openAiSearchCapable = !useGemini && (model.includes('gpt-4') || model === 'gpt-4.1' || model === 'gpt-4o' || model === 'gpt-4-turbo');
 
   const requestBody: any = useGemini
     ? {
@@ -973,25 +614,47 @@ export async function generateAIAnalysis(vulnerability, apiKey, model, settings 
           candidateCount: 1,
         },
       }
-    : {
-        model,
-        messages: [{ role: 'user', content: prompt }],
-      };
+    : openAiSearchCapable
+      ? {
+          // FIXED: OpenAI /responses endpoint format
+          model: 'gpt-4.1', // MUST be gpt-4.1
+          tools: [{"type": "web_search_preview"}], // Correct tool type
+          input: prompt, // /responses uses 'input' not 'messages'
+          // NO max_tokens for /responses
+        }
+      : {
+          // Fallback to standard chat completions without web search
+          model,
+          messages: [{ 
+            role: 'user', 
+            content: prompt 
+          }],
+          max_tokens: 8192,
+          temperature: 0.1
+        };
 
-  const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
   if (useGemini && geminiSearchCapable) {
     requestBody.tools = [{ google_search: {} }];
-  } else if (!useGemini) {
-    requestBody.tools = [{ type: 'function', function: { name: 'web_search' } }];
   }
 
   const apiUrl = useGemini
     ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${apiKey}`
-    : `${CONSTANTS.API_ENDPOINTS.OPENAI_RESPONSES}`;
+    : openAiSearchCapable
+      ? 'https://api.openai.com/v1/responses' // Use /responses for web search
+      : 'https://api.openai.com/v1/chat/completions'; // Use chat completions as fallback
+  
+  console.log('🚨 generateAIAnalysis REQUEST DEBUG:');
+  console.log('- apiUrl:', apiUrl);
+  console.log('- openAiSearchCapable:', openAiSearchCapable);
+  console.log('- useGemini:', useGemini);
 
   try {
     const headers: any = { 'Content-Type': 'application/json' };
-    if (!useGemini) headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
+    if (!useGemini) {
+      console.log('🔧 DEBUG: Setting OpenAI auth header for AI analysis');
+      headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
+    }
+
     const response = await fetchWithFallback(apiUrl, {
       method: 'POST',
       headers,
@@ -1005,11 +668,9 @@ export async function generateAIAnalysis(vulnerability, apiKey, model, settings 
         if (response.status === 429) {
           throw new Error('Gemini API rate limit exceeded. Please wait a few minutes before trying again.');
         }
-
         if (response.status === 401 || response.status === 403) {
           throw new Error('Invalid Gemini API key. Please check your API key in settings.');
         }
-
         throw new Error(`Gemini API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
       } else {
         throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
@@ -1018,35 +679,95 @@ export async function generateAIAnalysis(vulnerability, apiKey, model, settings 
 
     const data = await response.json();
     let analysisText;
+    
+    console.log('🔍 DEBUG: Full OpenAI response structure:', Object.keys(data));
+    
     if (useGemini) {
       const content = data.candidates?.[0]?.content;
       if (!content?.parts?.[0]?.text) {
         throw new Error('Invalid response from Gemini API');
       }
       analysisText = content.parts[0].text;
-      if (!analysisText || analysisText.trim().length === 0) {
-        throw new Error('Empty analysis received from Gemini API');
-      }
     } else {
-      analysisText = data.choices?.[0]?.message?.content;
+      // FIXED: Handle OpenAI /responses endpoint response format
+      if (openAiSearchCapable) {
+        console.log('🔍 DEBUG: Checking /responses fields:');
+        console.log('- data.output:', !!data.output);
+        console.log('- data.output type:', typeof data.output);
+        console.log('- Is data.output an array?:', Array.isArray(data.output));
+        console.log('- Full response keys:', Object.keys(data));
+        
+        // Extract text from the output array structure
+        if (Array.isArray(data.output)) {
+          const messageObj = data.output.find(item => item.type === 'message' && item.content);
+          
+          if (messageObj && Array.isArray(messageObj.content)) {
+            const textObj = messageObj.content.find(item => item.type === 'output_text' && item.text);
+            
+            if (textObj && textObj.text) {
+              analysisText = textObj.text;
+              console.log('🔍 Found text in output array structure');
+            }
+          }
+        } else if (typeof data.output === 'string') {
+          analysisText = data.output;
+        } else if (typeof data.text === 'string') {
+          analysisText = data.text;
+        } else if (data.output && typeof data.output === 'object') {
+          // If output is an object, try to extract text from it
+          if (data.output.text) {
+            analysisText = data.output.text;
+          } else if (data.output.content) {
+            analysisText = data.output.content;
+          } else if (data.output.message) {
+            analysisText = data.output.message;
+          } else {
+            console.error('❌ data.output is object:', data.output);
+            analysisText = JSON.stringify(data.output);
+          }
+        } else if (data.text && typeof data.text === 'object') {
+          // If text is an object, try to extract content from it
+          if (data.text.content) {
+            analysisText = data.text.content;
+          } else if (data.text.text) {
+            analysisText = data.text.text;
+          } else {
+            console.error('❌ data.text is object:', data.text);
+            analysisText = JSON.stringify(data.text);
+          }
+        } else {
+          analysisText = '';
+        }
+        
+        console.log('🔍 DEBUG: Final analysisText type:', typeof analysisText);
+        console.log('🔍 DEBUG: Final analysisText length:', analysisText?.length || 0);
+        if (typeof analysisText === 'string' && analysisText.length > 0) {
+          console.log('🔍 DEBUG: First 200 chars of analysisText:', analysisText.substring(0, 200));
+        }
+      } else {
+        // Standard chat completions response format
+        analysisText = data.choices?.[0]?.message?.content || '';
+      }
+      
       if (!analysisText) {
-        throw new Error('Invalid response from OpenAI API');
+        console.error('❌ DEBUG: No text found in response');
+        console.error('❌ DEBUG: Available fields:', Object.keys(data));
+        throw new Error('Invalid response from OpenAI API - no text content found');
       }
     }
 
     if (analysisText.length > 500 && ragDatabase && ragDatabase.initialized) {
       await ragDatabase.addDocument(
-        `Enhanced CVE Analysis: ${cveId}\n\nCVSS: ${vulnerability.cve.cvssV3?.baseScore || 'N/A'}\nEPSS: ${vulnerability.epss?.epss || 'N/A'} (${vulnerability.epss?.epssPercentage || 'N/A'}%)\nCISA KEV: ${vulnerability.kev?.listed ? 'Yes' : 'No'}\nValidated: ${vulnerability.validation ? 'Yes' : 'No'}\nConfidence: ${vulnerability.confidence?.overall || 'Unknown'}\n\n${analysisText}`,
+        `Enhanced CVE Analysis: ${cveId}\n\n${analysisText}`,
         {
-          title: `Enhanced RAG Security Analysis - ${cveId}`,
+          title: `Enhanced Analysis - ${cveId}`,
           category: 'enhanced-analysis',
-          tags: ['rag-enhanced', 'ai-analysis', 'validated', cveId.toLowerCase(), vulnerability.cve.cvssV3?.baseSeverity?.toLowerCase() || 'unknown'],
+          tags: ['ai-analysis', 'validated', cveId.toLowerCase()],
           source: 'ai-analysis-rag',
           model: model,
           cveId: cveId
         }
       );
-      console.log(`💾 Stored validated analysis for ${cveId} in RAG database for future reference`);
     }
 
     return {
@@ -1054,74 +775,131 @@ export async function generateAIAnalysis(vulnerability, apiKey, model, settings 
       ragUsed: true,
       ragDocuments: relevantDocs.length,
       ragSources: relevantDocs.map(doc => doc.metadata?.title || 'Unknown').filter(Boolean),
-      webGrounded: useGemini ? geminiSearchCapable : true,
-      enhancedSources: vulnerability.enhancedSources || [],
-      discoveredSources: vulnerability.discoveredSources || [],
+      webGrounded: useGemini ? geminiSearchCapable : openAiSearchCapable,
       model: model,
       analysisTimestamp: new Date().toISOString(),
       ragDatabaseSize: ragDatabase ? ragDatabase.documents.length : 0,
-      embeddingType: ragDatabase && ragDatabase.geminiApiKey ? 'gemini' : 'local',
-      geminiEmbeddingsCount: ragDatabase ? ragDatabase.documents.filter(d => d.embeddingType === 'gemini').length : 0,
-      realTimeData: {
-        cisaKev: vulnerability.kev?.listed || false,
-        cisaKevValidated: vulnerability.kev?.validated || false,
-        exploitsFound: vulnerability.exploits?.count || 0,
-        exploitsValidated: vulnerability.exploits?.validated || false,
-        exploitConfidence: vulnerability.exploits?.confidence || 'NONE',
-        githubRefs: vulnerability.github?.count || 0,
-        threatLevel: vulnerability.threatLevel || 'STANDARD',
-        overallConfidence: vulnerability.confidence?.overall || 'UNKNOWN',
-        hallucinationFlags: vulnerability.hallucinationFlags || []
-      },
-      validationEnhanced: true,
-      confidence: vulnerability.confidence,
-      validation: vulnerability.validation
+      webSearchUsed: (useGemini && geminiSearchCapable) || (!useGemini && openAiSearchCapable)
     };
 
   } catch (error) {
-    console.error('Enhanced RAG Analysis Error:', error);
+    console.error('Enhanced Analysis Error:', error);
     return generateEnhancedFallbackAnalysis(vulnerability, error);
   }
 }
 
+/**
+ * FIXED: General answer with proper OpenAI /responses endpoint support
+ */
 export async function fetchGeneralAnswer(query: string, settings: any, fetchWithFallbackFn: any) {
   if (!settings.geminiApiKey && !settings.openAiApiKey) {
     throw new Error("Gemini or OpenAI API key required for AI responses");
   }
+  
   const useGemini = !!settings.geminiApiKey;
   const model = useGemini ? (settings.geminiModel || "gemini-2.5-flash") : (settings.openAiModel || 'gpt-4o');
+  const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  // Re-enable OpenAI web search
+  const openAiSearchCapable = !useGemini && (
+    model.includes('gpt-4') || 
+    model === 'gpt-4.1' ||
+    model === 'gpt-4o' ||
+    model === 'gpt-4-turbo'
+  );
+  
   const requestBody = useGemini
     ? {
         contents: [{ parts: [{ text: query }] }],
-        generationConfig: { temperature: 0.3, topK: 1, topP: 0.8, maxOutputTokens: 1024, candidateCount: 1 },
-        tools: [{ google_search: {} }]
+        generationConfig: { 
+          temperature: 0.3, 
+          topK: 1, 
+          topP: 0.8, 
+          maxOutputTokens: 1024, 
+          candidateCount: 1 
+        },
+        tools: geminiSearchCapable ? [{ google_search: {} }] : undefined
       }
+    : openAiSearchCapable
+      ? {
+          // FIXED: OpenAI /responses endpoint format
+          model: "gpt-4.1", // MUST be "gpt-4.1"
+          tools: [{"type": "web_search_preview"}], // Correct tool type
+          input: query // 'input' not 'messages'
+          // NO max_tokens for /responses
+        }
       : {
+          // Standard chat completions format
           model,
-          messages: [{ role: 'user', content: query }],
-          tools: [{ type: 'function', function: { name: 'web_search' } }]
+          messages: [{ 
+            role: 'user', 
+            content: query 
+          }],
+          max_tokens: 1024,
+          temperature: 0.3
         };
+
   const apiUrl = useGemini
     ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`
-    : `${CONSTANTS.API_ENDPOINTS.OPENAI_RESPONSES}`;
+    : openAiSearchCapable
+      ? 'https://api.openai.com/v1/responses'
+      : 'https://api.openai.com/v1/chat/completions';
+
   const headers: any = { "Content-Type": "application/json" };
-  if (!useGemini) headers["Authorization"] = `Bearer ${settings.openAiApiKey}`;
+  if (!useGemini) {
+    headers["Authorization"] = `Bearer ${settings.openAiApiKey}`;
+  }
+
   const response = await fetchWithFallbackFn(apiUrl, {
     method: "POST",
     headers,
     body: JSON.stringify(requestBody)
   });
+
   if (!response.ok) {
-    throw new Error(`General AI query error: ${response.status}`);
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`General AI query error: ${response.status} - ${errorText}`);
   }
+
   const data = await response.json();
-  const text = useGemini ? data.candidates?.[0]?.content?.parts?.[0]?.text : data.choices?.[0]?.message?.content;
+  
+  let text = '';
+  if (useGemini) {
+    text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  } else if (openAiSearchCapable) {
+    // FIXED: /responses endpoint returns output as an array
+    if (Array.isArray(data.output)) {
+      const messageObj = data.output.find(item => item.type === 'message' && item.content);
+      
+      if (messageObj && Array.isArray(messageObj.content)) {
+        const textObj = messageObj.content.find(item => item.type === 'output_text' && item.text);
+        
+        if (textObj && textObj.text) {
+          text = textObj.text;
+        }
+      }
+    } else if (typeof data.output === 'string') {
+      text = data.output;
+    } else if (typeof data.text === 'string') {
+      text = data.text;
+    } else if (data.output && typeof data.output === 'object') {
+      text = data.output.text || data.output.content || data.output.message || '';
+    } else if (data.text && typeof data.text === 'object') {
+      text = data.text.content || data.text.text || '';
+    }
+  } else {
+    text = data.choices?.[0]?.message?.content || '';
+  }
+
   if (!text) {
     throw new Error("Invalid AI response");
   }
+
   return { answer: text };
 }
 
+/**
+ * FIXED: AI Taint Analysis with proper OpenAI /responses endpoint support
+ */
 export async function generateAITaintAnalysis(
   vulnerability: any,
   apiKey: string,
@@ -1129,34 +907,69 @@ export async function generateAITaintAnalysis(
   settings: any = {},
   fetchWithFallbackFn: any
 ) {
-  if (!apiKey && !settings.openAiApiKey) throw new Error('Gemini or OpenAI API key required');
+  if (!apiKey && !settings.openAiApiKey) {
+    throw new Error('Gemini or OpenAI API key required');
+  }
 
   const useGemini = !!apiKey;
+  const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  // Re-enable OpenAI web search for taint analysis
+  const openAiSearchCapable = !useGemini && (
+    model.includes('gpt-4') || 
+    model === 'gpt-4.1' ||
+    model === 'gpt-4o' ||
+    model === 'gpt-4-turbo'
+  );
 
   const prompt = `Perform conceptual taint analysis for ${vulnerability?.cve?.id} based on the following description:\n${vulnerability?.cve?.description}`;
 
   const requestBody: any = useGemini
     ? {
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.1, topK: 1, topP: 0.8, maxOutputTokens: 2048, candidateCount: 1 }
+        generationConfig: { 
+          temperature: 0.1, 
+          topK: 1, 
+          topP: 0.8, 
+          maxOutputTokens: 2048, 
+          candidateCount: 1 
+        },
+        tools: geminiSearchCapable ? [{ google_search: {} }] : undefined
       }
-    : {
-        model: settings.openAiModel || 'gpt-4o',
-        messages: [{ role: 'user', content: prompt }]
-      };
-
-  const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
-  if (useGemini && geminiSearchCapable) {
-    requestBody.tools = [{ google_search: {} }];
-  } else if (!useGemini) {
-    requestBody.tools = [{ type: 'function', function: { name: 'web_search' } }];
-  }
+    : openAiSearchCapable
+      ? {
+          // FIXED: OpenAI /responses endpoint format
+          model: 'gpt-4.1', // MUST be gpt-4.1
+          tools: [{"type": "web_search_preview"}], // Correct tool type
+          input: prompt, // /responses uses 'input' not 'messages'
+          // NO max_tokens for /responses
+        }
+      : {
+          // Standard chat completions format (fallback)
+          model: settings.openAiModel || 'gpt-4o',
+          messages: [{ 
+            role: 'user', 
+            content: prompt 
+          }],
+          max_tokens: 2048,
+          temperature: 0.1
+        };
 
   const apiUrl = useGemini
     ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${apiKey}`
-    : `${CONSTANTS.API_ENDPOINTS.OPENAI_RESPONSES}`;
+    : openAiSearchCapable
+      ? 'https://api.openai.com/v1/responses' // Use /responses for web search
+      : 'https://api.openai.com/v1/chat/completions'; // Use chat completions as fallback
+
+  console.log('🔧 TAINT ANALYSIS DEBUG:');
+  console.log('- useGemini:', useGemini);
+  console.log('- openAiSearchCapable:', openAiSearchCapable);
+  console.log('- apiUrl:', apiUrl);
+
   const headers: any = { 'Content-Type': 'application/json' };
-  if (!useGemini) headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
+  if (!useGemini) {
+    console.log('🔧 DEBUG: Setting OpenAI auth header for taint analysis');
+    headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
+  }
 
   const response = await fetchWithFallbackFn(apiUrl, {
     method: 'POST',
@@ -1165,13 +978,260 @@ export async function generateAITaintAnalysis(
   });
 
   if (!response.ok) {
-    throw new Error(useGemini ? `Gemini API error: ${response.status}` : `OpenAI API error: ${response.status}`);
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(useGemini ? `Gemini API error: ${response.status} - ${errorText}` : `OpenAI API error: ${response.status} - ${errorText}`);
   }
 
   const data = await response.json();
-  const text = useGemini ? data.candidates?.[0]?.content?.parts?.[0]?.text : data.choices?.[0]?.message?.content;
-  if (!text) {
+  
+  let responseText = '';
+  
+  if (useGemini) {
+    responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  } else if (openAiSearchCapable) {
+    // FIXED: /responses endpoint returns output as an array
+    if (Array.isArray(data.output)) {
+      const messageObj = data.output.find(item => item.type === 'message' && item.content);
+      
+      if (messageObj && Array.isArray(messageObj.content)) {
+        const textObj = messageObj.content.find(item => item.type === 'output_text' && item.text);
+        
+        if (textObj && textObj.text) {
+          responseText = textObj.text;
+        }
+      }
+    } else if (typeof data.output === 'string') {
+      responseText = data.output;
+    } else if (typeof data.text === 'string') {
+      responseText = data.text;
+    } else if (data.output && typeof data.output === 'object') {
+      responseText = data.output.text || data.output.content || data.output.message || '';
+    } else if (data.text && typeof data.text === 'object') {
+      responseText = data.text.content || data.text.text || '';
+    }
+  } else {
+    // Handle standard chat completions response
+    responseText = data.choices?.[0]?.message?.content || '';
+  }
+
+  if (!responseText) {
     throw new Error(useGemini ? 'Invalid response from Gemini API' : 'Invalid response from OpenAI API');
   }
-  return { analysis: text };
+
+  return { 
+    analysis: responseText,
+    webSearchUsed: (useGemini && geminiSearchCapable) || (!useGemini && openAiSearchCapable)
+  };
+}
+
+// Keep the existing helper functions unchanged...
+function parseTextResponseForPatches(response: string, cveId: string, groundingMetadata?: any): any {
+  console.log('Parsing patch response for', cveId, '- Length:', response.length);
+  
+  const patches = [];
+  const advisories = [];
+  let confidence = 'LOW';
+
+  // Extract vendor information
+  const vendors = extractVendorsFromText(response);
+  const urls = extractUrlsFromText(response);
+
+  // Look for patch-related keywords
+  const patchKeywords = ['patch', 'update', 'fix', 'firmware', 'security update', 'hotfix'];
+  const advisoryKeywords = ['advisory', 'bulletin', 'security notice', 'alert'];
+
+  const hasPatchInfo = patchKeywords.some(keyword => 
+    response.toLowerCase().includes(keyword.toLowerCase())
+  );
+  
+  const hasAdvisoryInfo = advisoryKeywords.some(keyword => 
+    response.toLowerCase().includes(keyword.toLowerCase())
+  );
+
+  if (hasPatchInfo || hasAdvisoryInfo) {
+    confidence = 'MEDIUM';
+  }
+
+  // Handle both Gemini and OpenAI search metadata formats
+  if (groundingMetadata) {
+    // Gemini format
+    if (groundingMetadata.groundingChunks || groundingMetadata.webSearchQueries) {
+      const groundingInfo = extractFromGroundingMetadata(groundingMetadata);
+      
+      for (const source of groundingInfo.sources) {
+        const url = source.url.toLowerCase();
+        
+        if (url.includes('patch') || url.includes('update') || url.includes('download')) {
+          patches.push({
+            vendor: extractVendorFromUrl(url) || 'Unknown',
+            product: 'Unknown',
+            patchVersion: 'Latest',
+            downloadUrl: source.url,
+            advisoryUrl: source.url,
+            description: source.title || 'Security patch',
+            confidence: 'HIGH',
+            patchType: 'Security Update',
+            citationUrl: source.url
+          });
+        }
+      }
+    }
+    
+    // OpenAI /responses format
+    if (groundingMetadata.searchResults || groundingMetadata.sources) {
+      const sources = groundingMetadata.searchResults || groundingMetadata.sources || [];
+      
+      for (const source of sources) {
+        const url = (source.url || source.link || '').toLowerCase();
+        const title = source.title || source.snippet || 'Security information';
+        
+        if (url.includes('patch') || url.includes('update') || url.includes('advisory')) {
+          if (url.includes('patch') || url.includes('update')) {
+            patches.push({
+              vendor: extractVendorFromUrl(url) || 'Unknown',
+              product: 'Unknown',
+              patchVersion: 'Latest',
+              downloadUrl: source.url || source.link,
+              advisoryUrl: source.url || source.link,
+              description: title,
+              confidence: 'HIGH',
+              patchType: 'Security Update',
+              citationUrl: source.url || source.link
+            });
+          } else {
+            advisories.push({
+              source: extractVendorFromUrl(url) || 'Unknown',
+              advisoryId: cveId,
+              title: title,
+              url: source.url || source.link,
+              severity: 'Unknown',
+              description: title,
+              confidence: 'HIGH',
+              type: 'Security Advisory',
+              citationUrl: source.url || source.link
+            });
+          }
+        }
+      }
+    }
+  }
+
+  return {
+    patches: removeDuplicates(patches, 'downloadUrl'),
+    advisories: removeDuplicates(advisories, 'url'),
+    confidence: confidence,
+    extractionMethod: 'text-parsing'
+  };
+}
+
+function parseTextResponseForThreatIntel(response: string, cveId: string, groundingMetadata?: any): any {
+  console.log('Parsing threat intel response for', cveId, '- Length:', response.length);
+  
+  const findings = {
+    cisaKev: { listed: false, details: '', source: '', confidence: 'LOW', aiDiscovered: true },
+    activeExploitation: { confirmed: false, details: '', sources: [], confidence: 'LOW', aiDiscovered: true },
+    exploitDiscovery: { found: false, totalCount: 0, exploits: [], confidence: 'LOW', aiDiscovered: true },
+    vendorAdvisories: { found: false, count: 0, advisories: [], confidence: 'LOW', aiDiscovered: true },
+    intelligenceSummary: {
+      sourcesAnalyzed: 0, exploitsFound: 0, vendorAdvisoriesFound: 0,
+      activeExploitation: false, cisaKevListed: false, threatLevel: 'MEDIUM',
+      dataFreshness: 'AI_SEARCH', analysisMethod: 'AI_WEB_SEARCH',
+      confidenceLevel: 'MEDIUM', aiEnhanced: true, validated: false
+    },
+    summary: '', overallThreatLevel: 'MEDIUM',
+    extractionMetadata: { extractionMethod: 'TEXT_PARSING', timestamp: new Date().toISOString() }
+  };
+
+  const lowerResponse = response.toLowerCase();
+  
+  // Check for CISA KEV
+  if (lowerResponse.includes('cisa') && (lowerResponse.includes('kev') || lowerResponse.includes('known exploited'))) {
+    if (lowerResponse.includes('listed') || lowerResponse.includes('included')) {
+      findings.cisaKev.listed = true;
+      findings.cisaKev.confidence = 'HIGH';
+      findings.cisaKev.details = 'Found in CISA KEV catalog according to AI search';
+      findings.intelligenceSummary.cisaKevListed = true;
+    }
+  }
+
+  // Check for active exploitation
+  if (lowerResponse.includes('active') && lowerResponse.includes('exploit')) {
+    findings.activeExploitation.confirmed = true;
+    findings.activeExploitation.confidence = 'MEDIUM';
+    findings.activeExploitation.details = 'Active exploitation reported';
+    findings.intelligenceSummary.activeExploitation = true;
+  }
+
+  // Check for exploit code
+  if (lowerResponse.includes('exploit') || lowerResponse.includes('poc')) {
+    findings.exploitDiscovery.found = true;
+    findings.exploitDiscovery.totalCount = 1;
+    findings.exploitDiscovery.confidence = 'MEDIUM';
+    findings.intelligenceSummary.exploitsFound = 1;
+  }
+
+  // Calculate threat level
+  if (findings.cisaKev.listed || findings.activeExploitation.confirmed) {
+    findings.overallThreatLevel = 'HIGH';
+    findings.intelligenceSummary.threatLevel = 'HIGH';
+  } else if (findings.exploitDiscovery.found) {
+    findings.overallThreatLevel = 'MEDIUM';
+  } else {
+    findings.overallThreatLevel = 'LOW';
+    findings.intelligenceSummary.threatLevel = 'LOW';
+  }
+
+  findings.summary = createThreatIntelSummary(findings, cveId);
+  return findings;
+}
+
+function createThreatIntelSummary(findings: any, cveId: string): string {
+  const threats = [];
+  
+  if (findings.cisaKev.listed) threats.push('listed in CISA KEV catalog (actively exploited)');
+  if (findings.activeExploitation.confirmed) threats.push('active exploitation reported');
+  if (findings.exploitDiscovery.found) threats.push(`${findings.exploitDiscovery.totalCount} public exploit(s) found`);
+  if (findings.vendorAdvisories.found) threats.push(`${findings.vendorAdvisories.count} vendor advisory(ies) found`);
+
+  return threats.length === 0 
+    ? `No immediate threat indicators found for ${cveId} via AI search.`
+    : `${cveId} threat intelligence: ${threats.join(', ')}.`;
+}
+
+function extractVendorsFromText(text: string): string[] {
+  const knownVendors = ['ASUS', 'Cisco', 'Microsoft', 'Oracle', 'Apache', 'Adobe', 'D-Link', 'TP-Link', 'Netgear', 'VMware', 'Fortinet', 'Juniper', 'Huawei', 'Sophos', 'Palo Alto', 'F5', 'Citrix', 'IBM', 'Google', 'Amazon', 'Mozilla', 'Red Hat', 'Ubuntu', 'Debian', 'SUSE'];
+  return [...new Set(knownVendors.filter(vendor => text.toLowerCase().includes(vendor.toLowerCase())))];
+}
+
+function extractUrlsFromText(text: string): string[] {
+  const urlRegex = /https?:\/\/[^\s<>"]{4,}/gi;
+  const matches = text.match(urlRegex) || [];
+  return [...new Set(matches)];
+}
+
+function extractVendorFromUrl(url: string): string {
+  const vendorPatterns = {
+    'microsoft.com': 'Microsoft', 'redhat.com': 'Red Hat', 'oracle.com': 'Oracle',
+    'adobe.com': 'Adobe', 'cisco.com': 'Cisco', 'ubuntu.com': 'Ubuntu'
+  };
+  
+  for (const [pattern, vendor] of Object.entries(vendorPatterns)) {
+    if (url.includes(pattern)) return vendor;
+  }
+  
+  try {
+    return new URL(url).hostname.split('.')[0];
+  } catch {
+    return 'Unknown';
+  }
+}
+
+function removeDuplicates(array: any[], property: string): any[] {
+  const seen = new Set();
+  return array.filter(item => {
+    const value = item[property];
+    if (seen.has(value)) return false;
+    seen.add(value);
+    return true;
+  });
 }
