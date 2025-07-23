@@ -1,10 +1,15 @@
+// constants.ts - FIXED VERSION
 export const CONSTANTS = {
   API_ENDPOINTS: {
     NVD: 'https://services.nvd.nist.gov/rest/json/cves/2.0',
     EPSS: 'https://api.first.org/data/v1/epss',
     GEMINI: 'https://generativelanguage.googleapis.com/v1beta/models',
     OPENAI: 'https://api.openai.com/v1',
-    OPENAI_RESPONSES: 'https://api.openai.com/v1/responses'
+    
+    // FIXED: Change this line to use the correct OpenAI Chat Completions endpoint
+    OPENAI_RESPONSES: 'https://api.openai.com/v1/chat/completions'  // ✅ CORRECT!
+    
+    // WRONG: 'https://api.openai.com/v1/responses'  // ❌ This endpoint doesn't exist!
   },
   RATE_LIMITS: {
     GEMINI_COOLDOWN: 60000, // 1 minute
