@@ -6,7 +6,7 @@ import { createStyles } from '../utils/styles';
 import { COLORS } from '../utils/constants';
 
 interface TechnicalBriefProps {
-  brief: string | null | undefined;
+  brief: string | null | undefined | any; // Allow any type and handle it
   defaultExpandedSections?: string[];
 }
 
@@ -28,7 +28,63 @@ const TechnicalBrief: React.FC<TechnicalBriefProps> = ({
     new Set(defaultExpandedSections)
   );
 
-  if (!brief || brief.trim().length === 0) {
+  // Handle different types of brief input
+  let briefContent: string = '';
+  
+  if (typeof brief === 'string') {
+    briefContent = brief;
+  } else if (brief && typeof brief === 'object') {
+    // Check if it's an array-like object with numeric keys
+    if ('0' in brief || '1' in brief || '2' in brief) {
+      // This appears to be multiple versions of the brief
+      // Try to find the best version by checking for "text" property
+      const versions = Object.values(brief);
+      
+      // Look for a version with a "text" property
+      const textVersion = versions.find((v: any) => v && typeof v === 'object' && 'text' in v);
+      
+      if (textVersion && typeof textVersion === 'object' && 'text' in textVersion) {
+        briefContent = textVersion.text;
+      } else if (versions.length > 0) {
+        // If no "text" property found, try to use the first non-empty version
+        const firstNonEmpty = versions.find((v: any) => {
+          if (typeof v === 'string' && v.trim()) return true;
+          if (v && typeof v === 'object' && v.text) return true;
+          return false;
+        });
+        
+        if (firstNonEmpty) {
+          if (typeof firstNonEmpty === 'string') {
+            briefContent = firstNonEmpty;
+          } else if (firstNonEmpty.text) {
+            briefContent = firstNonEmpty.text;
+          }
+        }
+      }
+    } else if (brief.analysis) {
+      briefContent = brief.analysis;
+    } else if (brief.content) {
+      briefContent = brief.content;
+    } else if (brief.text) {
+      briefContent = brief.text;
+    } else if (brief.brief) {
+      briefContent = brief.brief;
+    } else {
+      // Try to stringify the object for debugging
+      console.warn('TechnicalBrief received an object:', brief);
+      try {
+        briefContent = JSON.stringify(brief, null, 2);
+      } catch (e) {
+        briefContent = String(brief);
+      }
+    }
+  } else if (brief) {
+    // Convert to string if it's some other type
+    briefContent = String(brief);
+  }
+
+  // Now safely check if content is empty
+  if (!briefContent || briefContent.trim().length === 0) {
     return (
       <p style={{ 
         fontSize: '0.875rem', 
@@ -188,8 +244,8 @@ const TechnicalBrief: React.FC<TechnicalBriefProps> = ({
     return sections;
   };
 
-  const sections = parseSections(brief);
-  const cveSummary = extractCVESummary(brief);
+  const sections = parseSections(briefContent);
+  const cveSummary = extractCVESummary(briefContent);
 
   const toggleSection = (sectionId: string) => {
     const newExpanded = new Set(expandedSections);
@@ -517,6 +573,32 @@ const TechnicalBrief: React.FC<TechnicalBriefProps> = ({
           </div>
         );
       })}
+
+      {/* Debug info for the input type - only in development */}
+      {process.env.NODE_ENV === 'development' && typeof brief !== 'string' && (
+        <div style={{ 
+          fontSize: '0.75rem',
+          color: '#ff6666',
+          border: '1px solid #ff6666',
+          padding: '8px',
+          marginTop: '16px',
+          borderRadius: '4px',
+          backgroundColor: 'rgba(255, 102, 102, 0.1)'
+        }}>
+          Warning: TechnicalBrief received non-string input. Type: {typeof brief}
+          {brief && typeof brief === 'object' && (
+            <>
+              <div>Keys: {Object.keys(brief).join(', ')}</div>
+              <div>Values types: {Object.values(brief).map(v => typeof v).join(', ')}</div>
+              {Object.entries(brief).slice(0, 3).map(([key, value]) => (
+                <div key={key} style={{ fontSize: '0.7rem', marginTop: '4px' }}>
+                  {key}: {typeof value === 'object' ? JSON.stringify(value).substring(0, 50) + '...' : String(value).substring(0, 50) + '...'}
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };
