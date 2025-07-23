@@ -473,7 +473,7 @@ export function performHeuristicAnalysis(cveId: string, cveData: any, epssData: 
   return heuristicFindings;
 }
 
-// Enhanced Analysis Prompt Builder
+// Enhanced Analysis Prompt Builder - More Informative and Comprehensive
 export function buildEnhancedAnalysisPrompt(vulnerability: any, settings: any = {}) {
   console.log('buildEnhancedAnalysisPrompt called with vulnerability:', vulnerability);
   
@@ -481,81 +481,599 @@ export function buildEnhancedAnalysisPrompt(vulnerability: any, settings: any = 
   const cveData = vulnerability.cve || vulnerability;
   const cveId = cveData.id || 'Unknown';
   
-  // Extract description
-  const descriptions = cveData.descriptions || [];
-  const description = descriptions.find((d: any) => d.lang === 'en')?.value || 'No description available';
+  // Extract all available data
+  const description = extractDescription(cveData);
+  const cvssInfo = extractCVSSInfo(cveData);
+  const epssInfo = extractEPSSInfo(vulnerability);
+  const kevInfo = extractKEVInfo(vulnerability);
+  const exploitInfo = extractExploitInfo(vulnerability);
+  const patchInfo = extractPatchInfo(vulnerability);
+  const referenceInfo = extractReferenceInfo(cveData);
+  const weaknessInfo = extractWeaknessInfo(cveData);
+  const vendorInfo = extractVendorProductInfo(description);
   
-  // Extract CVSS data
-  const metrics = cveData.metrics || {};
-  const cvssV31 = metrics.cvssMetricV31?.[0]?.cvssData;
-  const cvssData = cvssV31 || {};
+  // Calculate risk context
+  const riskContext = calculateRiskContext(cvssInfo, epssInfo, kevInfo, exploitInfo);
   
-  console.log('Extracted CVE data for prompt:');
-  console.log('- CVE ID:', cveId);
-  console.log('- Description:', description);
-  console.log('- CVSS Score:', cvssData.baseScore);
-  console.log('- Attack Vector:', cvssData.attackVector);
-  console.log('- Base Severity:', cvssData.baseSeverity);
+  // Extract detailed patch and advisory information
+  const detailedPatches = vulnerability.patches?.map((p: any) => ({
+    vendor: p.vendor,
+    product: p.product,
+    version: p.patchVersion,
+    downloadUrl: p.downloadUrl,
+    advisoryUrl: p.advisoryUrl
+  })) || [];
   
-  const prompt = `${TECHNICAL_BRIEF_PROMPT}
+  const detailedAdvisories = vulnerability.advisories?.map((a: any) => ({
+    source: a.source,
+    title: a.title,
+    url: a.url,
+    severity: a.severity,
+    patchAvailable: a.patchAvailable
+  })) || [];
+  
+  // Determine priority based on available data
+  const suggestedPriority = determinePriority(kevInfo, cvssInfo, epssInfo, exploitInfo);
+  const suggestedStatus = determineStatus(detailedPatches, detailedAdvisories);
+  const suggestedConfidence = determineConfidence(vulnerability);
+  
+  // Build comprehensive prompt
+  const prompt = `You are a senior security engineer preparing a comprehensive technical brief for ${cveId}. 
 
-## Analysis Request
+## CRITICAL DATA SUMMARY
+- **CVE**: ${cveId}
+- **CVSS Score**: ${cvssInfo.score} (${cvssInfo.severity})
+- **EPSS**: ${epssInfo.score} (${epssInfo.percentile} percentile)
+- **CISA KEV**: ${kevInfo.listed ? 'YES - ACTIVELY EXPLOITED' : 'No'}
+- **Public Exploits**: ${exploitInfo.found ? 'YES' : 'No'}
+- **Patches Available**: ${detailedPatches.length > 0 ? 'YES' : 'No'}
 
-CVE ID: ${cveId}
-Context Sources:
-<context_chunk_1>
-CVE Description: ${description}
-CVSS Score: ${cvssData.baseScore || 'Not available'}
-Base Severity: ${cvssData.baseSeverity || 'Not available'}
-Attack Vector: ${cvssData.attackVector || 'Not available'}
-Attack Complexity: ${cvssData.attackComplexity || 'Not available'}
-Privileges Required: ${cvssData.privilegesRequired || 'Not available'}
-User Interaction: ${cvssData.userInteraction || 'Not available'}
-Scope: ${cvssData.scope || 'Not available'}
-Confidentiality Impact: ${cvssData.confidentialityImpact || 'Not available'}
-Integrity Impact: ${cvssData.integrityImpact || 'Not available'}
-Availability Impact: ${cvssData.availabilityImpact || 'Not available'}
-Published Date: ${cveData.published || 'Not available'}
-Last Modified: ${cveData.lastModified || 'Not available'}
-Vulnerability Status: ${cveData.vulnStatus || 'Not available'}
-References: ${JSON.stringify(cveData.references || [])}
-Weaknesses (CWE): ${JSON.stringify(cveData.weaknesses || [])}
-${cveData.aiEnhanced ? 'Data Source: AI-Enhanced via Web Search' : 'Data Source: Direct API'}
-</context_chunk_1>
+## 📊 VULNERABILITY OVERVIEW
 
-${vulnerability.epss ? `<context_chunk_2>
-EPSS Data:
-Exploitation Probability Score: ${vulnerability.epss.epss || 'Not available'}
-Percentile: ${vulnerability.epss.percentile || 'Not available'}
-Date: ${vulnerability.epss.date || 'Not available'}
-${vulnerability.epss.aiParsed ? 'EPSS Source: AI-Enhanced via Web Search' : 'EPSS Source: Direct API'}
-</context_chunk_2>` : ''}
+**CVE ID**: ${cveId}
+**Description**: ${description}
+**Affected Component**: ${vendorInfo.vendor} ${vendorInfo.product} ${vendorInfo.versions}
 
-${vulnerability.cisaKev ? `<context_chunk_3>
-CISA KEV (Known Exploited Vulnerabilities) Data:
-Listed in CISA KEV: ${vulnerability.cisaKev.listed ? 'YES - ACTIVELY EXPLOITED' : 'NO'}
-${vulnerability.cisaKev.listed ? `Date Added to KEV: ${vulnerability.cisaKev.dateAdded || 'Not available'}
-Short Description: ${vulnerability.cisaKev.shortDescription || 'Not available'}
-Required Action: ${vulnerability.cisaKev.requiredAction || 'Not available'}
-Due Date: ${vulnerability.cisaKev.dueDate || 'Not available'}
-Known Ransomware Campaign Use: ${vulnerability.cisaKev.knownRansomwareCampaignUse || 'Unknown'}
-Vendor/Project: ${vulnerability.cisaKev.vendorProject || 'Not available'}
-Product: ${vulnerability.cisaKev.product || 'Not available'}
-Vulnerability Name: ${vulnerability.cisaKev.vulnerabilityName || 'Not available'}` : `Last Checked: ${vulnerability.cisaKev.lastChecked || 'Not available'}`}
-KEV Catalog Version: ${vulnerability.cisaKev.catalogVersion || 'Not available'}
-KEV Catalog Date: ${vulnerability.cisaKev.catalogDate || 'Not available'}
-${vulnerability.cisaKev.source === 'ai-web-search' ? 'KEV Source: AI-Enhanced via Web Search' : 'KEV Source: Direct API/Cache'}
-</context_chunk_3>` : ''}
+## 🎯 THREAT INTELLIGENCE
 
-Please generate a comprehensive technical brief following the exact schema requirements. Use ONLY the information provided above - do not fabricate any details not explicitly stated.
+**CVSS v3 Metrics**:
+- Base Score: ${cvssInfo.score} (${cvssInfo.severity})
+- Vector: ${cvssInfo.vectorString || 'Not available'}
+- Attack Vector: ${cvssInfo.attackVector} | Complexity: ${cvssInfo.attackComplexity}
+- Privileges: ${cvssInfo.privilegesRequired} | User Interaction: ${cvssInfo.userInteraction}
+- Impact: C:${cvssInfo.confidentialityImpact}/I:${cvssInfo.integrityImpact}/A:${cvssInfo.availabilityImpact}
 
-IMPORTANT: If this CVE is listed in CISA KEV, this indicates ACTIVE EXPLOITATION in the wild and should significantly impact priority and business risk assessment.
+**Exploitation Probability (EPSS)**:
+- Score: ${epssInfo.score} (${epssInfo.percentile} percentile)
+- Risk Level: ${epssInfo.riskLevel}
+- Context: ${epssInfo.context}
 
-NOTE: Some data may have been enhanced via AI web search when direct APIs were unavailable. This is indicated in the source annotations above.`;
+**Active Exploitation Status**:
+${kevInfo.summary}
+${exploitInfo.summary}
 
-  console.log('Generated AI prompt length:', prompt.length);
-  console.log('AI prompt preview (first 500 chars):', prompt.substring(0, 500) + '...');
+**Weakness Classification**:
+${weaknessInfo}
+
+## 🔧 PATCHES AND FIXES
+
+**Available Patches**:
+${patchInfo.summary}
+
+${detailedPatches.length > 0 ? `**Detailed Patch Information**:
+${detailedPatches.map((p: any) => `
+- **${p.vendor} ${p.product}**
+  - Fixed Version: ${p.version}
+  - Download: ${p.downloadUrl}
+  - Advisory: ${p.advisoryUrl}`).join('\n')}` : 'No specific patch information available'}
+
+## 📢 SECURITY ADVISORIES
+
+**Published Advisories**:
+${patchInfo.advisories}
+
+${detailedAdvisories.length > 0 ? `**Detailed Advisory Information**:
+${detailedAdvisories.map((a: any) => `
+- **${a.source}**: ${a.title}
+  - URL: ${a.url}
+  - Severity: ${a.severity}
+  - Patch Available: ${a.patchAvailable ? 'Yes' : 'No'}`).join('\n')}` : 'No advisory information available'}
+
+## 🔗 ADDITIONAL REFERENCES
+
+**Official Resources**:
+- [NVD Entry](https://nvd.nist.gov/vuln/detail/${cveId})
+- [MITRE CVE](https://cve.mitre.org/cgi-bin/cvename.cgi?name=${cveId})
+${kevInfo.listed ? `- [CISA KEV Entry](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)` : ''}
+
+**Additional References**:
+${referenceInfo}
+
+## 📋 YOUR TECHNICAL BRIEF REQUIREMENTS
+
+Create a comprehensive technical brief following this EXACT format:
+
+### CVE Analysis - Quick Summary
+
+**Status**: ${suggestedStatus}
+**Priority**: ${suggestedPriority}  
+**Confidence**: ${suggestedConfidence}
+
+### 1. Executive Summary
+${kevInfo.listed ? '🚨 **CRITICAL: This vulnerability is actively exploited in the wild and listed in CISA KEV.**\n\n' : ''}
+- Start with the most critical finding
+- Explain the business impact of ${cveId} in plain language
+- State the recommended action and timeline clearly
+- Mention patch availability: ${detailedPatches.length > 0 ? 'Patches are available from ' + detailedPatches.map(p => p.vendor).join(', ') : 'No patches available yet'}
+- Include customer impact assessment
+
+### 2. Technical Analysis
+Provide deep technical insights for ${cveId}:
+- **Attack Scenario**: Step-by-step how THIS SPECIFIC vulnerability (${cveId}) could be exploited based on the description
+- **Attack Surface**: What specific ${vendorInfo.product} systems/configurations are vulnerable
+- **Indicators of Compromise (IoCs)**: What to look for in logs/systems for ${cveId}
+- **Attack Complexity Analysis**: Real-world difficulty of exploiting ${cveId}
+
+### 3. CVE-Specific Remediation
+
+**PATCHES AND UPDATES for ${cveId}**:
+${detailedPatches.length > 0 ? `Apply these specific patches:
+${detailedPatches.map((p: any) => `
+- For ${p.vendor} ${p.product}: Upgrade to version ${p.version}
+  - Download from: [${p.vendor} Patch](${p.downloadUrl})
+  - Review advisory: [Security Advisory](${p.advisoryUrl})`).join('\n')}` : 'No patches available yet - implement workarounds below'}
+
+**VENDOR ADVISORIES for ${cveId}**:
+${detailedAdvisories.length > 0 ? `Follow guidance from these advisories:
+${detailedAdvisories.map((a: any) => `
+- [${a.source} Advisory: ${a.title}](${a.url})
+  - Severity: ${a.severity}
+  - Extract specific recommendations from this advisory`).join('\n')}` : 'Monitor vendor security pages for updates'}
+
+**Immediate Actions for ${cveId}**:
+- Affected versions: ${vendorInfo.versions}
+- Fixed versions: ${detailedPatches.length > 0 ? detailedPatches.map(p => p.version).join(', ') : 'Not yet available'}
+- Specific configuration changes for ${cveId}
+- Vendor-specific guidance
+
+**Detection Commands** (specific to ${cveId}):
+\`\`\`bash
+# Commands to detect ${cveId} vulnerability in ${vendorInfo.product}
+# Version detection commands
+# Configuration checks
+\`\`\`
+
+**Patch Verification** (for ${cveId}):
+\`\`\`bash
+# Commands to verify ${cveId} patches are applied
+# Version verification for ${vendorInfo.product}
+\`\`\`
+
+### 4. Actionable Recommendations
+
+**For Security Teams**:
+- Implement detection for ${cveId} using the IoCs above
+- Review security advisories: ${detailedAdvisories.map(a => `[${a.source}](${a.url})`).join(', ')}
+- Monitor for ${cveId} exploitation attempts
+
+**For Engineering Teams**:
+- ${vendorInfo.product} versions affected: ${vendorInfo.versions}
+- Patch to: ${detailedPatches.length > 0 ? detailedPatches.map(p => `${p.product} ${p.version}`).join(', ') : 'Awaiting vendor patch'}
+- Testing recommendations for ${cveId} fixes
+
+**For Leadership**:
+- ${kevInfo.listed ? 'URGENT: Active exploitation confirmed by CISA' : 'No active exploitation reported'}
+- Customer communication needed: ${kevInfo.listed || cvssInfo.score >= 7.0 ? 'Yes - proactive notification' : 'Standard update cycle'}
+- Patch status: ${detailedPatches.length > 0 ? 'Available now' : 'Pending vendor release'}
+
+### 5. Detailed Mitigation Guidance
+
+Based on ${cveId} specifics:
+- **Primary Mitigation**: ${detailedPatches.length > 0 ? 'Apply patches: ' + detailedPatches.map(p => `${p.product} ${p.version}`).join(', ') : 'Patches pending - use workarounds'}
+- **Temporary Workarounds**: [Extract from advisories or description]
+- **Compensating Controls**: Based on ${cvssInfo.attackVector} attack vector
+- **Verification Steps**: Confirm ${cveId} is remediated
+
+### 6. Advisory-Based Timeline
+${kevInfo.listed ? '- 🚨 **CISA KEV LISTED**: Remediate within 24-48 hours per CISA directive' : ''}
+${cvssInfo.score >= 9.0 ? '- ⚠️ **CRITICAL SEVERITY**: Remediate within 72 hours' : ''}
+${cvssInfo.score >= 7.0 && cvssInfo.score < 9.0 ? '- ⚠️ **HIGH SEVERITY**: Remediate within 1 week' : ''}
+${epssInfo.score > 0.5 ? '- 📊 **HIGH EXPLOITATION PROBABILITY**: Prioritize in current cycle' : ''}
+${detailedPatches.length > 0 ? '- ✅ **PATCHES AVAILABLE**: Apply immediately' : '- ⏳ **NO PATCHES YET**: Implement workarounds now'}
+
+### 7. Knowledge Gaps & Next Steps
+- ${detailedPatches.length === 0 ? 'Awaiting patches from: ' + vendorInfo.vendor : 'Verify all systems patched'}
+- ${detailedAdvisories.length === 0 ? 'No vendor advisories yet published' : 'Review all advisories for updates'}
+- Additional research needed for ${cveId}
+
+## 📝 CRITICAL INSTRUCTIONS
+
+- **Make all recommendations specific to ${cveId}**
+- Use the exact version numbers from patches: ${detailedPatches.map(p => p.version).join(', ')}
+- Reference the specific advisories provided
+- Include the actual vulnerability behavior from the description
+- Format all URLs as clickable markdown links
+- Don't use generic security advice - tie everything to ${cveId}
+
+Remember: This is about ${cveId} specifically. Use the CVE ID throughout your response.`;
+
+  console.log('Generated enhanced prompt with CVE-specific focus and proper status determination');
   return prompt;
+}
+
+// Helper function to determine priority based on risk factors
+function determinePriority(kevInfo: any, cvssInfo: any, epssInfo: any, exploitInfo: any): string {
+  if (kevInfo.listed) {
+    return 'P0 – Emergency response required (24-48 hours)';
+  }
+  if (cvssInfo.score >= 9.0 || (exploitInfo.found && cvssInfo.score >= 7.0)) {
+    return 'P1 – Critical priority (72 hours)';
+  }
+  if (cvssInfo.score >= 7.0 || epssInfo.score > 0.5) {
+    return 'P2 – High priority (1 week)';
+  }
+  return 'P3 – Standard priority (30 days)';
+}
+
+// Helper function to determine status based on patches
+function determineStatus(patches: any[], advisories: any[]): string {
+  if (patches.length > 0) {
+    return 'Patch Available';
+  }
+  if (advisories.some((a: any) => a.patchAvailable)) {
+    return 'Patch Available';
+  }
+  if (advisories.length > 0) {
+    return 'In Progress';
+  }
+  return 'No Fix';
+}
+
+// Helper function to determine confidence level
+function determineConfidence(vulnerability: any): string {
+  let confidenceFactors = 0;
+  
+  if (vulnerability.cve?.id) confidenceFactors++;
+  if (vulnerability.cve?.metrics?.cvssMetricV31?.[0]) confidenceFactors++;
+  if (vulnerability.epss) confidenceFactors++;
+  if (vulnerability.patches?.length > 0) confidenceFactors++;
+  if (vulnerability.advisories?.length > 0) confidenceFactors++;
+  if (vulnerability.kev || vulnerability.cisaKev) confidenceFactors++;
+  
+  if (confidenceFactors >= 5) {
+    return 'High – Multiple authoritative sources';
+  } else if (confidenceFactors >= 3) {
+    return 'Medium – Good source coverage';
+  } else {
+    return 'Low – Limited data available';
+  }
+}
+
+// Helper function to extract comprehensive CVSS information
+function extractCVSSInfo(cveData: any): any {
+  let cvssData: any = {};
+  let cvssScore = 'Not available';
+  let baseSeverity = 'Not available';
+  let vectorString = 'Not available';
+  
+  if (cveData.cvssV3) {
+    cvssData = cveData.cvssV3;
+  } else if (cveData.metrics) {
+    const metrics = cveData.metrics || {};
+    const cvssV31 = metrics.cvssMetricV31?.[0]?.cvssData;
+    const cvssV30 = metrics.cvssMetricV30?.[0]?.cvssData;
+    cvssData = cvssV31 || cvssV30 || {};
+  }
+  
+  return {
+    score: cvssData.baseScore || 'Not available',
+    severity: cvssData.baseSeverity || 'Not available',
+    vectorString: cvssData.vectorString || 'Not available',
+    attackVector: cvssData.attackVector || 'Unknown',
+    attackComplexity: cvssData.attackComplexity || 'Unknown',
+    privilegesRequired: cvssData.privilegesRequired || 'Unknown',
+    userInteraction: cvssData.userInteraction || 'Unknown',
+    scope: cvssData.scope || 'Unknown',
+    confidentialityImpact: cvssData.confidentialityImpact || 'Unknown',
+    integrityImpact: cvssData.integrityImpact || 'Unknown',
+    availabilityImpact: cvssData.availabilityImpact || 'Unknown'
+  };
+}
+
+// Helper function to extract EPSS information with context
+function extractEPSSInfo(vulnerability: any): any {
+  if (!vulnerability.epss) {
+    return {
+      score: 'Not available',
+      percentile: 'Not available',
+      riskLevel: 'Unknown',
+      context: 'No EPSS data available'
+    };
+  }
+  
+  const score = parseFloat(vulnerability.epss.epss) || 0;
+  let riskLevel = 'Very Low';
+  let context = '';
+  
+  if (score >= 0.7) {
+    riskLevel = 'Very High';
+    context = 'This vulnerability is in the top tier for exploitation probability. Immediate action recommended.';
+  } else if (score >= 0.5) {
+    riskLevel = 'High';
+    context = 'Significantly elevated risk of exploitation. Prioritize patching within days.';
+  } else if (score >= 0.3) {
+    riskLevel = 'Moderate';
+    context = 'Above average exploitation probability. Include in next patching cycle.';
+  } else if (score >= 0.1) {
+    riskLevel = 'Low';
+    context = 'Below average exploitation probability. Standard patching timeline appropriate.';
+  } else {
+    riskLevel = 'Very Low';
+    context = 'Minimal exploitation probability based on current threat landscape.';
+  }
+  
+  return {
+    score: vulnerability.epss.epss || 'Not available',
+    percentile: vulnerability.epss.percentile || 'Not available',
+    riskLevel,
+    context
+  };
+}
+
+// Helper function to extract KEV information
+function extractKEVInfo(vulnerability: any): any {
+  const isListed = vulnerability.kev?.listed || vulnerability.cisaKev?.listed;
+  
+  if (!isListed) {
+    return {
+      listed: false,
+      summary: '✅ Not in CISA KEV - No confirmed active exploitation'
+    };
+  }
+  
+  return {
+    listed: true,
+    summary: `🚨 **CRITICAL: Active Exploitation Confirmed**
+- Listed in CISA Known Exploited Vulnerabilities catalog
+- Required Action: ${vulnerability.kev?.requiredAction || vulnerability.cisaKev?.requiredAction || 'Patch immediately'}
+- Due Date: ${vulnerability.kev?.dueDate || vulnerability.cisaKev?.dueDate || 'ASAP'}
+- ${vulnerability.kev?.shortDescription || vulnerability.cisaKev?.shortDescription || ''}`
+  };
+}
+
+// Helper function to extract exploit information
+function extractExploitInfo(vulnerability: any): any {
+  if (!vulnerability.exploits?.found) {
+    return {
+      found: false,
+      summary: '✅ No public exploits found'
+    };
+  }
+  
+  const count = vulnerability.exploits.totalCount || vulnerability.exploits.count || 0;
+  const verified = vulnerability.exploits.verifiedCount || 0;
+  
+  return {
+    found: true,
+    summary: `⚠️ **Public Exploits Available**
+- Total exploits found: ${count}
+- Verified exploits: ${verified}
+- Source: ${vulnerability.exploits.aiDiscovered ? 'AI-Enhanced Discovery' : 'Direct Search'}
+- Implication: Weaponized exploits may be in circulation`
+  };
+}
+
+// Helper function to extract patch information
+function extractPatchInfo(vulnerability: any): any {
+  const patches = vulnerability.patches || [];
+  const advisories = vulnerability.advisories || [];
+  
+  let patchSummary = 'No patches found';
+  let advisorySummary = 'No advisories found';
+  
+  if (patches.length > 0) {
+    patchSummary = patches.map((p: any) => 
+      `- ${p.vendor || 'Unknown'} ${p.product || ''}: [${p.patchVersion || 'Patch Available'}](${p.downloadUrl || p.advisoryUrl || '#'})`
+    ).join('\n');
+  }
+  
+  if (advisories.length > 0) {
+    advisorySummary = advisories.map((a: any) => 
+      `- [${a.title || a.source || 'Advisory'}](${a.url || '#'}) - ${a.severity || 'Severity unknown'}`
+    ).join('\n');
+  }
+  
+  return {
+    summary: patchSummary,
+    advisories: advisorySummary
+  };
+}
+
+// Helper function to extract reference information
+function extractReferenceInfo(cveData: any): string {
+  const references = cveData.references || [];
+  
+  if (references.length === 0) {
+    return 'No additional references available';
+  }
+  
+  // Group references by type/source
+  const grouped = references.reduce((acc: any, ref: any) => {
+    const source = ref.source || 'Other';
+    if (!acc[source]) acc[source] = [];
+    acc[source].push(ref);
+    return acc;
+  }, {});
+  
+  return Object.entries(grouped).map(([source, refs]: [string, any]) => {
+    const refList = refs.map((ref: any) => `  - [${source} Reference](${ref.url})`).join('\n');
+    return `**${source}**:\n${refList}`;
+  }).join('\n\n');
+}
+
+// Helper function to extract weakness information
+function extractWeaknessInfo(cveData: any): string {
+  const weaknesses = cveData.weaknesses || [];
+  
+  if (weaknesses.length === 0) {
+    return 'No CWE classification available';
+  }
+  
+  return weaknesses.map((w: any) => {
+    const cweId = w.source?.find((s: any) => s.type === 'Primary')?.cweId || 'Unknown';
+    const description = w.description?.find((d: any) => d.lang === 'en')?.value || '';
+    return `- ${cweId}: ${description}`;
+  }).join('\n');
+}
+
+// Helper function to extract vendor/product information
+function extractVendorProductInfo(description: string): any {
+  let vendor = 'Unknown';
+  let product = 'Unknown';
+  let versions = 'Unknown';
+  
+  // Common patterns to extract vendor/product
+  const patterns = [
+    { pattern: /Apache\s+Tomcat\s+([\d.]+(?:\s*(?:through|to|-)\s*[\d.]+)?)/i, vendor: 'Apache', product: 'Tomcat' },
+    { pattern: /Apache\s+HTTP\s+Server\s+([\d.]+(?:\s*(?:through|to|-)\s*[\d.]+)?)/i, vendor: 'Apache', product: 'HTTP Server' },
+    { pattern: /Microsoft\s+Windows\s+([\w\s]+)/i, vendor: 'Microsoft', product: 'Windows' },
+    { pattern: /Oracle\s+Java\s+([\d.]+)/i, vendor: 'Oracle', product: 'Java' },
+    { pattern: /Google\s+Chrome\s+([\d.]+)/i, vendor: 'Google', product: 'Chrome' },
+    { pattern: /Mozilla\s+Firefox\s+([\d.]+)/i, vendor: 'Mozilla', product: 'Firefox' }
+  ];
+  
+  for (const { pattern, vendor: v, product: p } of patterns) {
+    const match = description.match(pattern);
+    if (match) {
+      vendor = v;
+      product = p;
+      versions = match[1] || 'Unknown';
+      break;
+    }
+  }
+  
+  return { vendor, product, versions };
+}
+
+// Helper function to calculate risk context
+function calculateRiskContext(cvssInfo: any, epssInfo: any, kevInfo: any, exploitInfo: any): string {
+  const factors = [];
+  
+  if (kevInfo.listed) {
+    factors.push('🚨 **ACTIVE EXPLOITATION CONFIRMED** (CISA KEV)');
+  }
+  
+  if (cvssInfo.score >= 9.0) {
+    factors.push('⚠️ **CRITICAL SEVERITY** (CVSS 9.0+)');
+  } else if (cvssInfo.score >= 7.0) {
+    factors.push('⚠️ **HIGH SEVERITY** (CVSS 7.0+)');
+  }
+  
+  if (epssInfo.score >= 0.5) {
+    factors.push('📊 **HIGH EXPLOITATION PROBABILITY** (EPSS 50%+)');
+  }
+  
+  if (exploitInfo.found) {
+    factors.push('💣 **PUBLIC EXPLOITS AVAILABLE**');
+  }
+  
+  if (cvssInfo.attackVector === 'NETWORK' && cvssInfo.privilegesRequired === 'NONE') {
+    factors.push('🌐 **REMOTELY EXPLOITABLE WITHOUT AUTH**');
+  }
+  
+  return factors.length > 0 ? 
+    `**Risk Factors**:\n${factors.join('\n')}\n` : 
+    'Standard risk profile - no exceptional risk factors identified';
+}
+
+// Alternative: Even more conversational prompt
+export function buildConversationalAnalysisPrompt(vulnerability: any, settings: any = {}) {
+  const cveData = vulnerability.cve || vulnerability;
+  const cveId = cveData.id || 'Unknown';
+  
+  // Extract key data
+  let description = extractDescription(cveData);
+  let cvssScore = extractCVSSScore(cveData);
+  let isActivelyExploited = (vulnerability.kev?.listed || vulnerability.cisaKev?.listed);
+  let epssScore = vulnerability.epss?.epss;
+  
+  // Extract references and patches
+  const references = cveData.references || [];
+  const hasReferences = references.length > 0;
+  const hasPatches = vulnerability.patches?.length > 0;
+  const hasAdvisories = vulnerability.advisories?.length > 0;
+  
+  const prompt = `Hey, I need your help analyzing ${cveId} for our teams.
+
+Here's the situation:
+${description}
+
+Key facts:
+- Severity: ${cvssScore.score} CVSS (${cvssScore.severity})
+- Exploitation probability: ${epssScore || 'unknown'} EPSS
+${isActivelyExploited ? '- ⚠️ ACTIVELY EXPLOITED (in CISA KEV)' : '- Not currently in CISA KEV'}
+${hasReferences ? `- We have ${references.length} reference links available` : ''}
+${hasPatches ? `- Patches are available` : ''}
+${hasAdvisories ? `- Security advisories exist` : ''}
+
+Can you break this down for me? I need to brief:
+1. Leadership (business impact, customer risk)
+2. Engineering (what to patch, how urgent)
+3. Security team (detection, verification)
+
+Just talk me through it like we're having a conversation. What matters most here? What should each team do first?
+
+**Important**: Please format all URLs as clickable markdown links [like this](url) so people can easily access them. Include links to:
+- The NVD page: https://nvd.nist.gov/vuln/detail/${cveId}
+- Any patches or advisories mentioned
+- Reference URLs if they're helpful
+
+If anything's unclear from the data, just tell me what we're missing. Keep it real and practical.`;
+
+  return prompt;
+}
+
+// Helper function to extract description
+function extractDescription(cveData: any): string {
+  let description = 'No description available';
+  
+  if (cveData.aiResponse) {
+    const aiResponseMatch = cveData.aiResponse.match(/Complete CVE Description:\*?\*?\s*([^*\n]+(?:\n(?!\d\.|##)[^\n]+)*)/i);
+    if (aiResponseMatch && aiResponseMatch[1]) {
+      description = aiResponseMatch[1].trim();
+    } else if (cveData.aiResponse.includes('vulnerability')) {
+      description = cveData.aiResponse;
+    }
+  } else if (cveData.description && typeof cveData.description === 'string') {
+    description = cveData.description;
+  } else if (cveData.descriptions) {
+    const descriptions = cveData.descriptions || [];
+    description = descriptions.find((d: any) => d.lang === 'en')?.value || 'No description available';
+  }
+  
+  return description.replace(/\*\*/g, '').replace(/^\s*-\s*/, '').trim();
+}
+
+// Helper function to extract CVSS score
+function extractCVSSScore(cveData: any): { score: string, severity: string } {
+  let cvssData: any = {};
+  let cvssScore = 'Not available';
+  let baseSeverity = 'Not available';
+  
+  if (cveData.cvssV3) {
+    cvssData = cveData.cvssV3;
+    cvssScore = cvssData.baseScore?.toString() || 'Not available';
+    baseSeverity = cvssData.baseSeverity || 'Not available';
+  } else if (cveData.metrics) {
+    const metrics = cveData.metrics || {};
+    const cvssV31 = metrics.cvssMetricV31?.[0]?.cvssData;
+    const cvssV30 = metrics.cvssMetricV30?.[0]?.cvssData;
+    cvssData = cvssV31 || cvssV30 || {};
+    cvssScore = cvssData.baseScore?.toString() || 'Not available';
+    baseSeverity = cvssData.baseSeverity || 'Not available';
+  }
+  
+  return { score: cvssScore, severity: baseSeverity };
 }
 
 // Enhanced Fallback Analysis
