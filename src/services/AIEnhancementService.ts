@@ -230,17 +230,26 @@ Please provide information about any patches, updates, or advisories you find fo
     let groundingMetadata: any = {};
 
     if (useGemini) {
-      if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-        aiResponse = data.candidates[0].content.parts[0].text;
+      // FIXED: Handle chunked/multi-part Gemini responses to fix truncation
+      if (data.candidates && data.candidates.length > 0) {
+        aiResponse = data.candidates
+          .map(candidate =>
+            candidate.content?.parts?.map(part => part.text).join('') || ''
+          )
+          .join('\n');
+
         groundingMetadata = data.candidates[0].groundingMetadata || {};
         
-        updateSteps(prev => [...prev, `✅ Found patch information via Gemini web search`]);
-      } else if (data.candidates?.[0]?.groundingMetadata) {
-        updateSteps(prev => [...prev, `📊 Extracting from Gemini search metadata...`]);
-        groundingMetadata = data.candidates[0].groundingMetadata;
-        aiResponse = 'Search completed - extracting from metadata';
+        if (aiResponse.trim()) {
+          updateSteps(prev => [...prev, `✅ Found patch information via Gemini web search`]);
+        } else if (groundingMetadata.webSearchQueries) {
+          updateSteps(prev => [...prev, `📊 Extracting from Gemini search metadata...`]);
+          aiResponse = 'Search completed - extracting from metadata';
+        } else {
+          throw new Error('No usable text or metadata in Gemini response');
+        }
       } else {
-        throw new Error('No usable response from Gemini API');
+        throw new Error('No candidates in Gemini API response');
       }
     } else {
       // Handle OpenAI response (both /responses and /chat/completions)
@@ -451,16 +460,26 @@ Provide specific information about any threats, exploits, or active usage you fi
     let groundingMetadata: any = {};
 
     if (useGemini) {
-      if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-        aiResponse = data.candidates[0].content.parts[0].text;
+      // FIXED: Handle chunked/multi-part Gemini responses to fix truncation
+      if (data.candidates && data.candidates.length > 0) {
+        aiResponse = data.candidates
+          .map(candidate =>
+            candidate.content?.parts?.map(part => part.text).join('') || ''
+          )
+          .join('\n');
+
         groundingMetadata = data.candidates[0].groundingMetadata || {};
-        updateSteps(prev => [...prev, `✅ Found threat intelligence via Gemini web search`]);
-      } else if (data.candidates?.[0]?.groundingMetadata) {
-        updateSteps(prev => [...prev, `📊 Extracting threat data from Gemini search results...`]);
-        groundingMetadata = data.candidates[0].groundingMetadata;
-        aiResponse = 'Threat intelligence search completed';
+
+        if (aiResponse.trim()) {
+          updateSteps(prev => [...prev, `✅ Found threat intelligence via Gemini web search`]);
+        } else if (groundingMetadata.webSearchQueries) {
+          updateSteps(prev => [...prev, `📊 Extracting from Gemini search metadata...`]);
+          aiResponse = 'Threat intelligence search completed - extracting from metadata';
+        } else {
+          throw new Error('No usable text or metadata in Gemini response');
+        }
       } else {
-        throw new Error('No usable response from Gemini API');
+        throw new Error('No candidates in Gemini API response');
       }
     } else {
       // FIXED: Handle OpenAI /responses endpoint response format
@@ -673,11 +692,25 @@ export async function generateAIAnalysis(
     console.log('🔍 DEBUG: Full OpenAI response structure:', Object.keys(data));
     
     if (useGemini) {
-      const content = data.candidates?.[0]?.content;
-      if (!content?.parts?.[0]?.text) {
-        throw new Error('Invalid response from Gemini API');
+      // FIXED: Handle chunked/multi-part Gemini responses to fix truncation
+      if (data.candidates && data.candidates.length > 0) {
+        analysisText = data.candidates
+          .map(candidate =>
+            candidate.content?.parts?.map(part => part.text).join('') || ''
+          )
+          .join('\n');
+
+        if (!analysisText.trim()) {
+          // Check for grounding metadata as a fallback
+          if (data.candidates[0].groundingMetadata?.webSearchQueries) {
+            analysisText = 'Analysis complete - extracted from metadata';
+          } else {
+            throw new Error('No usable text or metadata in Gemini response');
+          }
+        }
+      } else {
+        throw new Error('No candidates in Gemini API response');
       }
-      analysisText = content.parts[0].text;
     } else {
       // FIXED: Handle OpenAI /responses endpoint response format
       if (openAiSearchCapable) {
@@ -850,7 +883,14 @@ export async function fetchGeneralAnswer(query: string, settings: any, fetchWith
   
   let text = '';
   if (useGemini) {
-    text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // FIXED: Handle chunked/multi-part Gemini responses to fix truncation
+    if (data.candidates && data.candidates.length > 0) {
+      text = data.candidates
+        .map(candidate =>
+          candidate.content?.parts?.map(part => part.text).join('') || ''
+        )
+        .join('\n');
+    }
   } else if (openAiSearchCapable) {
     // FIXED: /responses endpoint returns output as an array
     if (Array.isArray(data.output)) {
@@ -968,7 +1008,14 @@ export async function generateAITaintAnalysis(
   let responseText = '';
   
   if (useGemini) {
-    responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+    // FIXED: Handle chunked/multi-part Gemini responses to fix truncation
+    if (data.candidates && data.candidates.length > 0) {
+      responseText = data.candidates
+        .map(candidate =>
+          candidate.content?.parts?.map(part => part.text).join('') || ''
+        )
+        .join('\n');
+    }
   } else if (openAiSearchCapable) {
     // FIXED: /responses endpoint returns output as an array
     if (Array.isArray(data.output)) {
