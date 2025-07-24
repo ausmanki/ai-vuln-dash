@@ -472,8 +472,28 @@ class ContinuousLearningSystem {
   }
 
   private calculateAccuracy(prediction: any, actual: any): number {
-    // Simple accuracy calculation
-    return 0.7; // Placeholder
+    let score = 0;
+    if (prediction.vendor && actual.vendor) {
+      if (
+        prediction.vendor.toLowerCase() === actual.vendor.toLowerCase()
+      ) {
+        score += 0.4;
+      }
+    }
+    if (
+      typeof prediction.severity === 'number' &&
+      typeof actual.severity === 'number'
+    ) {
+      const diff = Math.abs(prediction.severity - actual.severity);
+      score += diff < 1 ? 0.4 : diff < 2 ? 0.2 : 0;
+    }
+    if (
+      prediction.exploited !== undefined &&
+      actual.exploited !== undefined
+    ) {
+      score += prediction.exploited === actual.exploited ? 0.2 : 0;
+    }
+    return Math.round(score * 100) / 100;
   }
 
   async collectUserFeedback(analysisId: string, feedback: any): Promise<void> {
@@ -494,9 +514,13 @@ class ContinuousLearningSystem {
   }
 
   getAccuracyMetrics(): any {
+    const values = Array.from(this.metrics.values());
+    const overall =
+      values.reduce((sum, m) => sum + (m.accuracy || 0), 0) /
+      (values.length || 1);
     return {
-      overall: 0.75,
-      predictions: Array.from(this.metrics.values())
+      overall: Math.round(overall * 100) / 100,
+      predictions: values
     };
   }
 }
