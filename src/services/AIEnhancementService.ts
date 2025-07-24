@@ -112,12 +112,7 @@ export async function fetchPatchesAndAdvisories(
   
   // OpenAI /responses endpoint DOES exist and supports web search
   // Force gpt-4.1 for web search regardless of selected model
-  const openAiSearchCapable = !useGemini && (
-    model.includes('gpt-4') || 
-    model === 'gpt-4.1' ||
-    model === 'gpt-4o' ||
-    model === 'gpt-4-turbo'
-  );
+  const openAiSearchCapable = !useGemini && model === 'gpt-4.1';
   
   // Always use gpt-4.1 for /responses endpoint
   const openAiModelForSearch = openAiSearchCapable ? 'gpt-4.1' : model;
@@ -369,12 +364,7 @@ export async function fetchAIThreatIntelligence(
   const model = useGemini ? (settings.geminiModel || 'gemini-2.5-flash') : (settings.openAiModel || 'gpt-4o');
   const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
   // Re-enable OpenAI web search - /responses endpoint is available
-  const openAiSearchCapable = !useGemini && (
-    model.includes('gpt-4') || 
-    model === 'gpt-4.1' ||
-    model === 'gpt-4o' ||
-    model === 'gpt-4-turbo'
-  );
+  const openAiSearchCapable = !useGemini && model === 'gpt-4.1';
 
   console.log('🚨 Threat Intel DEBUG:');
   console.log('- useGemini:', useGemini);
@@ -601,7 +591,7 @@ export async function generateAIAnalysis(
   const prompt = buildEnhancedAnalysisPrompt(vulnerability, ragContext, relevantDocs.length);
 
   const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
-  const openAiSearchCapable = !useGemini && (model.includes('gpt-4') || model === 'gpt-4.1' || model === 'gpt-4o' || model === 'gpt-4-turbo');
+  const openAiSearchCapable = !useGemini && model === 'gpt-4.1';
 
   const requestBody: any = useGemini
     ? {
@@ -800,12 +790,7 @@ export async function fetchGeneralAnswer(query: string, settings: any, fetchWith
   const model = useGemini ? (settings.geminiModel || "gemini-2.5-flash") : (settings.openAiModel || 'gpt-4o');
   const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
   // Re-enable OpenAI web search
-  const openAiSearchCapable = !useGemini && (
-    model.includes('gpt-4') || 
-    model === 'gpt-4.1' ||
-    model === 'gpt-4o' ||
-    model === 'gpt-4-turbo'
-  );
+  const openAiSearchCapable = !useGemini && model === 'gpt-4.1';
   
   const requestBody = useGemini
     ? {
@@ -830,12 +815,13 @@ export async function fetchGeneralAnswer(query: string, settings: any, fetchWith
       : {
           // Standard chat completions format
           model,
-          messages: [{ 
-            role: 'user', 
-            content: query 
+          messages: [{
+            role: 'user',
+            content: query
           }],
           max_tokens: 1024,
-          temperature: 0.3
+          temperature: 0.3,
+          tools: [{ type: 'function', function: { name: 'web_search' } }]
         };
 
   const apiUrl = useGemini
@@ -914,12 +900,7 @@ export async function generateAITaintAnalysis(
   const useGemini = !!apiKey;
   const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
   // Re-enable OpenAI web search for taint analysis
-  const openAiSearchCapable = !useGemini && (
-    model.includes('gpt-4') || 
-    model === 'gpt-4.1' ||
-    model === 'gpt-4o' ||
-    model === 'gpt-4-turbo'
-  );
+  const openAiSearchCapable = !useGemini && model === 'gpt-4.1';
 
   const prompt = `Perform conceptual taint analysis for ${vulnerability?.cve?.id} based on the following description:\n${vulnerability?.cve?.description}`;
 
@@ -1234,4 +1215,22 @@ function removeDuplicates(array: any[], property: string): any[] {
     seen.add(value);
     return true;
   });
+}
+
+// Simple utility to parse JSON embedded in description-style responses
+export function parseDescriptionBasedResponse(text: string, _cveId: string) {
+  const match = text.match(/```json\n([\s\S]*?)\n```/i);
+  let data: any = {};
+  if (match) {
+    try {
+      data = JSON.parse(match[1]);
+    } catch {
+      data = {};
+    }
+  }
+  return {
+    patches: data.patches || [],
+    advisories: data.advisories || [],
+    searchSummary: { patchesFound: (data.patches || []).length }
+  };
 }
