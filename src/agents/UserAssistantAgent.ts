@@ -23,6 +23,104 @@ import { extractComponentNames } from '../utils/componentUtils';
 import { CONSTANTS } from '../utils/constants';
 import { CVE_REGEX } from '../utils/cveRegex';
 
+// Utility to map CVSS score to severity label
+export const getCVSSSeverity = (score: number): string => {
+  if (score === 0) return 'NONE';
+  if (score < 4.0) return 'LOW';
+  if (score < 7.0) return 'MEDIUM';
+  if (score < 9.0) return 'HIGH';
+  return 'CRITICAL';
+};
+
+// ===== Types for AI grounding engine =====
+export interface GroundedSearchResult {
+  content: string;
+  sources: string[];
+  confidence: number;
+}
+
+export interface AIGroundingConfig {
+  enableWebGrounding?: boolean;
+  autoLearn?: boolean;
+  crossValidate?: boolean;
+  updateFrequency?: string;
+  confidenceThreshold?: number;
+  maxSearchDepth?: number;
+}
+
+// Simple grounding engine using Gemini and OpenAI
+export class AIGroundingEngine {
+  constructor(
+    private config: AIGroundingConfig = {},
+    private keys: { gemini?: string; openai?: string } = {}
+  ) {}
+
+  async search(query: string): Promise<GroundedSearchResult> {
+    const result: GroundedSearchResult = { content: '', sources: [], confidence: 0 };
+
+    if (!this.config.enableWebGrounding) {
+      return result;
+    }
+
+    // Gemini search
+    if (this.keys.gemini) {
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.keys.gemini}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: query }] }],
+              generationConfig: { temperature: 0.1, maxOutputTokens: 4096 }
+            })
+          }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          result.content += text;
+          result.confidence = Math.max(result.confidence, 0.6);
+        }
+      } catch (e) {
+        console.error('Gemini grounding failed', e);
+      }
+    }
+
+    // OpenAI search
+    if (this.keys.openai) {
+      try {
+        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${this.keys.openai}`
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o',
+            messages: [{ role: 'user', content: query }],
+            max_tokens: 4096
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const text = data.choices?.[0]?.message?.content || '';
+          result.content += `\n${text}`;
+          result.confidence = Math.max(result.confidence, 0.8);
+        }
+      } catch (e) {
+        console.error('OpenAI grounding failed', e);
+      }
+    }
+
+    return result;
+  }
+
+  async learn(_result: GroundedSearchResult): Promise<void> {
+    // Placeholder for automatic learning storage
+  }
+}
+
 interface ConversationContext {
   currentTopic?: string;
   lastIntent?: string;
@@ -57,6 +155,8 @@ export class UserAssistantAgent {
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
   private readonly DEFAULT_CACHE_TTL = 300000; // 5 minutes
   private cacheTTL: number;
+  private groundingEngine?: AIGroundingEngine;
+  private groundingConfig?: AIGroundingConfig;
   private readonly DEFAULT_RETRY_CONFIG: RetryConfig = {
     maxRetries: 3,
     baseDelay: 1000,
@@ -75,6 +175,14 @@ export class UserAssistantAgent {
       userExpertiseLevel: 'intermediate',
       emergencyMode: false
     };
+
+    if (this.settings.openAiApiKey || this.settings.geminiApiKey) {
+      this.groundingConfig = this.settings.groundingConfig;
+      this.groundingEngine = new AIGroundingEngine(this.groundingConfig || {}, {
+        gemini: this.settings.geminiApiKey,
+        openai: this.settings.openAiApiKey,
+      });
+    }
   }
 
   // Basic query analysis for multi-intent understanding and sentiment
@@ -185,7 +293,29 @@ export class UserAssistantAgent {
   private async handleCVEQuery(query: string, cveId: string): Promise<ChatResponse> {
     try {
       const lowerQuery = query.toLowerCase();
-      
+
+      // Future CVE warning
+      const yearMatch = cveId.match(/CVE-(\d{4})-/);
+      if (yearMatch) {
+        const year = parseInt(yearMatch[1]);
+        const currentYear = new Date().getFullYear();
+        if (year > currentYear) {
+          return {
+            text: `⚠️ ${cveId} appears to reference a future year. Please verify the CVE ID.`,
+            sender: 'bot',
+            id: Date.now().toString(),
+          };
+        }
+      }
+
+      // Use grounded info for specific intents
+      if (this.groundingEngine && (lowerQuery.includes('exploit') || lowerQuery.includes('patch') || lowerQuery.includes('validate') || lowerQuery.includes('risk'))) {
+        const grounded = await this.getGroundedInfo(`${cveId} ${query}`);
+        if (grounded.content && grounded.confidence >= (this.groundingConfig?.confidenceThreshold ?? 0)) {
+          return { text: grounded.content, sender: 'bot', id: Date.now().toString(), confidence: grounded.confidence };
+        }
+      }
+
       // Determine intent based on keywords
       if (lowerQuery.includes('validate') || lowerQuery.includes('verify') || lowerQuery.includes('legitimate')) {
         return await this.getValidationInfo(cveId);
@@ -532,6 +662,36 @@ export class UserAssistantAgent {
     };
   }
 
+  // ===== Grounding and validation helpers =====
+  private async getGroundedInfo(query: string): Promise<GroundedSearchResult> {
+    if (!this.groundingEngine) {
+      return { content: '', sources: [], confidence: 0 };
+    }
+    const result = await this.groundingEngine.search(query);
+    if (this.groundingConfig?.autoLearn) {
+      await this.groundingEngine.learn(result);
+    }
+    return result;
+  }
+
+  private async storeLearningData(result: GroundedSearchResult): Promise<void> {
+    try {
+      await this.groundingEngine?.learn(result);
+    } catch (e) {
+      console.error('Learning storage failed', e);
+    }
+  }
+
+  private validateCVEData(data: any): any {
+    if (data?.cvssV3?.baseScore) {
+      const correct = getCVSSSeverity(data.cvssV3.baseScore);
+      if (data.cvssV3.baseSeverity !== correct) {
+        data.cvssV3.baseSeverity = correct;
+      }
+    }
+    return data;
+  }
+
   // Calculate dispute risk level
   private calculateDisputeRiskLevel(result: any): string {
     if (result.confidence > 0.8 && result.isDisputed) {
@@ -574,6 +734,7 @@ export class UserAssistantAgent {
           `cve_${cveId}`,
           () => APIService.fetchCVEData(cveId, this.settings?.nvdApiKey, () => {})
         );
+        cveData = this.validateCVEData(cveData);
       } catch (error) {
         console.log('CVE data fetch failed:', error);
       }
@@ -891,6 +1052,7 @@ export class UserAssistantAgent {
           `cve_${cveId}`,
           () => APIService.fetchCVEData(cveId, this.settings?.nvdApiKey, () => {})
         );
+        cveData = this.validateCVEData(cveData);
       } catch (error) {
         console.log('CVE data fetch failed:', error);
         errors.push('Official CVE data unavailable');
@@ -947,14 +1109,30 @@ export class UserAssistantAgent {
       
       // Key findings with affected products
       if (cveData?.description) {
-        const severity = cveData.cvssV3?.baseSeverity?.toLowerCase() || 'unknown';
+        const severity = getCVSSSeverity(cveData.cvssV3?.baseScore || 0).toLowerCase();
         const affectedProducts = this.extractAffectedProductsSimple(cveData.description);
-        
+
+        let desc = cveData.description;
+        let truncated = false;
+        if (desc.length > 300) {
+          truncated = true;
+          desc = desc.substring(0, 300) + '...';
+        }
+
         report += `🔍 **Key Finding:** ${cveId} is a ${severity} severity vulnerability`;
         if (affectedProducts.length > 0) {
           report += ` affecting ${affectedProducts.join(', ')}`;
         }
-        report += `. ${cveData.description.substring(0, 200)}...\n\n`;
+        report += `. ${desc}`;
+        if (truncated) {
+          const more = await this.getGroundedInfo(`${cveId} full description`);
+          if (more.content) {
+            report += `\n\n${more.content}`;
+          } else {
+            report += ' [description truncated]';
+          }
+        }
+        report += `\n\n`;
       } else {
         report += `🔍 **Key Finding:** ${cveId} vulnerability analysis is in progress. Limited data available.\n\n`;
       }
@@ -971,7 +1149,7 @@ export class UserAssistantAgent {
       // Technical details
       report += `📊 **Technical Details:**\n`;
       if (cveData?.cvssV3) {
-        report += `• **CVSS v3 Score:** ${cveData.cvssV3.baseScore}/10 (${cveData.cvssV3.baseSeverity})\n`;
+        report += `• **CVSS v3 Score:** ${cveData.cvssV3.baseScore}/10 (${getCVSSSeverity(cveData.cvssV3.baseScore)})\n`;
         report += `• **Attack Vector:** ${cveData.cvssV3.attackVector || 'Unknown'}\n`;
         report += `• **Attack Complexity:** ${cveData.cvssV3.attackComplexity || 'Unknown'}\n`;
         report += `• **Privileges Required:** ${cveData.cvssV3.privilegesRequired || 'Unknown'}\n`;
@@ -2276,10 +2454,11 @@ export class UserAssistantAgent {
   // Generate a concise risk assessment
   private async getRiskAssessment(cveId: string): Promise<ChatResponse> {
     try {
-      const cveData = await this.getCachedOrFetch(
+      let cveData = await this.getCachedOrFetch(
         `cve_${cveId}`,
         () => APIService.fetchCVEData(cveId, this.settings?.nvdApiKey, () => {})
       );
+      cveData = this.validateCVEData(cveData);
 
       const epssData: EPSSData | null = await this.getCachedOrFetch(
         `epss_${cveId}`,
@@ -2603,7 +2782,7 @@ export class UserAssistantAgent {
               }],
               generationConfig: {
                 temperature: 0.1,
-                maxOutputTokens: 2048,
+                maxOutputTokens: 4096,
               }
             })
           });
@@ -2618,8 +2797,32 @@ export class UserAssistantAgent {
           }
 
           const data = await response.json();
-          const generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          
+          let generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+
+          if (this.settings.openAiApiKey) {
+            try {
+              const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${this.settings.openAiApiKey}`
+                },
+                body: JSON.stringify({
+                  model: 'gpt-4o',
+                  messages: [{ role: 'user', content: query }],
+                  max_tokens: 4096
+                })
+              });
+              if (openaiRes.ok) {
+                const openData = await openaiRes.json();
+                const openText = openData.choices?.[0]?.message?.content || '';
+                generatedText += `\n${openText}`;
+              }
+            } catch (e) {
+              console.error('OpenAI web search failed', e);
+            }
+          }
+
           return {
             summary: generatedText,
             patches: [],
@@ -2777,7 +2980,7 @@ export class UserAssistantAgent {
       if (!result.data) return;
       const desc = result.data.cve?.cve?.descriptions?.[0]?.value || '';
       const components = extractComponentNames(desc);
-      const severity = result.data.cve?.cvssV3?.baseSeverity || 'UNKNOWN';
+      const severity = getCVSSSeverity(result.data.cve?.cvssV3?.baseScore ?? 0);
 
       const comps = components.length > 0 ? components : ['Unknown'];
       comps.forEach(name => {
