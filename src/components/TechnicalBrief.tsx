@@ -6,7 +6,188 @@ import { createStyles } from '../utils/styles';
 import { COLORS } from '../utils/constants';
 
 interface TechnicalBriefProps {
-  brief: string | null | undefined | any; // Allow any type and handle it
+  brief: string | null | undefined | any;
+  defaultExpandedSections?: string[];
+}
+
+interface Section {
+  id: string;
+  title: string;
+  content: string;
+  level: number;
+}
+
+// Section content component with show more/less functionality
+const SectionContent: React.FC<{
+  content: string;
+  isLongContent: boolean;
+  settings: any;
+}> = ({ content, isLongContent, settings }) => {
+  const [showFullContent, setShowFullContent] = useState(false);
+  const PREVIEW_LENGTH = 1000; // Characters to show in preview
+  const PREVIEW_LINES = 15; // Maximum lines to show in preview
+  
+  // Split content by lines for better truncation
+  const lines = content.split('\n');
+  const totalLines = lines.length;
+  
+  let displayContent = content;
+  let actualPreviewLength = PREVIEW_LENGTH;
+  
+  if (isLongContent && !showFullContent) {
+    // Truncate by lines first if we have too many
+    if (totalLines > PREVIEW_LINES) {
+      const previewLines = lines.slice(0, PREVIEW_LINES);
+      const lineBasedContent = previewLines.join('\n');
+      
+      // If line-based truncation is shorter, use it
+      if (lineBasedContent.length < PREVIEW_LENGTH) {
+        displayContent = lineBasedContent + '\n...';
+        actualPreviewLength = lineBasedContent.length;
+      } else {
+        // Otherwise use character-based truncation
+        displayContent = content.substring(0, PREVIEW_LENGTH) + '...';
+      }
+    } else {
+      // Use character-based truncation
+      displayContent = content.substring(0, PREVIEW_LENGTH) + '...';
+    }
+  }
+  
+  const hiddenCharCount = content.length - actualPreviewLength;
+  const hiddenLineCount = totalLines - PREVIEW_LINES;
+  
+  return (
+    <div style={{ position: 'relative' }}>
+      <div style={{
+        position: 'relative',
+        overflow: 'hidden'
+      }}>
+        <ReactMarkdown 
+          remarkPlugins={[remarkGfm]}
+          components={{
+            // Override pre and code to handle long content
+            pre: ({node, ...props}) => (
+              <pre style={{
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+                overflowWrap: 'break-word',
+                maxWidth: '100%',
+                overflow: 'auto',
+                background: settings.darkMode ? COLORS.dark.background : COLORS.light.background,
+                padding: '12px',
+                borderRadius: '4px',
+                fontSize: '0.875rem'
+              }} {...props} />
+            ),
+            code: ({node, inline, ...props}) => (
+              <code style={{
+                whiteSpace: inline ? 'normal' : 'pre-wrap',
+                wordBreak: 'break-word',
+                overflowWrap: 'break-word',
+                maxWidth: '100%',
+                background: inline ? (settings.darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') : 'transparent',
+                padding: inline ? '2px 4px' : '0',
+                borderRadius: inline ? '3px' : '0',
+                fontSize: inline ? '0.875em' : 'inherit'
+              }} {...props} />
+            ),
+            p: ({node, ...props}) => (
+              <p style={{
+                marginBottom: '12px',
+                lineHeight: '1.6',
+                wordBreak: 'break-word',
+                overflowWrap: 'break-word'
+              }} {...props} />
+            ),
+            ul: ({node, ...props}) => (
+              <ul style={{
+                marginBottom: '12px',
+                paddingLeft: '24px',
+                lineHeight: '1.6'
+              }} {...props} />
+            ),
+            ol: ({node, ...props}) => (
+              <ol style={{
+                marginBottom: '12px',
+                paddingLeft: '24px',
+                lineHeight: '1.6'
+              }} {...props} />
+            ),
+            li: ({node, ...props}) => (
+              <li style={{
+                marginBottom: '4px'
+              }} {...props} />
+            )
+          }}
+        >
+          {displayContent}
+        </ReactMarkdown>
+        
+        {/* Gradient overlay for truncated content */}
+        {isLongContent && !showFullContent && (
+          <div style={{
+            position: 'absolute',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            height: '80px',
+            background: `linear-gradient(transparent 0%, ${settings.darkMode ? COLORS.dark.background : COLORS.light.background} 85%)`,
+            pointerEvents: 'none'
+          }} />
+        )}
+      </div>
+      
+      {/* Show More/Less button */}
+      {isLongContent && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          marginTop: '16px'
+        }}>
+          <button
+            onClick={() => setShowFullContent(!showFullContent)}
+            style={{
+              padding: '8px 24px',
+              background: settings.darkMode ? COLORS.dark.secondaryBackground : COLORS.light.secondaryBackground,
+              color: COLORS.blue,
+              border: `1px solid ${COLORS.blue}`,
+              borderRadius: '4px',
+              fontSize: '0.875rem',
+              fontWeight: '500',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = COLORS.blue;
+              e.currentTarget.style.color = 'white';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = settings.darkMode ? COLORS.dark.secondaryBackground : COLORS.light.secondaryBackground;
+              e.currentTarget.style.color = COLORS.blue;
+            }}
+          >
+            <span style={{ fontSize: '1rem' }}>
+              {showFullContent ? '−' : '+'}
+            </span>
+            {showFullContent ? 'Show Less' : 'Show More'}
+            {!showFullContent && hiddenCharCount > 0 && (
+              <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>
+                ({hiddenCharCount.toLocaleString()} more chars{hiddenLineCount > 0 ? `, ${hiddenLineCount} more lines` : ''})
+              </span>
+            )}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
+interface TechnicalBriefProps {
+  brief: string | null | undefined | any;
   defaultExpandedSections?: string[];
 }
 
@@ -236,9 +417,6 @@ const TechnicalBrief: React.FC<TechnicalBriefProps> = ({
     console.log(`Total sections parsed: ${sections.length}`);
     sections.forEach((section, index) => {
       console.log(`Section ${index}: "${section.title}" - ${section.content.length} chars`);
-      if (section.content.length < 50) {
-        console.log(`  Content preview: "${section.content.substring(0, 100)}"`);
-      }
     });
     
     return sections;
@@ -355,6 +533,8 @@ const TechnicalBrief: React.FC<TechnicalBriefProps> = ({
     fontSize: '0.9rem',
     lineHeight: '1.6',
     whiteSpace: 'pre-wrap' as const,
+    wordBreak: 'break-word' as const,
+    overflowWrap: 'break-word' as const,
     marginTop: '0',
     marginBottom: '12px',
     marginLeft: level > 1 ? `${(level - 1) * 16}px` : '0',
@@ -362,6 +542,8 @@ const TechnicalBrief: React.FC<TechnicalBriefProps> = ({
     borderTopLeftRadius: '0',
     borderTopRightRadius: '0',
     paddingTop: '16px',
+    maxWidth: '100%',
+    overflow: 'hidden',
   });
 
   const handleSectionHover = (e: React.MouseEvent<HTMLDivElement>, isEntering: boolean) => {
@@ -414,7 +596,7 @@ const TechnicalBrief: React.FC<TechnicalBriefProps> = ({
   };
 
   return (
-    <div style={{ ...styles.card, padding: '20px' }}>
+    <div style={{ ...styles.card, padding: '20px', maxWidth: '100%', overflow: 'hidden' }}>
       {/* CVE Summary Card */}
       <div style={summaryCardStyle}>
         <div style={summaryHeaderStyle}>
@@ -518,6 +700,7 @@ const TechnicalBrief: React.FC<TechnicalBriefProps> = ({
       {/* Sections */}
       {sections.map((section) => {
         const expanded = isExpanded(section.id);
+        const isLongContent = section.content.length > 2000;
         
         return (
           <div key={section.id} style={{ marginBottom: '4px' }}>
@@ -530,6 +713,18 @@ const TechnicalBrief: React.FC<TechnicalBriefProps> = ({
             >
               <span style={getIconStyle(expanded)}>▶</span>
               <span style={{ flex: 1 }}>{section.title}</span>
+              {section.content.length > 500 && (
+                <span style={{ 
+                  fontSize: '0.7rem',
+                  color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText,
+                  marginLeft: '8px',
+                  padding: '2px 6px',
+                  background: settings.darkMode ? COLORS.dark.background : COLORS.light.background,
+                  borderRadius: '3px'
+                }}>
+                  {section.content.length.toLocaleString()} chars
+                </span>
+              )}
               <span style={{ 
                 fontSize: '0.75rem',
                 color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText,
@@ -543,9 +738,11 @@ const TechnicalBrief: React.FC<TechnicalBriefProps> = ({
             {expanded && (
               <div style={getContentStyle(section.level)}>
                 {section.content && section.content.trim() ? (
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {section.content}
-                  </ReactMarkdown>
+                  <SectionContent 
+                    content={section.content}
+                    isLongContent={isLongContent}
+                    settings={settings}
+                  />
                 ) : (
                   <div style={{ 
                     color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText,
@@ -555,48 +752,45 @@ const TechnicalBrief: React.FC<TechnicalBriefProps> = ({
                     No content available for this section.
                   </div>
                 )}
-                
-                {/* Debug info - remove in production */}
-                {process.env.NODE_ENV === 'development' && (
-                  <div style={{ 
-                    fontSize: '0.75rem',
-                    color: '#999',
-                    borderTop: '1px solid #ddd',
-                    paddingTop: '8px',
-                    marginTop: '16px'
-                  }}>
-                    Debug: Content length: {section.content?.length || 0}, ID: {section.id}
-                  </div>
-                )}
               </div>
             )}
           </div>
         );
       })}
 
-      {/* Debug info for the input type - only in development */}
-      {process.env.NODE_ENV === 'development' && typeof brief !== 'string' && (
-        <div style={{ 
-          fontSize: '0.75rem',
-          color: '#ff6666',
-          border: '1px solid #ff6666',
-          padding: '8px',
-          marginTop: '16px',
-          borderRadius: '4px',
-          backgroundColor: 'rgba(255, 102, 102, 0.1)'
+      {/* Export option for very long content */}
+      {briefContent.length > 10000 && (
+        <div style={{
+          marginTop: '20px',
+          padding: '12px',
+          background: settings.darkMode ? COLORS.dark.secondaryBackground : COLORS.light.secondaryBackground,
+          borderRadius: '6px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
         }}>
-          Warning: TechnicalBrief received non-string input. Type: {typeof brief}
-          {brief && typeof brief === 'object' && (
-            <>
-              <div>Keys: {Object.keys(brief).join(', ')}</div>
-              <div>Values types: {Object.values(brief).map(v => typeof v).join(', ')}</div>
-              {Object.entries(brief).slice(0, 3).map(([key, value]) => (
-                <div key={key} style={{ fontSize: '0.7rem', marginTop: '4px' }}>
-                  {key}: {typeof value === 'object' ? JSON.stringify(value).substring(0, 50) + '...' : String(value).substring(0, 50) + '...'}
-                </div>
-              ))}
-            </>
-          )}
+          <span style={{ fontSize: '0.85rem' }}>
+            Full analysis contains {briefContent.length.toLocaleString()} characters
+          </span>
+          <button
+            style={{
+              ...buttonStyle,
+              background: COLORS.blue,
+              color: 'white',
+              border: 'none'
+            }}
+            onClick={() => {
+              const blob = new Blob([briefContent], { type: 'text/plain' });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `${cveSummary.cveId || 'analysis'}.txt`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+          >
+            Export Full Text
+          </button>
         </div>
       )}
     </div>
