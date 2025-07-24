@@ -17,169 +17,74 @@ interface Section {
   level: number;
 }
 
-// Section content component with show more/less functionality
-const SectionContent: React.FC<{
-  content: string;
-  isLongContent: boolean;
-  settings: any;
-}> = ({ content, isLongContent, settings }) => {
-  const [showFullContent, setShowFullContent] = useState(false);
-  const PREVIEW_LENGTH = 1000; // Characters to show in preview
-  const PREVIEW_LINES = 15; // Maximum lines to show in preview
-  
-  // Split content by lines for better truncation
-  const lines = content.split('\n');
-  const totalLines = lines.length;
-  
-  let displayContent = content;
-  let actualPreviewLength = PREVIEW_LENGTH;
-  
-  if (isLongContent && !showFullContent) {
-    // Truncate by lines first if we have too many
-    if (totalLines > PREVIEW_LINES) {
-      const previewLines = lines.slice(0, PREVIEW_LINES);
-      const lineBasedContent = previewLines.join('\n');
-      
-      // If line-based truncation is shorter, use it
-      if (lineBasedContent.length < PREVIEW_LENGTH) {
-        displayContent = lineBasedContent + '\n...';
-        actualPreviewLength = lineBasedContent.length;
-      } else {
-        // Otherwise use character-based truncation
-        displayContent = content.substring(0, PREVIEW_LENGTH) + '...';
-      }
-    } else {
-      // Use character-based truncation
-      displayContent = content.substring(0, PREVIEW_LENGTH) + '...';
-    }
-  }
-  
-  const hiddenCharCount = content.length - actualPreviewLength;
-  const hiddenLineCount = totalLines - PREVIEW_LINES;
-  
+const CollapsibleSection = ({ title, content, level, settings, defaultExpanded = false }) => {
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
+
+  const toggleSection = () => {
+    setIsExpanded(!isExpanded);
+  };
+
+  const getSectionHeaderStyle = (level, expanded) => ({
+    display: 'flex',
+    alignItems: 'center',
+    cursor: 'pointer',
+    padding: `${Math.max(12 - level, 8)}px 16px`,
+    backgroundColor: settings.darkMode ? COLORS.dark.secondaryBackground : COLORS.light.secondaryBackground,
+    borderRadius: '6px',
+    marginBottom: expanded ? '8px' : '4px',
+    marginTop: level === 1 ? '0' : '8px',
+    border: `1px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}`,
+    userSelect: 'none',
+    fontSize: `${1.2 - (level * 0.1)}rem`,
+    fontWeight: level <= 2 ? '600' : '500',
+    transition: 'all 0.2s ease',
+  });
+
+  const getIconStyle = (expanded) => ({
+    display: 'inline-block',
+    transition: 'transform 0.2s ease',
+    transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)',
+    marginRight: '12px',
+    fontSize: '0.875rem',
+    color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText,
+  });
+
+  const getContentStyle = (level) => ({
+    fontSize: '0.9rem',
+    lineHeight: '1.6',
+    whiteSpace: 'pre-wrap',
+    wordBreak: 'break-word',
+    overflowWrap: 'break-word',
+    marginTop: '0',
+    marginBottom: '12px',
+    marginLeft: level > 1 ? `${(level - 1) * 16}px` : '0',
+    borderTop: `1px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}`,
+    borderTopLeftRadius: '0',
+    borderTopRightRadius: '0',
+    paddingTop: '16px',
+    maxWidth: '100%',
+    overflow: 'hidden',
+  });
+
   return (
-    <div style={{ position: 'relative' }}>
-      <div style={{
-        position: 'relative',
-        overflow: 'hidden'
-      }}>
-        <ReactMarkdown 
-          remarkPlugins={[remarkGfm]}
-          components={{
-            // Override pre and code to handle long content
-            pre: ({node, ...props}) => (
-              <pre style={{
-                whiteSpace: 'pre-wrap',
-                wordBreak: 'break-word',
-                overflowWrap: 'break-word',
-                maxWidth: '100%',
-                overflow: 'auto',
-                background: settings.darkMode ? COLORS.dark.background : COLORS.light.background,
-                padding: '12px',
-                borderRadius: '4px',
-                fontSize: '0.875rem'
-              }} {...props} />
-            ),
-            code: ({node, inline, ...props}) => (
-              <code style={{
-                whiteSpace: inline ? 'normal' : 'pre-wrap',
-                wordBreak: 'break-word',
-                overflowWrap: 'break-word',
-                maxWidth: '100%',
-                background: inline ? (settings.darkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)') : 'transparent',
-                padding: inline ? '2px 4px' : '0',
-                borderRadius: inline ? '3px' : '0',
-                fontSize: inline ? '0.875em' : 'inherit'
-              }} {...props} />
-            ),
-            p: ({node, ...props}) => (
-              <p style={{
-                marginBottom: '12px',
-                lineHeight: '1.6',
-                wordBreak: 'break-word',
-                overflowWrap: 'break-word'
-              }} {...props} />
-            ),
-            ul: ({node, ...props}) => (
-              <ul style={{
-                marginBottom: '12px',
-                paddingLeft: '24px',
-                lineHeight: '1.6'
-              }} {...props} />
-            ),
-            ol: ({node, ...props}) => (
-              <ol style={{
-                marginBottom: '12px',
-                paddingLeft: '24px',
-                lineHeight: '1.6'
-              }} {...props} />
-            ),
-            li: ({node, ...props}) => (
-              <li style={{
-                marginBottom: '4px'
-              }} {...props} />
-            )
-          }}
-        >
-          {displayContent}
-        </ReactMarkdown>
-        
-        {/* Gradient overlay for truncated content */}
-        {isLongContent && !showFullContent && (
-          <div style={{
-            position: 'absolute',
-            bottom: 0,
-            left: 0,
-            right: 0,
-            height: '80px',
-            background: `linear-gradient(transparent 0%, ${settings.darkMode ? COLORS.dark.background : COLORS.light.background} 85%)`,
-            pointerEvents: 'none'
-          }} />
-        )}
-      </div>
-      
-      {/* Show More/Less button */}
-      {isLongContent && (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          marginTop: '16px'
+    <div style={{ marginBottom: '4px' }}>
+      <div
+        style={getSectionHeaderStyle(level, isExpanded)}
+        onClick={toggleSection}
+      >
+        <span style={getIconStyle(isExpanded)}>▶</span>
+        <span style={{ flex: 1 }}>{title}</span>
+        <span style={{
+          fontSize: '0.75rem',
+          color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText,
+          marginLeft: '8px'
         }}>
-          <button
-            onClick={() => setShowFullContent(!showFullContent)}
-            style={{
-              padding: '8px 24px',
-              background: settings.darkMode ? COLORS.dark.secondaryBackground : COLORS.light.secondaryBackground,
-              color: COLORS.blue,
-              border: `1px solid ${COLORS.blue}`,
-              borderRadius: '4px',
-              fontSize: '0.875rem',
-              fontWeight: '500',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = COLORS.blue;
-              e.currentTarget.style.color = 'white';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = settings.darkMode ? COLORS.dark.secondaryBackground : COLORS.light.secondaryBackground;
-              e.currentTarget.style.color = COLORS.blue;
-            }}
-          >
-            <span style={{ fontSize: '1rem' }}>
-              {showFullContent ? '−' : '+'}
-            </span>
-            {showFullContent ? 'Show Less' : 'Show More'}
-            {!showFullContent && hiddenCharCount > 0 && (
-              <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>
-                ({hiddenCharCount.toLocaleString()} more chars{hiddenLineCount > 0 ? `, ${hiddenLineCount} more lines` : ''})
-              </span>
-            )}
-          </button>
+          {isExpanded ? '−' : '+'}
+        </span>
+      </div>
+      {isExpanded && (
+        <div style={getContentStyle(level)}>
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
         </div>
       )}
     </div>
@@ -698,65 +603,16 @@ const TechnicalBrief: React.FC<TechnicalBriefProps> = ({
       </div>
 
       {/* Sections */}
-      {sections.map((section) => {
-        const expanded = isExpanded(section.id);
-        const isLongContent = section.content.length > 2000;
-        
-        return (
-          <div key={section.id} style={{ marginBottom: '4px' }}>
-            {/* Section Header */}
-            <div
-              style={getSectionHeaderStyle(section.level, expanded)}
-              onClick={() => toggleSection(section.id)}
-              onMouseEnter={(e) => handleSectionHover(e, true)}
-              onMouseLeave={(e) => handleSectionHover(e, false)}
-            >
-              <span style={getIconStyle(expanded)}>▶</span>
-              <span style={{ flex: 1 }}>{section.title}</span>
-              {section.content.length > 500 && (
-                <span style={{ 
-                  fontSize: '0.7rem',
-                  color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText,
-                  marginLeft: '8px',
-                  padding: '2px 6px',
-                  background: settings.darkMode ? COLORS.dark.background : COLORS.light.background,
-                  borderRadius: '3px'
-                }}>
-                  {section.content.length.toLocaleString()} chars
-                </span>
-              )}
-              <span style={{ 
-                fontSize: '0.75rem',
-                color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText,
-                marginLeft: '8px'
-              }}>
-                {expanded ? '−' : '+'}
-              </span>
-            </div>
-
-            {/* Section Content */}
-            {expanded && (
-              <div style={getContentStyle(section.level)}>
-                {section.content && section.content.trim() ? (
-                  <SectionContent 
-                    content={section.content}
-                    isLongContent={isLongContent}
-                    settings={settings}
-                  />
-                ) : (
-                  <div style={{ 
-                    color: settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText,
-                    fontStyle: 'italic',
-                    padding: '16px'
-                  }}>
-                    No content available for this section.
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })}
+      {sections.map((section, index) => (
+        <CollapsibleSection
+          key={index}
+          title={section.title}
+          content={section.content}
+          level={section.level}
+          settings={settings}
+          defaultExpanded={index === 0} // Expand the first section by default
+        />
+      ))}
 
       {/* Export option for very long content */}
       {briefContent.length > 10000 && (

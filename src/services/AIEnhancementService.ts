@@ -158,7 +158,7 @@ Please provide information about any patches, updates, or advisories you find fo
           temperature: 0.1,
           topK: 40,
           topP: 0.95,
-          maxOutputTokens: 4096,
+          maxOutputTokens: 8192,
           candidateCount: 1
         },
         tools: [{ google_search: {} }]
@@ -410,7 +410,7 @@ Provide specific information about any threats, exploits, or active usage you fi
             temperature: 0.05,
             topK: 1,
             topP: 0.8,
-            maxOutputTokens: 4096,
+            maxOutputTokens: 8192,
             candidateCount: 1
           },
           tools: [{ google_search: {} }]
@@ -799,7 +799,7 @@ export async function fetchGeneralAnswer(query: string, settings: any, fetchWith
           temperature: 0.3, 
           topK: 1, 
           topP: 0.8, 
-          maxOutputTokens: 1024, 
+          maxOutputTokens: 8192,
           candidateCount: 1 
         },
         tools: geminiSearchCapable ? [{ google_search: {} }] : undefined
