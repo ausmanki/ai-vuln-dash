@@ -43,6 +43,7 @@ import {
   fetchCVEData,
   fetchEPSSData,
   fetchCISAKEVData,
+  AIApiRateLimitError,
 } from '../services/DataFetchingService';
 import {
   fetchPatchesAndAdvisories,
@@ -581,15 +582,31 @@ export class SmartResearchAgent {
       };
 
       // Fetch primary data with parallel optimization
-      const [cveResult, epssResult, cisaKevResult] = await Promise.allSettled([
-        fetchCVEData(cveId, apiKeys.nvd, this.setLoadingSteps, ragDatabase, aiSettingsForFetch),
-        fetchEPSSData(cveId, this.setLoadingSteps, ragDatabase, aiSettingsForFetch),
-        fetchCISAKEVData(cveId, this.setLoadingSteps, ragDatabase, null, aiSettingsForFetch)
-      ]);
+      let cve, epss, cisaKev;
+      try {
+        const [cveResult, epssResult, cisaKevResult] = await Promise.allSettled([
+          fetchCVEData(cveId, apiKeys.nvd, this.setLoadingSteps, ragDatabase, aiSettingsForFetch),
+          fetchEPSSData(cveId, this.setLoadingSteps, ragDatabase, aiSettingsForFetch),
+          fetchCISAKEVData(cveId, this.setLoadingSteps, ragDatabase, null, aiSettingsForFetch)
+        ]);
 
-      const cve = cveResult.status === 'fulfilled' ? cveResult.value : null;
-      const epss = epssResult.status === 'fulfilled' ? epssResult.value : null;
-      const cisaKev = cisaKevResult.status === 'fulfilled' ? cisaKevResult.value : null;
+        cve = cveResult.status === 'fulfilled' ? cveResult.value : null;
+        epss = epssResult.status === 'fulfilled' ? epssResult.value : null;
+        cisaKev = cisaKevResult.status === 'fulfilled' ? cisaKevResult.value : null;
+
+        if (cveResult.status === 'rejected' && cveResult.reason instanceof AIApiRateLimitError) {
+          this.updateSteps(`🚨 AI rate limit hit, falling back to direct NVD fetch for ${cveId}...`);
+          cve = await fetchCVEData(cveId, apiKeys.nvd, this.setLoadingSteps, ragDatabase, null);
+        }
+
+      } catch (error) {
+        if (error instanceof AIApiRateLimitError) {
+          this.updateSteps(`🚨 AI rate limit hit, falling back to direct NVD fetch for ${cveId}...`);
+          cve = await fetchCVEData(cveId, apiKeys.nvd, this.setLoadingSteps, ragDatabase, null);
+        } else {
+          throw error;
+        }
+      }
 
       // Handle KEV status
       if (cisaKev?.listed) {
