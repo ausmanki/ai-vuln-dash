@@ -15,7 +15,25 @@ export async function fetchWithFallback(url: string, options: RequestInit = {}, 
       });
       
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        let errorDetail = response.statusText;
+        try {
+          const text = await response.text();
+          if (text) {
+            try {
+              const data = JSON.parse(text);
+              if (data.error?.message) {
+                errorDetail = data.error.message;
+              } else {
+                errorDetail = text;
+              }
+            } catch {
+              errorDetail = text;
+            }
+          }
+        } catch {
+          // ignore
+        }
+        throw new Error(`HTTP ${response.status}: ${errorDetail}`);
       }
       
       return response;
