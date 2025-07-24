@@ -765,9 +765,22 @@ function extractCVSSInfo(cveData: any): any {
     cvssData = cvssV31 || cvssV30 || {};
   }
   
+  cvssScore = cvssData.baseScore || 'Not available';
+  baseSeverity = cvssData.baseSeverity || 'Not available';
+
+  if (baseSeverity === 'Not available' && cvssScore !== 'Not available') {
+    const scoreNum = parseFloat(cvssScore);
+    if (!isNaN(scoreNum)) {
+      if (scoreNum >= 9.0) baseSeverity = 'CRITICAL';
+      else if (scoreNum >= 7.0) baseSeverity = 'HIGH';
+      else if (scoreNum >= 4.0) baseSeverity = 'MEDIUM';
+      else baseSeverity = 'LOW';
+    }
+  }
+
   return {
-    score: cvssData.baseScore || 'Not available',
-    severity: cvssData.baseSeverity || 'Not available',
+    score: cvssScore,
+    severity: baseSeverity,
     vectorString: cvssData.vectorString || 'Not available',
     attackVector: cvssData.attackVector || 'Unknown',
     attackComplexity: cvssData.attackComplexity || 'Unknown',
@@ -1072,7 +1085,17 @@ function extractCVSSScore(cveData: any): { score: string, severity: string } {
     cvssScore = cvssData.baseScore?.toString() || 'Not available';
     baseSeverity = cvssData.baseSeverity || 'Not available';
   }
-  
+
+  if (baseSeverity === 'Not available' && cvssScore !== 'Not available') {
+    const scoreNum = parseFloat(cvssScore);
+    if (!isNaN(scoreNum)) {
+      if (scoreNum >= 9.0) baseSeverity = 'CRITICAL';
+      else if (scoreNum >= 7.0) baseSeverity = 'HIGH';
+      else if (scoreNum >= 4.0) baseSeverity = 'MEDIUM';
+      else baseSeverity = 'LOW';
+    }
+  }
+
   return { score: cvssScore, severity: baseSeverity };
 }
 
