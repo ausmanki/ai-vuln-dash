@@ -39,7 +39,7 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
   }
   
   const useGemini = !!activeSettings.geminiApiKey;
-  const model = useGemini ? (activeSettings.geminiModel || 'gemini-2.0-flash') : (activeSettings.openAiModel || 'gpt-4o');
+  const model = useGemini ? (activeSettings.geminiModel || 'gemini-2.5-flash') : (activeSettings.openAiModel || 'gpt-4o');
   
   // FORCE OpenAI web search for all OpenAI requests
   const openAiSearchCapable = !useGemini; // Always true for OpenAI
@@ -61,7 +61,7 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
       apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeSettings.geminiApiKey}`;
       requestBody = {
         contents: [{ parts: [{ text: searchPrompt }] }],
-        tools: [{ "google_search": {} }],
+        tools: [{ google_search_retrieval: {} }],
         generationConfig: {
           temperature: 0.1,
           topK: 40,
