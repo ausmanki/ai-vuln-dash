@@ -2,6 +2,13 @@
 import { CONSTANTS } from '../utils/constants';
 import { processCVEData } from './UtilityService';
 
+export class AIApiRateLimitError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'AIApiRateLimitError';
+  }
+}
+
 // Global AI settings
 let globalAISettings: any = null;
 
@@ -114,6 +121,9 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
     if (!response.ok) {
       const errorText = await response.text();
       console.error('❌ API Error Response:', errorText);
+      if (response.status === 429) {
+        throw new AIApiRateLimitError(`AI API Error: ${response.status} - ${errorText}`);
+      }
       throw new Error(`AI API Error: ${response.status} - ${errorText}`);
     }
 
