@@ -161,7 +161,7 @@ Please provide information about any patches, updates, or advisories you find fo
           maxOutputTokens: 4096,
           candidateCount: 1
         },
-        tools: [{ google_search_retrieval: {} }]
+        tools: [{ google_search: {} }]
       }
     : openAiSearchCapable
       ? {
@@ -413,7 +413,7 @@ Provide specific information about any threats, exploits, or active usage you fi
             maxOutputTokens: 4096,
             candidateCount: 1
           },
-          tools: [{ google_search_retrieval: {} }]
+          tools: [{ google_search: {} }]
         } 
       : {
           // FIXED: OpenAI /responses endpoint format
@@ -624,7 +624,7 @@ export async function generateAIAnalysis(
         };
 
   if (useGemini && geminiSearchCapable) {
-    requestBody.tools = [{ google_search_retrieval: {} }];
+    requestBody.tools = [{ google_search: {} }];
   }
 
   const apiUrl = useGemini
@@ -802,7 +802,7 @@ export async function fetchGeneralAnswer(query: string, settings: any, fetchWith
           maxOutputTokens: 1024, 
           candidateCount: 1 
         },
-        tools: geminiSearchCapable ? [{ google_search_retrieval: {} }] : undefined
+        tools: geminiSearchCapable ? [{ google_search: {} }] : undefined
       }
     : openAiSearchCapable
       ? {
@@ -914,7 +914,7 @@ export async function generateAITaintAnalysis(
           maxOutputTokens: 2048, 
           candidateCount: 1 
         },
-        tools: geminiSearchCapable ? [{ google_search_retrieval: {} }] : undefined
+        tools: geminiSearchCapable ? [{ google_search: {} }] : undefined
       }
     : openAiSearchCapable
       ? {
