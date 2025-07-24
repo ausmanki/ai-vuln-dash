@@ -75,7 +75,7 @@ We've built the world's first **AI-Powered Real-Time Vulnerability Intelligence 
 #### **🚀 Core Innovation: AI + Real-Time + Intelligence**
 ```
 ✅ Real-Time API Integration: NIST NVD + FIRST EPSS + CISA KEV
-✅ AI-Powered Analysis: Gemini 2.0 with Web Grounding
+✅ AI-Powered Analysis: Gemini 2.5 with Web Grounding
 ✅ Conversational Chatbot: OpenAI GPT-4o
 ✅ RAG-Enhanced Intelligence: Self-learning threat database
 ✅ Executive Decision Support: Business-ready risk assessments
@@ -89,10 +89,10 @@ We've built the world's first **AI-Powered Real-Time Vulnerability Intelligence 
 - **[NIST NVD](https://nvd.nist.gov/)**: Authoritative vulnerability database
 - **[FIRST EPSS](https://www.first.org/epss/)**: Exploitation probability scoring
 - **[CISA KEV](https://www.cisa.gov/known-exploited-vulnerabilities-catalog)**: Known exploited vulnerabilities
-- **Gemini 2.0 Web Search**: Current threat intelligence
+- **Gemini 2.5 Web Search**: Current threat intelligence
 
 ### **🤖 AI-Powered Intelligence**
-- **Gemini 2.0 Flash**: Web-grounded real-time analysis
+- **Gemini 2.5 Flash**: Web-grounded real-time analysis
 - **RAG Database**: Self-learning security knowledge base
 - **Vector Embeddings**: Semantic vulnerability analysis
 - **Automated Advisory Discovery**: Latest vendor patches & fixes
@@ -271,7 +271,7 @@ node scripts/ai-web-search.js "what was a positive news story from today?"
 ```
 CVE Input → API Aggregation → AI Analysis → Risk Scoring → Decision Support
     ↓              ↓              ↓            ↓              ↓
-  User         Real-Time       Gemini 2.0   CVSS+EPSS    Executive
+  User         Real-Time       Gemini 2.5   CVSS+EPSS    Executive
  Interface      APIs           Analysis      +KEV         Reports
 ```
 
