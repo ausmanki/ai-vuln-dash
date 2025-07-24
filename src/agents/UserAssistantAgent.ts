@@ -719,7 +719,8 @@ export class UserAssistantAgent {
       'UNCERTAIN': 'Insufficient evidence to determine dispute status. Conduct additional research through official sources and treat with standard security precautions.'
     };
 
-    return recommendations[riskLevel] || recommendations['UNCERTAIN'];
+    return recommendations[riskLevel as keyof typeof recommendations] ||
+      recommendations['UNCERTAIN'];
   }
 
   // Enhanced validation with ML dispute detection
