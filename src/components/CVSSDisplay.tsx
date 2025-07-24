@@ -53,6 +53,40 @@ const CVSSDisplay = ({ vulnerability }) => {
         </div>
       </div>
 
+      <div style={{
+        marginBottom: '12px',
+        display: 'inline-block',
+        padding: '6px 12px',
+        borderRadius: '6px',
+        fontSize: '0.8125rem',
+        fontWeight: '700',
+        background: severity === 'CRITICAL'
+          ? 'rgba(239, 68, 68, 0.15)'
+          : severity === 'HIGH'
+          ? 'rgba(245, 158, 11, 0.15)'
+          : severity === 'MEDIUM'
+          ? 'rgba(59, 130, 246, 0.15)'
+          : 'rgba(34, 197, 94, 0.15)',
+        color: severity === 'CRITICAL'
+          ? COLORS.red
+          : severity === 'HIGH'
+          ? COLORS.yellow
+          : severity === 'MEDIUM'
+          ? COLORS.blue
+          : COLORS.green,
+        borderWidth: '1px',
+        borderStyle: 'solid',
+        borderColor: severity === 'CRITICAL'
+          ? 'rgba(239, 68, 68, 0.3)'
+          : severity === 'HIGH'
+          ? 'rgba(245, 158, 11, 0.3)'
+          : severity === 'MEDIUM'
+          ? 'rgba(59, 130, 246, 0.3)'
+          : 'rgba(34, 197, 94, 0.3)'
+      }}>
+        {severity} Severity
+      </div>
+
       {vulnerability.epss && (
         <div style={{
           background: `rgba(${utils.hexToRgb(COLORS.purple)}, 0.1)`,
