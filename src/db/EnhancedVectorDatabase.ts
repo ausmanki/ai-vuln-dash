@@ -1,4 +1,5 @@
 import { CONSTANTS } from '../utils/constants';
+import patchPrompts from '../../docs/Patch_Discovery_RAG_System_Prompts.md?raw';
 
 export class EnhancedVectorDatabase {
   constructor() {
@@ -195,6 +196,15 @@ export class EnhancedVectorDatabase {
         category: item.category,
         tags: item.tags,
         source: 'cve-knowledge-base'
+      });
+    }
+
+    if (patchPrompts) {
+      await this.addDocument(patchPrompts, {
+        title: 'Patch Discovery System Prompts',
+        category: 'prompt-engineering',
+        tags: ['patch', 'rag', 'prompt'],
+        source: 'internal-docs'
       });
     }
   }
