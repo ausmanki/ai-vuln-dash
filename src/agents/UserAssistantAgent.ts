@@ -152,6 +152,8 @@ export class UserAssistantAgent {
   private currentCveIdForSession: string | null = null;
   private bulkAnalysisResults: BulkAnalysisResult[] | null = null;
   private conversationContext: ConversationContext;
+  private userPreferences: UserPreferences;
+  private conversationHistory: { query: string; response: string }[] = [];
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
   private readonly DEFAULT_CACHE_TTL = 300000; // 5 minutes
   private cacheTTL: number;
@@ -175,6 +177,15 @@ export class UserAssistantAgent {
       userExpertiseLevel: 'intermediate',
       emergencyMode: false
     };
+    this.userPreferences = {
+      responseLength: 'detailed',
+      priorityFactors: ['cvss', 'epss', 'kev'],
+      autoSuggestions: true,
+      technicalLevel: 'technical',
+      urgencyThreshold: 0.8,
+      notificationStyle: 'proactive'
+    };
+    this.conversationHistory = [];
 
     if (this.settings.openAiApiKey || this.settings.geminiApiKey) {
       this.groundingConfig = this.settings.groundingConfig;
@@ -211,6 +222,43 @@ export class UserAssistantAgent {
     }
   }
 
+  // Update stored user preferences
+  public setUserPreferences(prefs: Partial<UserPreferences>): void {
+    this.userPreferences = { ...this.userPreferences, ...prefs };
+  }
+
+  // Remember conversation history for context resolution
+  private storeConversation(query: string, response: string): void {
+    this.conversationHistory.unshift({ query, response });
+    if (this.conversationHistory.length > 10) {
+      this.conversationHistory.pop();
+    }
+  }
+
+  // Adjust tone and depth based on technical level preference
+  private applyTechnicalTone(text: string): string {
+    if (this.userPreferences.technicalLevel === 'business') {
+      return text.split('\n').slice(0, 2).join('\n');
+    }
+    if (this.userPreferences.technicalLevel === 'deep_technical') {
+      return `${text}\n\n(Advanced details available on request.)`;
+    }
+    return text;
+  }
+
+  private varyResponse(text: string): string {
+    const variants = [
+      ['Here is', 'Here are', 'Below are'],
+      ['details', 'information', 'insights']
+    ];
+    let varied = text;
+    variants.forEach(([a, b, c]) => {
+      const choice = [a, b, c][Math.floor(Math.random() * 3)];
+      varied = varied.replace(a, choice);
+    });
+    return varied;
+  }
+
   private generateFollowUps(intents: string[], cveId?: string): string[] {
     const suggestions: string[] = [];
     if (cveId) {
@@ -221,6 +269,14 @@ export class UserAssistantAgent {
       suggestions.push('Provide a CVE ID for targeted analysis');
     }
     return suggestions;
+  }
+
+  private checkProactiveSuggestions(): string | null {
+    if (this.conversationContext.recentCVEs.length >= 3 &&
+        this.conversationContext.lastIntent !== 'risk_assessment') {
+      return 'I can run a consolidated risk assessment across the CVEs we\'ve discussed.';
+    }
+    return null;
   }
 
   // Main query handler
@@ -243,6 +299,9 @@ export class UserAssistantAgent {
         this.currentCveIdForSession = operationalCveId;
       } else {
         operationalCveId = this.currentCveIdForSession;
+        if (!operationalCveId && /(it|that cve|this vulnerability)/i.test(query)) {
+          operationalCveId = this.conversationContext.recentCVEs[0] || null;
+        }
       }
 
       if (!operationalCveId && analysis.intents.length === 0) {
@@ -275,14 +334,23 @@ export class UserAssistantAgent {
         response.text += `\n\n**You might also:**\n- ${followUps.join('\n- ')}`;
       }
 
+      const proactive = this.checkProactiveSuggestions();
+      if (proactive && this.userPreferences.autoSuggestions) {
+        response.text += `\n\n💡 ${proactive}`;
+      }
+
+      response.text = this.applyTechnicalTone(this.varyResponse(response.text));
+
       response.confidence = analysis.confidence;
       response.followUps = followUps;
+
+      this.storeConversation(query, response.text);
       return response;
       
     } catch (error: any) {
       console.error('Error in handleQuery:', error);
       return {
-        text: `I encountered an issue processing your request. Could you please try again or rephrase your question?`,
+        text: `I ran into an issue processing your request. Please try again in a moment or rephrase your question. If the problem persists, let our team know.`,
         sender: 'bot',
         id: Date.now().toString(),
         error: error.message
@@ -335,7 +403,7 @@ export class UserAssistantAgent {
     } catch (error: any) {
       console.error('CVE Query Error:', error);
       return {
-        text: `I encountered an issue analyzing ${cveId}. Here are some quick resources:\n\n🔗 **Direct Links:**\n• [NVD Entry](https://nvd.nist.gov/vuln/detail/${cveId})\n• [MITRE Details](https://cve.mitre.org/cgi-bin/cvename.cgi?name=${cveId})\n• [ExploitDB Search](https://www.exploit-db.com/search?cve=${cveId})\n\nWould you like me to help with a specific aspect?`,
+        text: `I had trouble analyzing ${cveId}. Here are a few direct links that might help while I investigate:\n\n🔗 **Direct Links:**\n• [NVD Entry](https://nvd.nist.gov/vuln/detail/${cveId})\n• [MITRE Details](https://cve.mitre.org/cgi-bin/cvename.cgi?name=${cveId})\n• [ExploitDB Search](https://www.exploit-db.com/search?cve=${cveId})`,
         sender: 'bot',
         id: Date.now().toString(),
         error: error.message
@@ -382,8 +450,10 @@ export class UserAssistantAgent {
       response += `We were recently discussing: ${this.conversationContext.recentCVEs.join(', ')}. Would you like to continue with any of these?`;
     }
 
+    const finalText = this.applyTechnicalTone(this.varyResponse(response));
+    this.storeConversation(query, finalText);
     return {
-      text: response,
+      text: finalText,
       sender: 'bot',
       id: Date.now().toString(),
     };
@@ -2916,9 +2986,11 @@ export class UserAssistantAgent {
       if (this.conversationContext.recentCVEs.length > 5) {
         this.conversationContext.recentCVEs.pop();
       }
-      
+
+      const text = `Perfect! I'm now focused on ${this.currentCveIdForSession}. What would you like to know about it?`;
+      this.storeConversation(`context:${cveId}`, text);
       return {
-        text: `Perfect! I'm now focused on ${this.currentCveIdForSession}. What would you like to know about it?`,
+        text,
         sender: 'system',
         id: Date.now().toString(),
       };
