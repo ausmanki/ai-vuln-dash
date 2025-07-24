@@ -24,7 +24,7 @@ async function run() {
           maxOutputTokens: 1024,
           candidateCount: 1
         },
-        tools: [{ google_search: {} }]
+        tools: [{ google_search_retrieval: {} }]
       }
       const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${geminiKey}`
       const response = await fetch(url, {

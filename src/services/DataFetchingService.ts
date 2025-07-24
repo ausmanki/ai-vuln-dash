@@ -54,7 +54,7 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
       apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeSettings.geminiApiKey}`;
       requestBody = {
         contents: [{ parts: [{ text: searchPrompt }] }],
-        tools: [{ google_search: {} }], // Gemini's native web search
+        tools: [{ google_search_retrieval: {} }], // Gemini's native web search
         generationConfig: {
           temperature: 0.1,
           topK: 40,
