@@ -423,6 +423,44 @@ PRODUCT: [product if listed]`;
   }
 }
 
+// Fallback: Directly check the CISA KEV catalog if AI search fails or is unavailable
+async function fetchCisaKevFromCatalog(cveId: string): Promise<any> {
+  const url = 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json';
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch CISA KEV catalog: ${response.status}`);
+  }
+
+  const catalog = await response.json();
+  const entry = (catalog.vulnerabilities || []).find((v: any) => v.cveID === cveId);
+
+  if (entry) {
+    return {
+      cve: cveId,
+      listed: true,
+      source: 'cisa-kev-catalog',
+      confidence: 'HIGH',
+      lastChecked: new Date().toISOString(),
+      dateAdded: entry.dateAdded,
+      shortDescription: entry.shortDescription,
+      requiredAction: entry.requiredAction,
+      dueDate: entry.dueDate,
+      knownRansomwareCampaignUse: entry.knownRansomwareCampaignUse,
+      vendorProject: entry.vendorProject,
+      product: entry.product
+    };
+  }
+
+  return {
+    cve: cveId,
+    listed: false,
+    source: 'cisa-kev-catalog',
+    confidence: 'MEDIUM',
+    lastChecked: new Date().toISOString()
+  };
+}
+
 export async function searchEPSSForCVE(cveId: string, aiSettings: any): Promise<any> {
   console.log(`📊 Searching EPSS data for ${cveId} using AI web search`);
   
@@ -736,16 +774,20 @@ export async function fetchCISAKEVData(cveId: string, setLoadingSteps: any, ragD
   
   // FIXED: Check for AI settings before proceeding
   if (!activeAISettings?.geminiApiKey && !activeAISettings?.openAiApiKey) {
-    updateSteps((prev: any) => [...prev, `⚠️ No AI settings available - using conservative CISA KEV approach`]);
-    
-    return {
-      cve: cveId,
-      listed: false,
-      source: 'no-ai-settings',
-      confidence: 'LOW',
-      lastChecked: new Date().toISOString(),
-      note: 'Could not verify CISA KEV status - no AI configuration available'
-    };
+    updateSteps((prev: any) => [...prev, `⚠️ No AI settings available - using direct CISA KEV catalog`]);
+
+    try {
+      return await fetchCisaKevFromCatalog(cveId);
+    } catch (catalogErr) {
+      return {
+        cve: cveId,
+        listed: false,
+        source: 'kev-catalog-failed',
+        error: catalogErr instanceof Error ? catalogErr.message : String(catalogErr),
+        confidence: 'LOW',
+        lastChecked: new Date().toISOString()
+      };
+    }
   }
   
   updateSteps((prev: any) => [...prev, `🏛️ Searching CISA KEV for ${cveId}...`]);
@@ -776,15 +818,19 @@ export async function fetchCISAKEVData(cveId: string, setLoadingSteps: any, ragD
 
     return kevData;
   } catch (error) {
-    updateSteps((prev: any) => [...prev, `❌ CISA KEV search failed for ${cveId}`]);
-    return {
-      cve: cveId,
-      listed: false,
-      source: 'ai-search-failed',
-      error: error instanceof Error ? error.message : String(error),
-      confidence: 'LOW',
-      lastChecked: new Date().toISOString()
-    };
+    updateSteps((prev: any) => [...prev, `❌ CISA KEV search failed for ${cveId} - falling back to catalog`]);
+    try {
+      return await fetchCisaKevFromCatalog(cveId);
+    } catch (catalogErr) {
+      return {
+        cve: cveId,
+        listed: false,
+        source: 'kev-catalog-failed',
+        error: catalogErr instanceof Error ? catalogErr.message : String(catalogErr),
+        confidence: 'LOW',
+        lastChecked: new Date().toISOString()
+      };
+    }
   }
 }
 
