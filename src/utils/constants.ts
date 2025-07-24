@@ -27,6 +27,32 @@ export const CONSTANTS = {
   }
 };
 
+export const COLORS = {
+  blue: '#3b82f6',
+  purple: '#8b5cf6',
+  green: '#22c55e',
+  red: '#ef4444',
+  yellow: '#f59e0b',
+  dark: {
+    background: '#0f172a',
+    surface: '#1e293b',
+    primaryText: '#f1f5f9',
+    secondaryText: '#94a3b8',
+    tertiaryText: '#64748b',
+    border: '#334155',
+    shadow: 'rgba(0, 0, 0, 0.2)'
+  },
+  light: {
+    background: '#f8fafc',
+    surface: '#ffffff',
+    primaryText: '#0f172a',
+    secondaryText: '#64748b',
+    tertiaryText: '#94a3b8',
+    border: '#e2e8f0',
+    shadow: 'rgba(0, 0, 0, 0.07)'
+  }
+};
+
 // Updated AIEnhancementService functions to properly use OpenAI Responses API
 
 /**
