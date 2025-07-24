@@ -141,14 +141,14 @@ export async function fetchPatchesAndAdvisories(
 CVE Description: "${description}"
 
 Search for:
-1. Official vendor security patches for ${cveId}
-2. Security advisories mentioning ${cveId}
-3. Firmware updates that fix ${cveId}
-4. Software updates addressing ${cveId}
+1. Official vendor security patches for ${cveId}. Provide version numbers.
+2. Security advisories mentioning ${cveId}.
+3. Firmware updates that fix ${cveId}.
+4. Software updates addressing ${cveId}.
 
 Focus on official vendor sources and security advisory sites.
 
-Please provide information about any patches, updates, or advisories you find for ${cveId}.`;
+Please provide information about any patches, updates, or advisories you find for ${cveId}. Include download links and version numbers where available.`;
 
   try {
     const requestBody: any = useGemini
@@ -398,10 +398,10 @@ export async function fetchAIThreatIntelligence(
 
 Look for:
 1. Is ${cveId} in the CISA Known Exploited Vulnerabilities catalog?
-2. Evidence of active exploitation of ${cveId}
-3. Public exploit code or proof-of-concept for ${cveId}
-4. Security vendor reports about ${cveId}
-5. Threat actor usage of ${cveId}
+2. Evidence of active exploitation of ${cveId}.
+3. Public exploit code or proof-of-concept for ${cveId}. Provide links to the code.
+4. Security vendor reports about ${cveId}.
+5. Threat actor usage of ${cveId}. Name specific threat actors.
 
 CVE Details:
 - CVE: ${cveId}
@@ -942,7 +942,7 @@ export async function generateAITaintAnalysis(
   // Re-enable OpenAI web search for taint analysis
   const openAiSearchCapable = !useGemini && model === 'gpt-4.1';
 
-  const prompt = `Perform conceptual taint analysis for ${vulnerability?.cve?.id} based on the following description:\n${vulnerability?.cve?.description}`;
+  const prompt = `Perform conceptual taint analysis for ${vulnerability?.cve?.id} based on the following description:\n${vulnerability?.cve?.description}\n\nIdentify potential sources, sinks, and sanitizers.`;
 
   const requestBody: any = useGemini
     ? {

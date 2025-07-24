@@ -45,9 +45,10 @@ export async function fetchWithFallback(url: string, options: RequestInit = {}, 
         break;
       }
       
-      // Exponential backoff: wait longer between retries
+      // Exponential backoff with jitter: wait longer between retries
       const delay = Math.min(1000 * Math.pow(2, attempt - 1), 10000);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      const jitter = Math.random() * delay;
+      await new Promise(resolve => setTimeout(resolve, delay + jitter));
     }
   }
   
@@ -619,18 +620,18 @@ Create a comprehensive technical brief following this EXACT format:
 
 ### 1. Executive Summary
 ${kevInfo.listed ? '🚨 **CRITICAL: This vulnerability is actively exploited in the wild and listed in CISA KEV.**\n\n' : ''}
-- Start with the most critical finding
-- Explain the business impact of ${cveId} in plain language
-- State the recommended action and timeline clearly
-- Mention patch availability: ${detailedPatches.length > 0 ? 'Patches are available from ' + detailedPatches.map(p => p.vendor).join(', ') : 'No patches available yet'}
-- Include customer impact assessment
+- Start with the most critical finding.
+- Explain the business impact of ${cveId} in plain language, including potential attack vectors.
+- State the recommended action and timeline clearly.
+- Mention patch availability: ${detailedPatches.length > 0 ? 'Patches are available from ' + detailedPatches.map(p => p.vendor).join(', ') : 'No patches available yet'}.
+- Include customer impact assessment and recommendations for mitigation.
 
 ### 2. Technical Analysis
 Provide deep technical insights for ${cveId}:
-- **Attack Scenario**: Step-by-step how THIS SPECIFIC vulnerability (${cveId}) could be exploited based on the description
-- **Attack Surface**: What specific ${vendorInfo.product} systems/configurations are vulnerable
-- **Indicators of Compromise (IoCs)**: What to look for in logs/systems for ${cveId}
-- **Attack Complexity Analysis**: Real-world difficulty of exploiting ${cveId}
+- **Attack Scenario**: Step-by-step how THIS SPECIFIC vulnerability (${cveId}) could be exploited based on the description.
+- **Attack Surface**: What specific ${vendorInfo.product} systems/configurations are vulnerable.
+- **Indicators of Compromise (IoCs)**: What to look for in logs/systems for ${cveId}.
+- **Attack Complexity Analysis**: Real-world difficulty of exploiting ${cveId}.
 
 ### 3. CVE-Specific Remediation
 
@@ -670,27 +671,27 @@ ${detailedAdvisories.map((a: any) => `
 ### 4. Actionable Recommendations
 
 **For Security Teams**:
-- Implement detection for ${cveId} using the IoCs above
-- Review security advisories: ${detailedAdvisories.map(a => `[${a.source}](${a.url})`).join(', ')}
-- Monitor for ${cveId} exploitation attempts
+- Implement detection for ${cveId} using the IoCs above.
+- Review security advisories: ${detailedAdvisories.map(a => `[${a.source}](${a.url})`).join(', ')}.
+- Monitor for ${cveId} exploitation attempts.
 
 **For Engineering Teams**:
-- ${vendorInfo.product} versions affected: ${vendorInfo.versions}
-- Patch to: ${detailedPatches.length > 0 ? detailedPatches.map(p => `${p.product} ${p.version}`).join(', ') : 'Awaiting vendor patch'}
-- Testing recommendations for ${cveId} fixes
+- ${vendorInfo.product} versions affected: ${vendorInfo.versions}.
+- Patch to: ${detailedPatches.length > 0 ? detailedPatches.map(p => `${p.product} ${p.version}`).join(', ') : 'Awaiting vendor patch'}.
+- Testing recommendations for ${cveId} fixes.
 
 **For Leadership**:
-- ${kevInfo.listed ? 'URGENT: Active exploitation confirmed by CISA' : 'No active exploitation reported'}
-- Customer communication needed: ${kevInfo.listed || cvssInfo.score >= 7.0 ? 'Yes - proactive notification' : 'Standard update cycle'}
-- Patch status: ${detailedPatches.length > 0 ? 'Available now' : 'Pending vendor release'}
+- ${kevInfo.listed ? 'URGENT: Active exploitation confirmed by CISA' : 'No active exploitation reported'}.
+- Customer communication needed: ${kevInfo.listed || cvssInfo.score >= 7.0 ? 'Yes - proactive notification' : 'Standard update cycle'}.
+- Patch status: ${detailedPatches.length > 0 ? 'Available now' : 'Pending vendor release'}.
 
 ### 5. Detailed Mitigation Guidance
 
 Based on ${cveId} specifics:
-- **Primary Mitigation**: ${detailedPatches.length > 0 ? 'Apply patches: ' + detailedPatches.map(p => `${p.product} ${p.version}`).join(', ') : 'Patches pending - use workarounds'}
-- **Temporary Workarounds**: [Extract from advisories or description]
-- **Compensating Controls**: Based on ${cvssInfo.attackVector} attack vector
-- **Verification Steps**: Confirm ${cveId} is remediated
+- **Primary Mitigation**: ${detailedPatches.length > 0 ? 'Apply patches: ' + detailedPatches.map(p => `${p.product} ${p.version}`).join(', ') : 'Patches pending - use workarounds'}.
+- **Temporary Workarounds**: [Extract from advisories or description].
+- **Compensating Controls**: Based on ${cvssInfo.attackVector} attack vector.
+- **Verification Steps**: Confirm ${cveId} is remediated.
 
 ### 6. Advisory-Based Timeline
 ${kevInfo.listed ? '- 🚨 **CISA KEV LISTED**: Remediate within 24-48 hours per CISA directive' : ''}
@@ -700,9 +701,9 @@ ${epssInfo.score > 0.5 ? '- 📊 **HIGH EXPLOITATION PROBABILITY**: Prioritize i
 ${detailedPatches.length > 0 ? '- ✅ **PATCHES AVAILABLE**: Apply immediately' : '- ⏳ **NO PATCHES YET**: Implement workarounds now'}
 
 ### 7. Knowledge Gaps & Next Steps
-- ${detailedPatches.length === 0 ? 'Awaiting patches from: ' + vendorInfo.vendor : 'Verify all systems patched'}
-- ${detailedAdvisories.length === 0 ? 'No vendor advisories yet published' : 'Review all advisories for updates'}
-- Additional research needed for ${cveId}
+- ${detailedPatches.length === 0 ? 'Awaiting patches from: ' + vendorInfo.vendor : 'Verify all systems patched'}.
+- ${detailedAdvisories.length === 0 ? 'No vendor advisories yet published' : 'Review all advisories for updates'}.
+- Additional research needed for ${cveId}.
 
 ## 📝 CRITICAL INSTRUCTIONS
 
@@ -1257,3 +1258,7 @@ export function countVerifiedFindings(validation: any): number {
 
 // Re-export functions from DataFetchingService for backward compatibility
 export { searchCISAKEVWithAI } from './DataFetchingService';
+
+export function exportVulnerabilityAsJSON(vulnerability) {
+  return JSON.stringify(vulnerability, null, 2);
+}

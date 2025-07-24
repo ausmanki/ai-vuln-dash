@@ -75,10 +75,13 @@ export class EnhancedVectorDatabase {
 
   createLocalEmbedding(text) {
     const words = text.toLowerCase().split(/\W+/).filter(w => w.length > 2);
-    const wordFreq = {};
+    const tf = {};
     words.forEach(word => {
-      wordFreq[word] = (wordFreq[word] || 0) + 1;
+      tf[word] = (tf[word] || 0) + 1;
     });
+
+    const idf = {};
+    const D = this.documents.length;
     const securityTerms = [
       'vulnerability', 'exploit', 'cvss', 'epss', 'cisa', 'kev', 'critical', 'high', 'medium', 'low',
       'remote', 'local', 'authentication', 'authorization', 'injection', 'overflow', 'disclosure',
@@ -88,8 +91,13 @@ export class EnhancedVectorDatabase {
       'privilege', 'escalation', 'information', 'sensitive', 'exposure', 'leak', 'weak',
       'cryptography', 'certificate', 'validation', 'trust', 'boundary', 'sandbox', 'escape'
     ];
-    const allTerms = [...new Set([...Object.keys(wordFreq), ...securityTerms])];
-    const vector = allTerms.slice(0, 200).map(term => wordFreq[term] || 0);
+    const allTerms = [...new Set([...Object.keys(tf), ...securityTerms])];
+    allTerms.forEach(term => {
+      const docsWithTerm = this.documents.filter(doc => doc.content.toLowerCase().includes(term)).length;
+      idf[term] = Math.log((D + 1) / (docsWithTerm + 1)) + 1;
+    });
+
+    const vector = allTerms.slice(0, 200).map(term => (tf[term] || 0) * (idf[term] || 1));
     const magnitude = Math.sqrt(vector.reduce((sum, val) => sum + val * val, 0));
     return magnitude > 0 ? vector.map(val => val / magnitude) : vector;
   }
@@ -170,7 +178,18 @@ export class EnhancedVectorDatabase {
         category: "severity",
         tags: ["cvss", "severity", "classification", "priority", "scoring"]
       },
-      // ... (rest of the knowledge base items)
+      {
+        title: "Threat Intelligence Concepts",
+        content: "Threat intelligence involves the collection, analysis, and dissemination of information about current and potential attacks. Key concepts include Indicators of Compromise (IoCs), Tactics, Techniques, and Procedures (TTPs), and threat actor profiling. High-quality threat intelligence is timely, accurate, and actionable.",
+        category: "threat-intelligence",
+        tags: ["threat-intel", "iocs", "ttps", "threat-actors"]
+      },
+      {
+        title: "Patch Management Best Practices",
+        content: "Effective patch management involves identifying, acquiring, testing, and installing patches in a timely manner. Prioritization should be based on a combination of factors, including CVSS score, EPSS score, and asset criticality. Automated patch management tools can help to streamline the process.",
+        category: "patch-management",
+        tags: ["patching", "remediation", "automation"]
+      }
     ];
     for (const item of comprehensiveKnowledgeBase) {
       await this.addDocument(item.content, {
@@ -187,7 +206,12 @@ export class EnhancedVectorDatabase {
         category: "high-impact-cves",
         tags: ["heartbleed", "wannacry", "log4shell", "widespread-impact", "rce"]
       },
-      // ... (rest of the cve examples)
+      {
+        title: "Low-Impact CVE Characteristics",
+        content: "Low-impact CVEs typically affect software that is not widely deployed, require local access, or have a high degree of complexity to exploit. For example, a vulnerability in a command-line tool that requires a specific set of flags to be passed to it would likely be considered low-impact.",
+        category: "low-impact-cves",
+        tags: ["low-impact", "local-access", "high-complexity"]
+      }
     ];
     for (const item of cveExamples) {
       await this.addDocument(item.content, {
@@ -209,15 +233,20 @@ export class EnhancedVectorDatabase {
       const localEmbeddedDocs = this.documents.filter(doc => doc.embeddingType !== 'gemini');
       if (localEmbeddedDocs.length > 0) {
         console.log(`🔄 Re-embedding ${localEmbeddedDocs.length} documents with Gemini embeddings...`);
-        for (let i = 0; i < Math.min(localEmbeddedDocs.length, 5); i++) {
-          try {
-            const doc = localEmbeddedDocs[i];
-            const newEmbedding = await this.createGeminiEmbedding(doc.content);
-            doc.embedding = newEmbedding;
-            doc.embeddingType = 'gemini';
-            if (i < 4) await new Promise(resolve => setTimeout(resolve, 1000));
-          } catch (error) {
-            console.warn(`Failed to re-embed document ${i}:`, error.message);
+        const batchSize = 5;
+        for (let i = 0; i < localEmbeddedDocs.length; i += batchSize) {
+          const batch = localEmbeddedDocs.slice(i, i + batchSize);
+          await Promise.all(batch.map(async (doc) => {
+            try {
+              const newEmbedding = await this.createGeminiEmbedding(doc.content);
+              doc.embedding = newEmbedding;
+              doc.embeddingType = 'gemini';
+            } catch (error) {
+              console.warn(`Failed to re-embed document:`, error.message);
+            }
+          }));
+          if (i + batchSize < localEmbeddedDocs.length) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
         }
       }

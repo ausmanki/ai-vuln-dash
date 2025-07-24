@@ -899,7 +899,7 @@ Focus on actionable information for security professionals.
         exportedBy: 'AI-Enhanced VulnIntel Platform'
       };
 
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], {
+      const blob = new Blob([APIService.exportVulnerabilityAsJSON(exportData)], {
         type: 'application/json'
       });
 
