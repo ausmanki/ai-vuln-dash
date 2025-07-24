@@ -1,5 +1,16 @@
 import { CONSTANTS } from '../utils/constants';
 import { utils } from '../utils/helpers';
+
+const cache = new Map();
+
+async function fetchWithCache(key, fetcher) {
+  if (cache.has(key)) {
+    return cache.get(key);
+  }
+  const result = await fetcher();
+  cache.set(key, result);
+  return result;
+}
 import { ragDatabase } from '../db/EnhancedVectorDatabase';
 import { ResearchAgent } from '../agents/ResearchAgent';
 import { ValidationService } from './ValidationService';
@@ -37,32 +48,32 @@ import {
 export class APIService {
   // Data fetching methods are moved to DataFetchingService
   static async fetchCVEData(cveId, apiKey, setLoadingSteps) {
-    return fetchCVEDataInternal(cveId, apiKey, setLoadingSteps, ragDatabase, fetchWithFallback, processCVEData);
+    return fetchWithCache(`cve-${cveId}`, () => fetchCVEDataInternal(cveId, apiKey, setLoadingSteps, ragDatabase, fetchWithFallback, processCVEData));
   }
 
   static async fetchEPSSData(cveId, setLoadingSteps) {
-    return fetchEPSSDataInternal(cveId, setLoadingSteps, ragDatabase, fetchWithFallback);
+    return fetchWithCache(`epss-${cveId}`, () => fetchEPSSDataInternal(cveId, setLoadingSteps, ragDatabase, fetchWithFallback));
   }
 
   // AI enhancement methods are moved to AIEnhancementService
   static async fetchPatchesAndAdvisories(cveId, cveData, settings, setLoadingSteps) {
-    return fetchPatchesAndAdvisoriesInternal(cveId, cveData, settings, setLoadingSteps, fetchWithFallback, parsePatchAndAdvisoryResponse, getHeuristicPatchesAndAdvisories);
+    return fetchWithCache(`patches-${cveId}`, () => fetchPatchesAndAdvisoriesInternal(cveId, cveData, settings, setLoadingSteps, fetchWithFallback, parsePatchAndAdvisoryResponse, getHeuristicPatchesAndAdvisories));
   }
 
   static async fetchAIThreatIntelligence(cveId, cveData, epssData, settings, setLoadingSteps) {
-    return fetchAIThreatIntelligenceInternal(cveId, cveData, epssData, settings, setLoadingSteps, ragDatabase, fetchWithFallback, parseAIThreatIntelligence, performHeuristicAnalysis);
+    return fetchWithCache(`threat-intel-${cveId}`, () => fetchAIThreatIntelligenceInternal(cveId, cveData, epssData, settings, setLoadingSteps, ragDatabase, fetchWithFallback, parseAIThreatIntelligence, performHeuristicAnalysis));
   }
 
   static async generateAIAnalysis(vulnerability, apiKey, model, settings = {}) {
-    return generateAIAnalysisInternal(vulnerability, apiKey, model, settings, ragDatabase, fetchWithFallback, buildEnhancedAnalysisPrompt, generateEnhancedFallbackAnalysis);
+    return fetchWithCache(`analysis-${vulnerability.cve.id}`, () => generateAIAnalysisInternal(vulnerability, apiKey, model, settings, ragDatabase, fetchWithFallback, buildEnhancedAnalysisPrompt, generateEnhancedFallbackAnalysis));
   }
 
   static async generateAITaintAnalysis(vulnerability, apiKey, model, settings = {}) {
-    return generateAITaintAnalysisInternal(vulnerability, apiKey, model, settings, fetchWithFallback);
+    return fetchWithCache(`taint-analysis-${vulnerability.cve.id}`, () => generateAITaintAnalysisInternal(vulnerability, apiKey, model, settings, fetchWithFallback));
   }
 
   static async fetchGeneralAnswer(query, settings = {}) {
-    return fetchGeneralAnswerInternal(query, settings, fetchWithFallback);
+    return fetchWithCache(`general-answer-${query}`, () => fetchGeneralAnswerInternal(query, settings, fetchWithFallback));
   }
 
   // Enhanced main function with validation

@@ -141,14 +141,14 @@ export async function fetchPatchesAndAdvisories(
 CVE Description: "${description}"
 
 Search for:
-1. Official vendor security patches for ${cveId}
-2. Security advisories mentioning ${cveId}
-3. Firmware updates that fix ${cveId}
-4. Software updates addressing ${cveId}
+1. Official vendor security patches for ${cveId}. Provide version numbers.
+2. Security advisories mentioning ${cveId}.
+3. Firmware updates that fix ${cveId}.
+4. Software updates addressing ${cveId}.
 
 Focus on official vendor sources and security advisory sites.
 
-Please provide information about any patches, updates, or advisories you find for ${cveId}.`;
+Please provide information about any patches, updates, or advisories you find for ${cveId}. Include download links and version numbers where available.`;
 
   try {
     const requestBody: any = useGemini
@@ -398,10 +398,10 @@ export async function fetchAIThreatIntelligence(
 
 Look for:
 1. Is ${cveId} in the CISA Known Exploited Vulnerabilities catalog?
-2. Evidence of active exploitation of ${cveId}
-3. Public exploit code or proof-of-concept for ${cveId}
-4. Security vendor reports about ${cveId}
-5. Threat actor usage of ${cveId}
+2. Evidence of active exploitation of ${cveId}.
+3. Public exploit code or proof-of-concept for ${cveId}. Provide links to the code.
+4. Security vendor reports about ${cveId}.
+5. Threat actor usage of ${cveId}. Name specific threat actors.
 
 CVE Details:
 - CVE: ${cveId}
@@ -942,7 +942,7 @@ export async function generateAITaintAnalysis(
   // Re-enable OpenAI web search for taint analysis
   const openAiSearchCapable = !useGemini && model === 'gpt-4.1';
 
-  const prompt = `Perform conceptual taint analysis for ${vulnerability?.cve?.id} based on the following description:\n${vulnerability?.cve?.description}`;
+  const prompt = `Perform conceptual taint analysis for ${vulnerability?.cve?.id} based on the following description:\n${vulnerability?.cve?.description}\n\nIdentify potential sources, sinks, and sanitizers.`;
 
   const requestBody: any = useGemini
     ? {
@@ -1056,90 +1056,108 @@ export async function generateAITaintAnalysis(
 function parseTextResponseForPatches(response: string, cveId: string, groundingMetadata?: any): any {
   console.log('Parsing patch response for', cveId, '- Length:', response.length);
   
-  const patches = [];
-  const advisories = [];
+  const patches: any[] = [];
+  const advisories: any[] = [];
   let confidence = 'LOW';
 
-  // Extract vendor information
-  const vendors = extractVendorsFromText(response);
-  const urls = extractUrlsFromText(response);
-
-  // Look for patch-related keywords
+  const lowerResponse = response.toLowerCase();
   const patchKeywords = ['patch', 'update', 'fix', 'firmware', 'security update', 'hotfix'];
   const advisoryKeywords = ['advisory', 'bulletin', 'security notice', 'alert'];
 
-  const hasPatchInfo = patchKeywords.some(keyword => 
-    response.toLowerCase().includes(keyword.toLowerCase())
-  );
-  
-  const hasAdvisoryInfo = advisoryKeywords.some(keyword => 
-    response.toLowerCase().includes(keyword.toLowerCase())
-  );
-
-  if (hasPatchInfo || hasAdvisoryInfo) {
+  if (patchKeywords.some(k => lowerResponse.includes(k)) || advisoryKeywords.some(k => lowerResponse.includes(k))) {
     confidence = 'MEDIUM';
   }
 
-  // Handle both Gemini and OpenAI search metadata formats
-  if (groundingMetadata) {
-    // Gemini format
-    if (groundingMetadata.groundingChunks || groundingMetadata.webSearchQueries) {
-      const groundingInfo = extractFromGroundingMetadata(groundingMetadata);
-      
-      for (const source of groundingInfo.sources) {
-        const url = source.url.toLowerCase();
-        
-        if (url.includes('patch') || url.includes('update') || url.includes('download')) {
-          patches.push({
-            vendor: extractVendorFromUrl(url) || 'Unknown',
-            product: 'Unknown',
-            patchVersion: 'Latest',
-            downloadUrl: source.url,
-            advisoryUrl: source.url,
-            description: source.title || 'Security patch',
-            confidence: 'HIGH',
-            patchType: 'Security Update',
-            citationUrl: source.url
-          });
-        }
-      }
+  // Generic URL extraction from the main text body
+  const urls = extractUrlsFromText(response);
+  for (const url of urls) {
+    const lowerUrl = url.toLowerCase();
+    const vendor = extractVendorFromUrl(lowerUrl) || 'Unknown';
+
+    if (patchKeywords.some(k => lowerUrl.includes(k))) {
+      patches.push({
+        vendor: vendor,
+        product: 'Unknown',
+        patchVersion: 'Latest',
+        downloadUrl: url,
+        advisoryUrl: url,
+        description: `Security patch for ${cveId}`,
+        confidence: 'MEDIUM',
+        patchType: 'Security Update',
+        citationUrl: url
+      });
+    } else if (advisoryKeywords.some(k => lowerUrl.includes(k))) {
+      advisories.push({
+        source: vendor,
+        advisoryId: cveId,
+        title: `Security advisory for ${cveId}`,
+        url: url,
+        severity: 'Unknown',
+        description: `Security advisory related to ${cveId}`,
+        confidence: 'MEDIUM',
+        type: 'Security Advisory',
+        citationUrl: url
+      });
     }
-    
+  }
+
+  // Handle grounding metadata from both Gemini and OpenAI
+  if (groundingMetadata) {
+    confidence = 'HIGH';
+    let sources: any[] = [];
+
+    // Gemini format
+    if (groundingMetadata.groundingChunks) {
+      const groundingInfo = extractFromGroundingMetadata(groundingMetadata);
+      sources = groundingInfo.sources.map(s => ({
+        url: s.url,
+        title: s.title,
+        snippet: s.queries?.join(' ') || ''
+      }));
+    }
     // OpenAI /responses format
-    if (groundingMetadata.searchResults || groundingMetadata.sources) {
-      const sources = groundingMetadata.searchResults || groundingMetadata.sources || [];
+    else if (groundingMetadata.searchResults || groundingMetadata.sources) {
+      sources = (groundingMetadata.searchResults || groundingMetadata.sources || []).map((s: any) => ({
+        url: s.url || s.link,
+        title: s.title || s.snippet,
+        snippet: s.snippet || ''
+      }));
+    }
+
+    for (const source of sources) {
+      if (!source.url) continue;
       
-      for (const source of sources) {
-        const url = (source.url || source.link || '').toLowerCase();
-        const title = source.title || source.snippet || 'Security information';
-        
-        if (url.includes('patch') || url.includes('update') || url.includes('advisory')) {
-          if (url.includes('patch') || url.includes('update')) {
-            patches.push({
-              vendor: extractVendorFromUrl(url) || 'Unknown',
-              product: 'Unknown',
-              patchVersion: 'Latest',
-              downloadUrl: source.url || source.link,
-              advisoryUrl: source.url || source.link,
-              description: title,
-              confidence: 'HIGH',
-              patchType: 'Security Update',
-              citationUrl: source.url || source.link
-            });
-          } else {
-            advisories.push({
-              source: extractVendorFromUrl(url) || 'Unknown',
-              advisoryId: cveId,
-              title: title,
-              url: source.url || source.link,
-              severity: 'Unknown',
-              description: title,
-              confidence: 'HIGH',
-              type: 'Security Advisory',
-              citationUrl: source.url || source.link
-            });
-          }
-        }
+      const lowerUrl = source.url.toLowerCase();
+      const vendor = extractVendorFromUrl(lowerUrl);
+      const title = source.title || 'Security Information';
+
+      const isPatch = patchKeywords.some(k => lowerUrl.includes(k) || title.toLowerCase().includes(k));
+      const isAdvisory = advisoryKeywords.some(k => lowerUrl.includes(k) || title.toLowerCase().includes(k));
+
+      if (isPatch) {
+        patches.push({
+          vendor: vendor,
+          product: 'Unknown',
+          patchVersion: 'Latest',
+          downloadUrl: source.url,
+          advisoryUrl: source.url,
+          description: title,
+          confidence: 'HIGH',
+          patchType: 'Security Update',
+          citationUrl: source.url
+        });
+      } else if (isAdvisory) {
+        advisories.push({
+          source: vendor,
+          advisoryId: cveId,
+          title: title,
+          url: source.url,
+          severity: 'Unknown',
+          description: title,
+          confidence: 'HIGH',
+          type: 'Security Advisory',
+          citationUrl: source.url
+        });
       }
     }
   }
@@ -1148,7 +1166,7 @@ function parseTextResponseForPatches(response: string, cveId: string, groundingM
     patches: removeDuplicates(patches, 'downloadUrl'),
     advisories: removeDuplicates(advisories, 'url'),
     confidence: confidence,
-    extractionMethod: 'text-parsing'
+    extractionMethod: 'text-and-metadata-parsing'
   };
 }
 
