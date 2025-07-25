@@ -453,4 +453,18 @@ export class CybersecurityAgent {
   public setBulkAnalysisResults(results: BulkAnalysisResult[]): void {
     this.bulkAnalysisResults = results;
   }
+
+  public setContextualCVE(cveId: string): ChatResponse | null {
+    if (cveId && CVE_REGEX.test(cveId) && cveId !== this.currentCveIdForSession) {
+      this.currentCveIdForSession = cveId.toUpperCase();
+
+      const text = `Perfect! I'm now focused on ${this.currentCveIdForSession}. What would you like to know about it?`;
+      return {
+        text,
+        sender: 'system',
+        id: Date.now().toString(),
+      };
+    }
+    return null;
+  }
 }
