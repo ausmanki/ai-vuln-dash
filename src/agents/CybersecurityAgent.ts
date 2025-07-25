@@ -129,6 +129,7 @@ export class CybersecurityAgent {
   private cacheTTL: number;
   private groundingEngine?: AIGroundingEngine;
   private groundingConfig?: AIGroundingConfig;
+  private bulkAnalysisResults: BulkAnalysisResult[] | null = null;
 
   constructor(settings?: AgentSettings) {
     this.settings = settings || {};
@@ -447,5 +448,9 @@ export class CybersecurityAgent {
     const data = await fetcher();
     this.cache.set(key, { data, timestamp: Date.now() });
     return data;
+  }
+
+  public setBulkAnalysisResults(results: BulkAnalysisResult[]): void {
+    this.bulkAnalysisResults = results;
   }
 }
