@@ -69,7 +69,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId, bulkAnalysi
   }, [initialCveId, agent]);
 
   useEffect(() => {
-    if (agent) {
+    if (agent && agent.setBulkAnalysisResults) {
       agent.setBulkAnalysisResults(bulkAnalysisResults);
     }
   }, [agent, bulkAnalysisResults]);
