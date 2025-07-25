@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown'; // Added for Markdown rendering
 import remarkGfm from 'remark-gfm'; // Added for GitHub Flavored Markdown (tables, etc.)
 import { Send, Bot, User, AlertCircle, Search } from 'lucide-react';
 import { AppContext } from '../contexts/AppContext';
-import { UserAssistantAgent } from '../agents/UserAssistantAgent';
+import { UserAssistantAgent, CybersecurityAgent } from '../agents';
 import { utils } from '../utils/helpers'; // For CVE validation
 import { createStyles } from '../utils/styles';
 import { COLORS } from '../utils/constants';
@@ -25,9 +25,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId, bulkAnalysi
   const { settings, addNotification } = useContext(AppContext);
   const styles = createStyles(settings.darkMode); // Assuming createStyles is memoized or lightweight
 
-  const [agent, setAgent] = useState<UserAssistantAgent | null>(null);
-  // const [cveId, setCveId] = useState<string>(''); // No longer needed for separate input
-  // const [currentCveId, setCurrentCveId] = useState<string>(''); // Agent manages context
+  const [agent, setAgent] = useState<UserAssistantAgent | CybersecurityAgent | null>(null);
+  const [agentType, setAgentType] = useState<'userAssistant' | 'cybersecurity'>('userAssistant');
   const [inputMessage, setInputMessage] = useState<string>('');
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -37,9 +36,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId, bulkAnalysi
   useEffect(() => {
     // Initialize agent when settings are available
     if (settings) {
-      setAgent(new UserAssistantAgent(settings));
+      if (agentType === 'userAssistant') {
+        setAgent(new UserAssistantAgent(settings));
+      } else {
+        setAgent(new CybersecurityAgent(settings));
+      }
     }
-  }, [settings]);
+  }, [settings, agentType]);
 
   useEffect(() => {
     // Scroll to bottom of chat
@@ -117,9 +120,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId, bulkAnalysi
         background: styles.card.background
       }}>
       <div style={{ padding: '16px', borderBottom: styles.border, background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface, borderRadius: 'inherit inherit 0 0' /* Adjust to inherit */ }}>
-        <h2 style={{ ...styles.title, margin: 0, fontSize: '1.25rem', textAlign: 'center' }}>
-          CVE Smart Assistant
-        </h2>
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '1rem' }}>
+          <h2 style={{ ...styles.title, margin: 0, fontSize: '1.25rem' }}>
+            {agentType === 'userAssistant' ? 'CVE Smart Assistant' : 'Cybersecurity Agent'}
+          </h2>
+          <select value={agentType} onChange={(e) => setAgentType(e.target.value as any)} style={{ ...styles.input, padding: '0.5rem' }}>
+            <option value="userAssistant">CVE Assistant</option>
+            <option value="cybersecurity">Cybersecurity Agent</option>
+          </select>
+        </div>
         {/* Removed CVE ID input section; context is handled by agent via natural language queries */}
         <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.9rem', color: styles.subtitle.color }}>
           Ask me about a CVE (e.g., "Tell me about CVE-2023-1234")
