@@ -99,6 +99,7 @@ export class AIGroundingEngine {
           body: JSON.stringify({
             model: 'gpt-4o',
             messages: [{ role: 'user', content: query }],
+            tools: [{ type: 'web_search_preview' }],
             max_tokens: 4096
           })
         });
