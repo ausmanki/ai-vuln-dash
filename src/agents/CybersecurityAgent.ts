@@ -167,26 +167,11 @@ export class CybersecurityAgent {
         }
       }
 
-      if (this.settings.openAiApiKey) {
-        const model = this.settings.openAiModel || 'gpt-4o';
-        const res = await fetch(`${CONSTANTS.API_ENDPOINTS.OPENAI_RESPONSES}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.settings.openAiApiKey}`
-          },
-          body: JSON.stringify({
-            model,
-            messages: [{ role: 'user', content: query }],
-            tools: [{ type: 'function', function: { name: 'web_search' } }]
-          })
-        });
-        if (!res.ok) {
-          throw new Error(`OpenAI error: ${res.status}`);
+      if (this.groundingEngine) {
+        const grounded = await this.groundingEngine.search(query);
+        if (grounded.content) {
+          return { text: grounded.content, sender: 'bot', id: Date.now().toString(), confidence: grounded.confidence };
         }
-        const data = await res.json();
-        const text = data.choices?.[0]?.message?.content || 'No response';
-        return { text, sender: 'bot', id: Date.now().toString() };
       }
 
       let response = `I understand you're asking about cybersecurity. `;
