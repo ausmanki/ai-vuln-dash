@@ -72,7 +72,7 @@ export class AIGroundingEngine {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               contents: [{ parts: [{ text: query }] }],
-              generationConfig: { temperature: 0.1, maxOutputTokens: 4096 }
+              generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }
             })
           }
         );
@@ -97,10 +97,10 @@ export class AIGroundingEngine {
             Authorization: `Bearer ${this.keys.openai}`
           },
           body: JSON.stringify({
-            model: 'gpt-4o',
+            model: 'gpt-4.1',
             messages: [{ role: 'user', content: query }],
             tools: [{ type: 'web_search_preview' }],
-            max_tokens: 4096
+            max_tokens: 8192
           })
         });
         if (res.ok) {
