@@ -20,7 +20,7 @@ import {
 } from '../types/cveData';
 import { generateRemediationPlan } from '../utils/remediation';
 import { extractComponentNames } from '../utils/componentUtils';
-import { CONSTANTS } from '../utils/constants';
+import { CONSTANTS, generateAIAnalysisFixed } from '../utils/constants';
 import { CVE_REGEX } from '../utils/cveRegex';
 
 // Utility to map CVSS score to severity label
@@ -167,21 +167,22 @@ export class CybersecurityAgent {
         }
       }
 
-      if (this.groundingEngine) {
-        const grounded = await this.groundingEngine.search(query);
-        if (grounded.content) {
-          return { text: grounded.content, sender: 'bot', id: Date.now().toString(), confidence: grounded.confidence };
-        }
+      try {
+        const analysis = await generateAIAnalysisFixed(
+          { description: query },
+          this.settings.geminiApiKey,
+          this.settings.geminiModel,
+          this.settings,
+          null,
+          fetch,
+          () => query,
+          () => ({ analysis: 'Fallback response' })
+        );
+        return { text: analysis.analysis, sender: 'bot', id: Date.now().toString() };
+      } catch (error) {
+        console.error('General query error:', error);
+        return { text: 'I am having trouble with that request.', sender: 'bot', id: Date.now().toString() };
       }
-
-      let response = `I understand you're asking about cybersecurity. `;
-      response += `To provide you with the most helpful information, could you please specify your question?`;
-
-      return {
-        text: response,
-        sender: 'bot',
-        id: Date.now().toString(),
-      };
     } catch (error: any) {
       console.error('Error in handleQuery:', error);
       return {

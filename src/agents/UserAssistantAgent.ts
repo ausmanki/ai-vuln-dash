@@ -20,7 +20,7 @@ import {
 } from '../types/cveData';
 import { generateRemediationPlan } from '../utils/remediation';
 import { extractComponentNames } from '../utils/componentUtils';
-import { CONSTANTS } from '../utils/constants';
+import { CONSTANTS, generateAIAnalysisFixed } from '../utils/constants';
 import { CVE_REGEX } from '../utils/cveRegex';
 
 // Utility to map CVSS score to severity label
@@ -413,31 +413,22 @@ export class UserAssistantAgent {
   }
 
   private async handleGeneralQuery(query: string): Promise<ChatResponse> {
-    if (this.groundingEngine) {
-      const grounded = await this.getGroundedInfo(query);
-      if (grounded.content) {
-        return { text: grounded.content, sender: 'bot', id: Date.now().toString(), confidence: grounded.confidence };
-      }
+    try {
+      const analysis = await generateAIAnalysisFixed(
+        { description: query },
+        this.settings.geminiApiKey,
+        this.settings.geminiModel,
+        this.settings,
+        null,
+        fetch,
+        () => query,
+        () => ({ analysis: 'Fallback response' })
+      );
+      return { text: analysis.analysis, sender: 'bot', id: Date.now().toString() };
+    } catch (error) {
+      console.error('General query error:', error);
+      return { text: 'I am having trouble with that request.', sender: 'bot', id: Date.now().toString() };
     }
-
-    let response = `I understand you're asking about cybersecurity. `;
-
-    response += `To provide you with the most helpful information, could you:\n\n`;
-    response += `• Specify a CVE ID (like CVE-2024-1234) if you're asking about a specific vulnerability\n`;
-    response += `• Let me know what aspect you're most concerned about (patches, exploits, business impact)\n`;
-    response += `• Share any relevant context about your environment or industry\n\n`;
-
-    if (this.conversationContext.recentCVEs.length > 0) {
-      response += `We were recently discussing: ${this.conversationContext.recentCVEs.join(', ')}. Would you like to continue with any of these?`;
-    }
-
-    const finalText = this.applyTechnicalTone(this.varyResponse(response));
-    this.storeConversation(query, finalText);
-    return {
-      text: finalText,
-      sender: 'bot',
-      id: Date.now().toString(),
-    };
   }
 
   // CVE validation with improved dispute detection

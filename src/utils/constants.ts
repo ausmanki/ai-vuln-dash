@@ -209,7 +209,7 @@ export async function generateAIAnalysisFixed(
   } else {
     // Standard OpenAI chat completions (no web search)
     requestBody = {
-      model: settings.openAiModel || 'gpt-4',
+      model: settings.openAiModel || 'gpt-4.1',
       messages: [{ 
         role: 'user', 
         content: prompt 
