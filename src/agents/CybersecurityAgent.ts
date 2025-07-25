@@ -72,7 +72,7 @@ export class AIGroundingEngine {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               contents: [{ parts: [{ text: query }] }],
-              generationConfig: { temperature: 0.1, maxOutputTokens: 4096 }
+              generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }
             })
           }
         );
@@ -97,10 +97,10 @@ export class AIGroundingEngine {
             Authorization: `Bearer ${this.keys.openai}`
           },
           body: JSON.stringify({
-            model: 'gpt-4o',
+            model: 'gpt-4.1',
             messages: [{ role: 'user', content: query }],
             tools: [{ type: 'web_search_preview' }],
-            max_tokens: 4096
+            max_tokens: 8192
           })
         });
         if (res.ok) {
@@ -167,26 +167,11 @@ export class CybersecurityAgent {
         }
       }
 
-      if (this.settings.openAiApiKey) {
-        const model = this.settings.openAiModel || 'gpt-4o';
-        const res = await fetch(`${CONSTANTS.API_ENDPOINTS.OPENAI_RESPONSES}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.settings.openAiApiKey}`
-          },
-          body: JSON.stringify({
-            model,
-            messages: [{ role: 'user', content: query }],
-            tools: [{ type: 'function', function: { name: 'web_search' } }]
-          })
-        });
-        if (!res.ok) {
-          throw new Error(`OpenAI error: ${res.status}`);
+      if (this.groundingEngine) {
+        const grounded = await this.groundingEngine.search(query);
+        if (grounded.content) {
+          return { text: grounded.content, sender: 'bot', id: Date.now().toString(), confidence: grounded.confidence };
         }
-        const data = await res.json();
-        const text = data.choices?.[0]?.message?.content || 'No response';
-        return { text, sender: 'bot', id: Date.now().toString() };
       }
 
       let response = `I understand you're asking about cybersecurity. `;

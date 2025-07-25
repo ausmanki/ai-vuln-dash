@@ -72,7 +72,7 @@ export class AIGroundingEngine {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               contents: [{ parts: [{ text: query }] }],
-              generationConfig: { temperature: 0.1, maxOutputTokens: 4096 }
+              generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }
             })
           }
         );
@@ -97,10 +97,10 @@ export class AIGroundingEngine {
             Authorization: `Bearer ${this.keys.openai}`
           },
           body: JSON.stringify({
-            model: 'gpt-4o',
+            model: 'gpt-4.1',
             messages: [{ role: 'user', content: query }],
             tools: [{ type: 'web_search_preview' }],
-            max_tokens: 4096
+            max_tokens: 8192
           })
         });
         if (res.ok) {
@@ -413,30 +413,10 @@ export class UserAssistantAgent {
   }
 
   private async handleGeneralQuery(query: string): Promise<ChatResponse> {
-    if (this.settings.openAiApiKey) {
-      try {
-        const model = this.settings.openAiModel || 'gpt-4o';
-        const res = await fetch(`${CONSTANTS.API_ENDPOINTS.OPENAI_RESPONSES}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${this.settings.openAiApiKey}`
-          },
-          body: JSON.stringify({
-            model,
-            messages: [{ role: 'user', content: query }],
-            tools: [{ type: 'function', function: { name: 'web_search' } }]
-          })
-        });
-        if (!res.ok) {
-          throw new Error(`OpenAI error: ${res.status}`);
-        }
-        const data = await res.json();
-        const text = data.choices?.[0]?.message?.content || 'No response';
-        return { text, sender: 'bot', id: Date.now().toString() };
-      } catch (error: any) {
-        console.error('OpenAI request failed:', error);
-        return { text: 'Failed to fetch response from OpenAI.', sender: 'system', id: Date.now().toString(), error: error.message };
+    if (this.groundingEngine) {
+      const grounded = await this.getGroundedInfo(query);
+      if (grounded.content) {
+        return { text: grounded.content, sender: 'bot', id: Date.now().toString(), confidence: grounded.confidence };
       }
     }
 
