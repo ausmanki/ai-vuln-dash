@@ -105,6 +105,7 @@ Risk Score = f(CVSS, EPSS, KEV_Status, Threat_Intelligence, Business_Impact)
 ### **🧩 Agents Overview**
 Our analysis workflow is composed of several cooperating agents:
 - **ResearchAgent** – gathers vulnerability intelligence and performs AI-driven searches.
+- **CybersecurityAgent** – answers questions using the RAG knowledge base before searching the web.
 - **RAGCuratorAgent** – keeps the vector database fresh by re-analyzing stale summaries.
 - **ValidationAgent** – validates AI findings against trusted sources and stores the results.
 - **UserAssistantAgent** – conversational interface used by the chatbot and UI components.
