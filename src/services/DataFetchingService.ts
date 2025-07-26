@@ -35,10 +35,7 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
     throw new Error('No AI settings provided');
   }
   
-  if (!activeSettings.geminiApiKey && !activeSettings.openAiApiKey) {
-    throw new Error('Neither Gemini nor OpenAI API key found in settings');
-  }
-  
+  // Default to OpenAI unless explicitly configured to use Gemini
   const useGemini = !!activeSettings.geminiApiKey;
   // Default to Gemini 2.5 Flash for general use
   const model = useGemini ? (activeSettings.geminiModel || 'gemini-2.5-flash') : (activeSettings.openAiModel || 'gpt-4.1');
@@ -62,7 +59,7 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
     if (useGemini) {
       const geminiSearchCapable =
         model.includes('2.5') || model.includes('2.0');
-      apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeSettings.geminiApiKey}`;
+      apiUrl = `/api/gemini?model=${model}`;
       requestBody = {
         contents: [{ parts: [{ text: searchPrompt }] }],
         generationConfig: {
@@ -79,7 +76,7 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
       }
     } else if (openAiSearchCapable) {
       // FORCE /responses endpoint for web search
-      apiUrl = 'https://api.openai.com/v1/responses';
+      apiUrl = '/api/openai?endpoint=responses';
       logger.debug('🚀 FORCING /responses endpoint:', apiUrl);
       
       requestBody = {
@@ -92,7 +89,7 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
       logger.debug('🚀 Request body for /responses:', JSON.stringify(requestBody, null, 2));
     } else {
       // Fallback to chat completions without web search
-      apiUrl = 'https://api.openai.com/v1/chat/completions';
+      apiUrl = '/api/openai?endpoint=chat/completions';
       requestBody = {
         model,
         messages: [{ 
@@ -105,13 +102,6 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
     }
 
     const headers: any = { 'Content-Type': 'application/json' };
-    if (!useGemini) {
-      if (!activeSettings.openAiApiKey) {
-        throw new Error('OpenAI API key is missing or undefined');
-      }
-      headers['Authorization'] = `Bearer ${activeSettings.openAiApiKey}`;
-      logger.debug('🔑 OpenAI key length:', activeSettings.openAiApiKey.length);
-    }
 
     logger.debug('🌐 Making request to:', apiUrl);
     logger.debug('🌐 Using web search:', useGemini || openAiSearchCapable);

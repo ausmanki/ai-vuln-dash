@@ -35,27 +35,14 @@ export class EnhancedVectorDatabase {
 
     try {
       let response;
-      try {
-        response = await fetch(url, {
-          method: 'POST',
-          headers: {
-            'x-goog-api-key': this.geminiApiKey,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(requestBody)
-        });
-      } catch (corsError) {
-        console.log('Direct Gemini embedding blocked by CORS, trying proxy...');
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-        response = await fetch(proxyUrl, {
-          method: 'POST',
-          headers: {
-            'x-goog-api-key': this.geminiApiKey,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(requestBody)
-        });
-      }
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'x-goog-api-key': this.geminiApiKey,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
 
       if (!response.ok) {
         throw new Error(`Gemini Embedding API error: ${response.status}`);

@@ -4,12 +4,12 @@ export const CONSTANTS = {
   API_ENDPOINTS: {
     NVD: 'https://services.nvd.nist.gov/rest/json/cves/2.0',
     EPSS: 'https://api.first.org/data/v1/epss',
-    GEMINI: 'https://generativelanguage.googleapis.com/v1beta/models',
-    OPENAI: 'https://api.openai.com/v1',
-    
+    GEMINI: '/api/gemini',
+    OPENAI: '/api/openai',
+
     // OpenAI has two different endpoints:
-    OPENAI_CHAT: 'https://api.openai.com/v1/chat/completions',  // Standard chat
-    OPENAI_RESPONSES: 'https://api.openai.com/v1/responses'     // Web search capable (gpt-4.1 only)
+    OPENAI_CHAT: '/api/openai?endpoint=chat/completions',  // Standard chat
+    OPENAI_RESPONSES: '/api/openai?endpoint=responses'     // Web search capable (gpt-4.1 only)
   },
   RATE_LIMITS: {
     GEMINI_COOLDOWN: 60000, // 1 minute
@@ -80,8 +80,7 @@ export async function fetchWithOpenAIResponses(
   const apiUrl = CONSTANTS.API_ENDPOINTS.OPENAI_RESPONSES;
 
   const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${settings.openAiApiKey}`
+    'Content-Type': 'application/json'
   };
 
   console.log('📡 Using OpenAI Responses API with web search');
@@ -196,7 +195,7 @@ export async function generateAIAnalysisFixed(
       requestBody.tools = [{ google_search: {} }];
     }
     
-    apiUrl = `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${apiKey}`;
+    apiUrl = `${CONSTANTS.API_ENDPOINTS.GEMINI}?model=${model}`;
   } else if (openAiSearchCapable) {
     // OpenAI Responses API with web search
     requestBody = {
@@ -225,9 +224,6 @@ export async function generateAIAnalysisFixed(
   
   try {
     const headers: any = { 'Content-Type': 'application/json' };
-    if (!useGemini) {
-      headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
-    }
 
     const response = await fetchWithFallback(apiUrl, {
       method: 'POST',
@@ -338,7 +334,7 @@ Focus on official vendor sources and security advisory sites.`;
       };
       
       const response = await fetchWithFallback(
-        `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`,
+        `${CONSTANTS.API_ENDPOINTS.GEMINI}?model=${model}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
