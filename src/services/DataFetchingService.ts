@@ -39,7 +39,7 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
   }
   
   const useGemini = !!activeSettings.geminiApiKey;
-  const model = useGemini ? (activeSettings.geminiModel || 'gemini-2.5-flash') : (activeSettings.openAiModel || 'gpt-4o');
+  const model = useGemini ? (activeSettings.geminiModel || 'gemini-2.5-flash') : (activeSettings.openAiModel || 'gpt-4.1');
   
   // FORCE OpenAI web search for all OpenAI requests
   const openAiSearchCapable = !useGemini; // Always true for OpenAI

@@ -152,10 +152,10 @@ const SettingsModal = ({ isOpen, onClose }) => {
             </label>
             <select
               style={styles.input}
-              value={localSettings.openAiModel || 'gpt-4o'}
+              value={localSettings.openAiModel || 'gpt-4.1'}
               onChange={(e) => setLocalSettings(prev => ({ ...prev, openAiModel: e.target.value }))}
             >
-              <option value="gpt-4o">GPT-4o</option>
+              <option value="gpt-4.1">GPT-4.1</option>
             </select>
           </div>
 

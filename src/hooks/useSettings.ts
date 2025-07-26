@@ -7,7 +7,7 @@ export const useSettings = () => {
     geminiModel: 'gemini-2.5-flash',
     nvdApiKey: '',
     openAiApiKey: '',
-    openAiModel: 'gpt-4o',
+    openAiModel: 'gpt-4.1',
     enableRAG: true
   });
 

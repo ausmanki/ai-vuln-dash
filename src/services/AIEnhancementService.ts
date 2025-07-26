@@ -107,7 +107,7 @@ export async function fetchPatchesAndAdvisories(
   }
 
   const useGemini = !settings.openAiApiKey && !!settings.geminiApiKey;
-  const model = useGemini ? (settings.geminiModel || 'gemini-2.5-flash') : (settings.openAiModel || 'gpt-4o');
+  const model = useGemini ? (settings.geminiModel || 'gemini-2.5-flash') : (settings.openAiModel || 'gpt-4.1');
   const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
   
   // OpenAI /responses endpoint DOES exist and supports web search
@@ -129,7 +129,7 @@ export async function fetchPatchesAndAdvisories(
   }
 
   if (!useGemini && !openAiSearchCapable) {
-    updateSteps(prev => [...prev, `⚠️ Web search not supported by OpenAI model - use gpt-4.1 or gpt-4o`]);
+    updateSteps(prev => [...prev, `⚠️ Web search not supported by OpenAI model - use gpt-4.1`]);
     return getHeuristicPatchesAndAdvisories(cveId, cveData);
   }
 
@@ -370,7 +370,7 @@ export async function fetchAIThreatIntelligence(
   }
 
   const useGemini = !!settings.geminiApiKey;
-  const model = useGemini ? (settings.geminiModel || 'gemini-2.5-flash') : (settings.openAiModel || 'gpt-4o');
+  const model = useGemini ? (settings.geminiModel || 'gemini-2.5-flash') : (settings.openAiModel || 'gpt-4.1');
   const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
   // Re-enable OpenAI web search - /responses endpoint is available
   const openAiSearchCapable = !useGemini && model === 'gpt-4.1';
@@ -820,7 +820,7 @@ export async function fetchGeneralAnswer(query: string, settings: any, fetchWith
   }
   
   const useGemini = !!settings.geminiApiKey;
-  const model = useGemini ? (settings.geminiModel || "gemini-2.5-flash") : (settings.openAiModel || 'gpt-4o');
+  const model = useGemini ? (settings.geminiModel || "gemini-2.5-flash") : (settings.openAiModel || 'gpt-4.1');
   const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
   // Re-enable OpenAI web search
   const openAiSearchCapable = !useGemini && model === 'gpt-4.1';
@@ -966,7 +966,7 @@ export async function generateAITaintAnalysis(
         }
       : {
           // Standard chat completions format (fallback)
-          model: settings.openAiModel || 'gpt-4o',
+          model: settings.openAiModel || 'gpt-4.1',
           messages: [{ 
             role: 'user', 
             content: prompt 

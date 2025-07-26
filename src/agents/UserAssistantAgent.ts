@@ -2860,7 +2860,7 @@ export class UserAssistantAgent {
                   Authorization: `Bearer ${this.settings.openAiApiKey}`
                 },
                 body: JSON.stringify({
-                  model: 'gpt-4o',
+                  model: 'gpt-4.1',
                   messages: [{ role: 'user', content: query }],
                   max_tokens: 4096
                 })
