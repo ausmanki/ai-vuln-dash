@@ -170,25 +170,31 @@ const App = () => {
             </div>
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-              <div style={{
-                ...styles.badge,
-                background: settings.geminiApiKey
-                  ? (settings.darkMode ? `rgba(${utils.hexToRgb(COLORS.green)}, 0.15)` : `rgba(${utils.hexToRgb(COLORS.green)}, 0.1)`)
-                  : (settings.darkMode ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.15)` : `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)`),
-                borderColor: settings.geminiApiKey
-                  ? `rgba(${utils.hexToRgb(COLORS.green)}, 0.3)`
-                  : `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.3)`,
-                color: settings.geminiApiKey ? COLORS.green : COLORS.yellow,
-                borderWidth: '1px',
-                borderStyle: 'solid',
-                fontWeight: '600',
-                fontSize: '0.875rem',
-                padding: '8px 14px',
-                minHeight: '44px',
-              }}>
-                <Brain size={16} />
-                {settings.geminiApiKey || settings.openAiApiKey ? 'AI Ready' : 'AI Offline'}
-              </div>
+              {(() => {
+                const aiActive = settings.geminiApiKey || settings.openAiApiKey;
+                const badgeColor = aiActive ? COLORS.green : COLORS.yellow;
+                return (
+                  <div
+                    style={{
+                      ...styles.badge,
+                      background: settings.darkMode
+                        ? `rgba(${utils.hexToRgb(badgeColor)}, 0.15)`
+                        : `rgba(${utils.hexToRgb(badgeColor)}, 0.1)`,
+                      borderColor: `rgba(${utils.hexToRgb(badgeColor)}, 0.3)`,
+                      color: badgeColor,
+                      borderWidth: '1px',
+                      borderStyle: 'solid',
+                      fontWeight: '600',
+                      fontSize: '0.875rem',
+                      padding: '8px 14px',
+                      minHeight: '44px',
+                    }}
+                  >
+                    <Brain size={16} />
+                    {aiActive ? 'AI Ready' : 'AI Offline'}
+                  </div>
+                );
+              })()}
               
               <button
                 onClick={() => setShowSettings(true)}
