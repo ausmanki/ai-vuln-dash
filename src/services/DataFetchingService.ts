@@ -39,6 +39,7 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
   }
   
   const useGemini = !!activeSettings.geminiApiKey;
+  // Default to Gemini 2.5 Flash for general use
   const model = useGemini ? (activeSettings.geminiModel || 'gemini-2.5-flash') : (activeSettings.openAiModel || 'gpt-4.1');
   
   // FORCE OpenAI web search for all OpenAI requests
@@ -58,10 +59,11 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
     let requestBody: any;
     
     if (useGemini) {
+      const geminiSearchCapable =
+        model.includes('2.5') || model.includes('2.0');
       apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${activeSettings.geminiApiKey}`;
       requestBody = {
         contents: [{ parts: [{ text: searchPrompt }] }],
-        tools: [{ google_search_retrieval: {} }],
         generationConfig: {
           temperature: 0.1,
           topK: 40,
@@ -69,6 +71,11 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
           maxOutputTokens: 4096
         }
       };
+      if (geminiSearchCapable) {
+        requestBody.tools = [{ google_search: {} }];
+      } else {
+        console.log('⚠️ Gemini model does not support web search, proceeding without it');
+      }
     } else if (openAiSearchCapable) {
       // FORCE /responses endpoint for web search
       apiUrl = 'https://api.openai.com/v1/responses';
