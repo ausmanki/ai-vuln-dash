@@ -131,8 +131,8 @@ export const vendorPortalMap: VendorPortalMap = {
   },
   'nginx': {
     name: 'NGINX Inc.',
-    securityUrl: 'http://nginx.org/en/security_advisories.html',
-    downloadUrl: 'http://nginx.org/en/download.html',
+    securityUrl: 'https://nginx.org/en/security_advisories.html',
+    downloadUrl: 'https://nginx.org/en/download.html',
     description: 'NGINX security advisories and stable releases',
     searchTips: 'Check security advisories page for vulnerability information',
     updateGuidance: 'Update to latest stable NGINX version'
