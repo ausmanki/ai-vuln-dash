@@ -109,6 +109,8 @@ const SettingsModal = ({ isOpen, onClose }) => {
               value={localSettings.geminiModel || 'gemini-2.5-flash'}
               onChange={(e) => setLocalSettings(prev => ({ ...prev, geminiModel: e.target.value }))}
             >
+              <option value="gemini-1.5-pro-latest">Gemini 1.5 Pro</option>
+              <option value="gemini-1.5-flash-latest">Gemini 1.5 Flash</option>
               <option value="gemini-2.5-pro">Gemini 2.5 Pro</option>
               <option value="gemini-2.5-flash">Gemini 2.5 Flash</option>
               <option value="gemini-2.0-pro">Gemini 2.0 Pro</option>

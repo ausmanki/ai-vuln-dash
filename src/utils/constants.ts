@@ -155,7 +155,9 @@ export async function generateAIAnalysisFixed(
   const useGemini = !!apiKey;
   
   // Check if we can use web search
-  const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  // Gemini web search currently supported on 2.0 and 2.5 models
+  const geminiSearchCapable =
+    useGemini && (model.includes('2.0') || model.includes('2.5'));
   const openAiSearchCapable = !useGemini && checkOpenAIWebSearchCapability(model);
   
   console.log('🔧 AI Analysis Configuration:', {
@@ -298,7 +300,8 @@ export async function fetchPatchesWithWebSearch(
   const model = useGemini ? (settings.geminiModel || 'gemini-2.5-flash') : (settings.openAiModel || 'gpt-4');
   
   // Check web search capability
-  const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  const geminiSearchCapable =
+    useGemini && (model.includes('2.0') || model.includes('2.5'));
   const openAiSearchCapable = !useGemini && model === 'gpt-4.1';
   
   if (!geminiSearchCapable && !openAiSearchCapable) {

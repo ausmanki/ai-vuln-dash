@@ -108,7 +108,9 @@ export async function fetchPatchesAndAdvisories(
 
   const useGemini = !settings.openAiApiKey && !!settings.geminiApiKey;
   const model = useGemini ? (settings.geminiModel || 'gemini-2.5-flash') : (settings.openAiModel || 'gpt-4.1');
-  const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  // Web search supported on Gemini 2.0 and 2.5 models
+  const geminiSearchCapable =
+    useGemini && (model.includes('2.0') || model.includes('2.5'));
   
   // OpenAI /responses endpoint DOES exist and supports web search
   // Force gpt-4.1 for web search regardless of selected model
@@ -371,7 +373,8 @@ export async function fetchAIThreatIntelligence(
 
   const useGemini = !!settings.geminiApiKey;
   const model = useGemini ? (settings.geminiModel || 'gemini-2.5-flash') : (settings.openAiModel || 'gpt-4.1');
-  const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  const geminiSearchCapable =
+    useGemini && (model.includes('2.0') || model.includes('2.5'));
   // Re-enable OpenAI web search - /responses endpoint is available
   const openAiSearchCapable = !useGemini && model === 'gpt-4.1';
 
@@ -609,7 +612,8 @@ export async function generateAIAnalysis(
 
   const prompt = buildEnhancedAnalysisPrompt(vulnerability, ragContext, relevantDocs.length);
 
-  const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  const geminiSearchCapable =
+    useGemini && (model.includes('2.0') || model.includes('2.5'));
   const openAiSearchCapable = !useGemini && model === 'gpt-4.1';
 
   const requestBody: any = useGemini
@@ -821,7 +825,8 @@ export async function fetchGeneralAnswer(query: string, settings: any, fetchWith
   
   const useGemini = !!settings.geminiApiKey;
   const model = useGemini ? (settings.geminiModel || "gemini-2.5-flash") : (settings.openAiModel || 'gpt-4.1');
-  const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  const geminiSearchCapable =
+    useGemini && (model.includes('2.0') || model.includes('2.5'));
   // Re-enable OpenAI web search
   const openAiSearchCapable = !useGemini && model === 'gpt-4.1';
   
@@ -938,7 +943,8 @@ export async function generateAITaintAnalysis(
   }
 
   const useGemini = !!apiKey;
-  const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  const geminiSearchCapable =
+    useGemini && (model.includes('2.0') || model.includes('2.5'));
   // Re-enable OpenAI web search for taint analysis
   const openAiSearchCapable = !useGemini && model === 'gpt-4.1';
 
