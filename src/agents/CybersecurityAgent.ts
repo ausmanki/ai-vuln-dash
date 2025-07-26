@@ -66,7 +66,7 @@ export class AIGroundingEngine {
     if (this.keys.gemini) {
       try {
         const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.keys.gemini}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${this.keys.gemini}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -362,7 +362,7 @@ export class CybersecurityAgent {
 
       const searchPrompt = `Search for information about: ${query}. Provide a comprehensive analysis including current threat status, patches, advisories, and any dispute information.`;
 
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.settings.geminiApiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${this.settings.geminiApiKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

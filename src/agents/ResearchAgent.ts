@@ -219,7 +219,7 @@ class PatternLearningEngine {
       depth: prediction.suggestedSearchDepth,
       sources: ['nvd', 'cisa', 'exploitdb', 'github'],
       queries: this.generateOptimizedQueries(cveId, prediction),
-      aiModel: prediction.exploitProbability > 0.7 ? 'gemini-1.5-pro' : 'gemini-1.5-flash',
+      aiModel: prediction.exploitProbability > 0.7 ? 'gemini-1.5-pro' : 'gemini-2.5-flash',
       parallelism: 3
     };
   }
@@ -411,7 +411,7 @@ class SmartDecisionEngine {
   selectOptimalAIModel(complexity: { score: number }): any {
     if (complexity.score < 0.3) {
       return {
-        model: 'gemini-1.5-flash',
+        model: 'gemini-2.5-flash',
         temperature: 0.3,
         maxTokens: 1000,
         reasoning: 'Simple query - using fast model'
@@ -428,7 +428,7 @@ class SmartDecisionEngine {
     }
     
     return {
-      model: 'gemini-1.5-flash',
+      model: 'gemini-2.5-flash',
       temperature: 0.4,
       maxTokens: 2000,
       reasoning: 'Standard analysis - balanced approach'

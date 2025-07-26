@@ -66,7 +66,7 @@ export class AIGroundingEngine {
     if (this.keys.gemini) {
       try {
         const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.keys.gemini}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${this.keys.gemini}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -2821,7 +2821,7 @@ export class UserAssistantAgent {
       // Retry logic for API failures
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${this.settings.geminiApiKey}`, {
+          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${this.settings.geminiApiKey}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
