@@ -15,9 +15,11 @@ export const utils = {
     return `${r}, ${g}, ${b}`;
   },
 
-  validateCVE: (cveId) => {
+  validateCVE: (cveId: string): boolean => {
     const id = cveId.trim();
-    return /^CVE-\d{4}-\d{4,}$/i.test(id) || /^BDSA-\d{4}-\d{4,}$/i.test(id);
+    // Basic sanity check to avoid extremely long or suspicious input
+    if (id.length > 20) return false;
+    return /^[Cc][Vv][Ee]-\d{4}-\d{4,7}$/.test(id);
   },
 
   getVulnerabilityUrl: (id) => {

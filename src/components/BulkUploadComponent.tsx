@@ -67,12 +67,14 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
         return;
       }
 
-      if (cves.length > 0) {
-        setExtractedCVEs(cves);
-        addNotification({ type: 'success', title: 'Parsing Complete', message: `Found ${cves.length} CVEs.` });
+      const valid = cves.filter(id => utils.validateCVE(id)).map(id => id.toUpperCase());
+
+      if (valid.length > 0) {
+        setExtractedCVEs(valid);
+        addNotification({ type: 'success', title: 'Parsing Complete', message: `Found ${valid.length} CVEs.` });
       } else {
         setError(`No valid CVE IDs found in ${selectedFile.name}.`);
-        addNotification({ type: 'warning', title: 'Parsing Complete', message: `No CVEs found in ${selectedFile.name}.` });
+        addNotification({ type: 'warning', title: 'Parsing Complete', message: `No valid CVEs found in ${selectedFile.name}.` });
       }
     } catch (e: any) {
       console.error("File parsing error:", e);
