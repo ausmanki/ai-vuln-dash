@@ -602,7 +602,7 @@ export class SmartResearchAgent {
         geminiApiKey: apiKeys.geminiApiKey || enhancedSettings.geminiApiKey,
         geminiModel: aiModel.model,
         openAiApiKey: enhancedSettings.openAiApiKey,
-        openAiModel: enhancedSettings.openAiModel || 'gpt-4o'
+        openAiModel: enhancedSettings.openAiModel || 'gpt-4.1'
       };
 
       // Fetch primary data with parallel optimization

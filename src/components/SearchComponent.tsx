@@ -40,7 +40,7 @@ const SearchComponent = () => {
         geminiApiKey: settings.geminiApiKey,
         geminiModel: settings.geminiModel || 'gemini-1.5-flash',
         openAiApiKey: settings.openAiApiKey,
-        openAiModel: settings.openAiModel || 'gpt-4o'
+        openAiModel: settings.openAiModel || 'gpt-4.1'
       });
       console.log('🤖 AI settings initialized for web search fallbacks');
     } else {
