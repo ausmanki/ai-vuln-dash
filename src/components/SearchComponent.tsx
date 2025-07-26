@@ -38,7 +38,7 @@ const SearchComponent = () => {
     if (settings.geminiApiKey || settings.openAiApiKey) {
       setGlobalAISettings({
         geminiApiKey: settings.geminiApiKey,
-        geminiModel: settings.geminiModel || 'gemini-1.5-flash',
+        geminiModel: settings.geminiModel || 'gemini-2.5-flash',
         openAiApiKey: settings.openAiApiKey,
         openAiModel: settings.openAiModel || 'gpt-4.1'
       });
