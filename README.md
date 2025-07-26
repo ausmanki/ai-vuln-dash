@@ -200,6 +200,9 @@ cd vulnerability-intelligence-platform
 # Install dependencies
 npm install
 
+# Start the backend (requires OPENAI_API_KEY and GEMINI_API_KEY env vars)
+npm run server &
+
 # Start development server
 npm run dev
 ```
@@ -209,14 +212,14 @@ npm run dev
    - Get free API key: [NVD API](https://nvd.nist.gov/developers/request-an-api-key)
 
 2. **AI Analysis: Gemini or OpenAI API Key**
-   - Gemini key: [Google AI Studio](https://makersuite.google.com/app/apikey)
-   - OpenAI key: [OpenAI Dashboard](https://platform.openai.com/)
+  - Gemini key: [Google AI Studio](https://makersuite.google.com/app/apikey)
+  - OpenAI key: [OpenAI Dashboard](https://platform.openai.com/)
+  - Set `GEMINI_API_KEY` and `OPENAI_API_KEY` as environment variables before starting the backend
 
 4. **Configure in Settings**:
-   - Click "Settings" in the top-right corner
-   - Add your API keys
-   - Select Gemini model (2.0 recommended for web grounding)
-   - Select OpenAI model (GPT-4o recommended)
+  - Click "Settings" in the top-right corner
+  - Select Gemini model (2.0 recommended for web grounding)
+  - Select OpenAI model (GPT-4o recommended)
 
 ---
 
@@ -238,7 +241,7 @@ npm run dev
 
 ### **🤖 AI-Enhanced Analysis**
 ```
-1. Configure Gemini or OpenAI API key in settings
+1. Ensure the backend server is running with your API keys
 2. Enable AI analysis for each vulnerability
 3. Get 3000+ word comprehensive security assessment
 ```

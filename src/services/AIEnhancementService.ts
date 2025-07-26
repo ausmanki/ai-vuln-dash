@@ -192,10 +192,10 @@ Please provide information about any patches, updates, or advisories you find fo
   updateSteps(prev => [...prev, `🤖 AI searching for patches and advisories ${(useGemini && geminiSearchCapable) || (!useGemini && openAiSearchCapable) ? 'with web search' : 'without web search'}...`]);
 
   const apiUrl = useGemini
-    ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`
+    ? `/api/gemini?model=${model}`
     : openAiSearchCapable
-      ? 'https://api.openai.com/v1/responses' // Use /responses for web search
-      : 'https://api.openai.com/v1/chat/completions'; // Use chat completions as fallback
+      ? '/api/openai?endpoint=responses' // Use /responses for web search
+      : '/api/openai?endpoint=chat/completions'; // Use chat completions as fallback
 
   logger.debug('🔧 DEBUG: API URL being used:', apiUrl);
   logger.debug('🔧 DEBUG: Using web search endpoint:', openAiSearchCapable);
@@ -203,8 +203,7 @@ Please provide information about any patches, updates, or advisories you find fo
     const headers: any = { 'Content-Type': 'application/json' };
     
     if (!useGemini) {
-      logger.debug('🔧 DEBUG: Setting OpenAI auth header');
-      headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
+      logger.debug('🔧 DEBUG: Using server-side OpenAI key');
     }
 
     const response = await fetchWithFallback(apiUrl, {
@@ -437,15 +436,14 @@ Provide specific information about any threats, exploits, or active usage you fi
         };
 
     const apiUrl = useGemini
-      ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`
+      ? `/api/gemini?model=${model}`
       : openAiSearchCapable
-        ? 'https://api.openai.com/v1/responses'
-        : 'https://api.openai.com/v1/chat/completions';
+        ? '/api/openai?endpoint=responses'
+        : '/api/openai?endpoint=chat/completions';
 
     const headers: any = { 'Content-Type': 'application/json' };
     if (!useGemini) {
-      logger.debug('🔧 DEBUG: Setting OpenAI auth header for threat intel');
-      headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
+      logger.debug('🔧 DEBUG: Using server-side OpenAI key for threat intel');
     }
 
     const response = await fetchWithFallback(apiUrl, {
@@ -652,10 +650,10 @@ export async function generateAIAnalysis(
   }
 
   const apiUrl = useGemini
-    ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${apiKey}`
+    ? `/api/gemini?model=${model}`
     : openAiSearchCapable
-      ? 'https://api.openai.com/v1/responses' // Use /responses for web search
-      : 'https://api.openai.com/v1/chat/completions'; // Use chat completions as fallback
+      ? '/api/openai?endpoint=responses' // Use /responses for web search
+      : '/api/openai?endpoint=chat/completions'; // Use chat completions as fallback
   
   logger.debug('🚨 generateAIAnalysis REQUEST DEBUG:');
   logger.debug('- apiUrl:', apiUrl);
@@ -665,8 +663,7 @@ export async function generateAIAnalysis(
   try {
     const headers: any = { 'Content-Type': 'application/json' };
     if (!useGemini) {
-      logger.debug('🔧 DEBUG: Setting OpenAI auth header for AI analysis');
-      headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
+      logger.debug('🔧 DEBUG: Using server-side OpenAI key for AI analysis');
     }
 
     const response = await fetchWithFallback(apiUrl, {
@@ -864,15 +861,12 @@ export async function fetchGeneralAnswer(query: string, settings: any, fetchWith
         };
 
   const apiUrl = useGemini
-    ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${settings.geminiApiKey}`
+    ? `/api/gemini?model=${model}`
     : openAiSearchCapable
-      ? 'https://api.openai.com/v1/responses'
-      : 'https://api.openai.com/v1/chat/completions';
+      ? '/api/openai?endpoint=responses'
+      : '/api/openai?endpoint=chat/completions';
 
   const headers: any = { "Content-Type": "application/json" };
-  if (!useGemini) {
-    headers["Authorization"] = `Bearer ${settings.openAiApiKey}`;
-  }
 
   const response = await fetchWithFallbackFn(apiUrl, {
     method: "POST",
@@ -983,10 +977,10 @@ export async function generateAITaintAnalysis(
         };
 
   const apiUrl = useGemini
-    ? `${CONSTANTS.API_ENDPOINTS.GEMINI}/${model}:generateContent?key=${apiKey}`
+    ? `/api/gemini?model=${model}`
     : openAiSearchCapable
-      ? 'https://api.openai.com/v1/responses' // Use /responses for web search
-      : 'https://api.openai.com/v1/chat/completions'; // Use chat completions as fallback
+      ? '/api/openai?endpoint=responses' // Use /responses for web search
+      : '/api/openai?endpoint=chat/completions'; // Use chat completions as fallback
 
   logger.debug('🔧 TAINT ANALYSIS DEBUG:');
   logger.debug('- useGemini:', useGemini);
@@ -995,8 +989,7 @@ export async function generateAITaintAnalysis(
 
   const headers: any = { 'Content-Type': 'application/json' };
   if (!useGemini) {
-    logger.debug('🔧 DEBUG: Setting OpenAI auth header for taint analysis');
-    headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
+    logger.debug('🔧 DEBUG: Using server-side OpenAI key for taint analysis');
   }
 
   const response = await fetchWithFallbackFn(apiUrl, {
