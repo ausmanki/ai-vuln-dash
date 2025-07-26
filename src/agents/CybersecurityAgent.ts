@@ -163,14 +163,12 @@ export class CybersecurityAgent {
       if (this.groundingEngine) {
         const grounded = await this.groundingEngine.search(query);
         if (grounded.content) {
-          return { text: grounded.content, sender: 'bot', id: Date.now().toString(), confidence: grounded.confidence };
-        }
-      }
-
-      if (this.groundingEngine) {
-        const grounded = await this.groundingEngine.search(query);
-        if (grounded.content) {
-          return { text: grounded.content, sender: 'bot', id: Date.now().toString(), confidence: grounded.confidence };
+          return {
+            text: grounded.content,
+            sender: 'bot',
+            id: Date.now().toString(),
+            confidence: grounded.confidence,
+          };
         }
       }
 
