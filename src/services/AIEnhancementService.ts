@@ -1,6 +1,7 @@
 // AIEnhancementService.ts - FIXED VERSION with proper OpenAI /responses endpoint support
 import { CONSTANTS } from '../utils/constants';
 
+import { logger } from '../utils/logger';
 interface GroundingMetadata {
   groundingChunks?: Array<{
     web?: {
@@ -119,11 +120,11 @@ export async function fetchPatchesAndAdvisories(
   // Always use gpt-4.1 for /responses endpoint
   const openAiModelForSearch = openAiSearchCapable ? 'gpt-4.1' : model;
   
-  console.log('🚨 EMERGENCY DEBUG:');
-  console.log('- useGemini:', useGemini);
-  console.log('- model:', model);
-  console.log('- settings.openAiModel:', settings.openAiModel);
-  console.log('- openAiSearchCapable:', openAiSearchCapable, '(/responses endpoint available)');
+  logger.debug('🚨 EMERGENCY DEBUG:');
+  logger.debug('- useGemini:', useGemini);
+  logger.debug('- model:', model);
+  logger.debug('- settings.openAiModel:', settings.openAiModel);
+  logger.debug('- openAiSearchCapable:', openAiSearchCapable, '(/responses endpoint available)');
 
   if (useGemini && !geminiSearchCapable) {
     updateSteps(prev => [...prev, `⚠️ Web search not supported by Gemini model`]);
@@ -184,9 +185,9 @@ Please provide information about any patches, updates, or advisories you find fo
           temperature: 0.1
         };
 
-  console.log('🔧 DEBUG: OpenAI search capable:', openAiSearchCapable);
-  console.log('🔧 DEBUG: Using model:', openAiSearchCapable ? "gpt-4.1" : model);
-  console.log('🔧 DEBUG: Request body format:', useGemini ? 'Gemini with web search' : openAiSearchCapable ? 'OpenAI /responses with web search' : 'OpenAI chat completions');
+  logger.debug('🔧 DEBUG: OpenAI search capable:', openAiSearchCapable);
+  logger.debug('🔧 DEBUG: Using model:', openAiSearchCapable ? "gpt-4.1" : model);
+  logger.debug('🔧 DEBUG: Request body format:', useGemini ? 'Gemini with web search' : openAiSearchCapable ? 'OpenAI /responses with web search' : 'OpenAI chat completions');
 
   updateSteps(prev => [...prev, `🤖 AI searching for patches and advisories ${(useGemini && geminiSearchCapable) || (!useGemini && openAiSearchCapable) ? 'with web search' : 'without web search'}...`]);
 
@@ -196,13 +197,13 @@ Please provide information about any patches, updates, or advisories you find fo
       ? 'https://api.openai.com/v1/responses' // Use /responses for web search
       : 'https://api.openai.com/v1/chat/completions'; // Use chat completions as fallback
 
-  console.log('🔧 DEBUG: API URL being used:', apiUrl);
-  console.log('🔧 DEBUG: Using web search endpoint:', openAiSearchCapable);
+  logger.debug('🔧 DEBUG: API URL being used:', apiUrl);
+  logger.debug('🔧 DEBUG: Using web search endpoint:', openAiSearchCapable);
 
     const headers: any = { 'Content-Type': 'application/json' };
     
     if (!useGemini) {
-      console.log('🔧 DEBUG: Setting OpenAI auth header');
+      logger.debug('🔧 DEBUG: Setting OpenAI auth header');
       headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
     }
 
@@ -214,12 +215,12 @@ Please provide information about any patches, updates, or advisories you find fo
 
     if (!response.ok) {
       const errorText = await response.text().catch(() => 'Unknown error');
-      console.error('API Error Response:', errorText);
+      logger.error('API Error Response:', errorText);
       
       // Try to parse error for more details
       try {
         const errorData = JSON.parse(errorText);
-        console.error('Parsed error:', errorData);
+        logger.error('Parsed error:', errorData);
       } catch (e) {
         // Ignore parsing errors
       }
@@ -259,10 +260,10 @@ Please provide information about any patches, updates, or advisories you find fo
       
       if (openAiSearchCapable) {
         // FIXED: OpenAI /responses endpoint returns output as an array
-        console.log('📥 OpenAI /responses response structure:', Object.keys(data));
-        console.log('📥 data.output exists:', !!data.output);
-        console.log('📥 data.output type:', typeof data.output);
-        console.log('📥 Is data.output an array?:', Array.isArray(data.output));
+        logger.debug('📥 OpenAI /responses response structure:', Object.keys(data));
+        logger.debug('📥 data.output exists:', !!data.output);
+        logger.debug('📥 data.output type:', typeof data.output);
+        logger.debug('📥 Is data.output an array?:', Array.isArray(data.output));
         
         // Extract text from the output array structure
         if (Array.isArray(data.output)) {
@@ -273,7 +274,7 @@ Please provide information about any patches, updates, or advisories you find fo
             
             if (textObj && textObj.text) {
               responseText = textObj.text;
-              console.log('📥 Found text in output array structure');
+              logger.debug('📥 Found text in output array structure');
             }
           }
         } else if (typeof data.output === 'string') {
@@ -290,7 +291,7 @@ Please provide information about any patches, updates, or advisories you find fo
         
         // Ensure responseText is a string
         if (typeof responseText !== 'string') {
-          console.error('📥 responseText is not a string:', typeof responseText, responseText);
+          logger.error('📥 responseText is not a string:', typeof responseText, responseText);
           responseText = String(responseText);
         }
         
@@ -303,7 +304,7 @@ Please provide information about any patches, updates, or advisories you find fo
           };
         }
         
-        console.log('📥 Final responseText length:', responseText?.length || 0);
+        logger.debug('📥 Final responseText length:', responseText?.length || 0);
         updateSteps(prev => [...prev, `✅ Found patch information via OpenAI web search (/responses)`]);
       } else {
         // Standard chat completions response format
@@ -312,7 +313,7 @@ Please provide information about any patches, updates, or advisories you find fo
       }
       
       if (!responseText) {
-        console.error('No text in response. Full response:', JSON.stringify(data, null, 2));
+        logger.error('No text in response. Full response:', JSON.stringify(data, null, 2));
         throw new Error(`No usable response from OpenAI ${openAiSearchCapable ? '/responses' : 'chat completions'} API`);
       }
       
@@ -345,7 +346,7 @@ Please provide information about any patches, updates, or advisories you find fo
     };
 
   } catch (error) {
-    console.error('Patch search error:', error);
+    logger.error('Patch search error:', error);
     updateSteps(prev => [...prev, `⚠️ AI search failed: ${error.message}`]);
     return getHeuristicPatchesAndAdvisories(cveId, cveData);
   }
@@ -378,11 +379,11 @@ export async function fetchAIThreatIntelligence(
   // Re-enable OpenAI web search - /responses endpoint is available
   const openAiSearchCapable = !useGemini && model === 'gpt-4.1';
 
-  console.log('🚨 Threat Intel DEBUG:');
-  console.log('- useGemini:', useGemini);
-  console.log('- model:', model);
-  console.log('- geminiSearchCapable:', geminiSearchCapable);
-  console.log('- openAiSearchCapable:', openAiSearchCapable, '(/responses endpoint available)');
+  logger.debug('🚨 Threat Intel DEBUG:');
+  logger.debug('- useGemini:', useGemini);
+  logger.debug('- model:', model);
+  logger.debug('- geminiSearchCapable:', geminiSearchCapable);
+  logger.debug('- openAiSearchCapable:', openAiSearchCapable, '(/responses endpoint available)');
 
   if (useGemini && !geminiSearchCapable) {
     updateSteps(prev => [...prev, `⚠️ Gemini model doesn't support web search`]);
@@ -443,7 +444,7 @@ Provide specific information about any threats, exploits, or active usage you fi
 
     const headers: any = { 'Content-Type': 'application/json' };
     if (!useGemini) {
-      console.log('🔧 DEBUG: Setting OpenAI auth header for threat intel');
+      logger.debug('🔧 DEBUG: Setting OpenAI auth header for threat intel');
       headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
     }
 
@@ -499,7 +500,7 @@ Provide specific information about any threats, exploits, or active usage you fi
           
           if (textObj && textObj.text) {
             text = textObj.text;
-            console.log('Found text in output array structure');
+            logger.debug('Found text in output array structure');
           }
         }
       } else if (typeof data.output === 'string') {
@@ -513,10 +514,10 @@ Provide specific information about any threats, exploits, or active usage you fi
       }
       
       if (!text) {
-        console.error('No output in response. Full response:', JSON.stringify(data, null, 2));
-        console.error('Available fields:', Object.keys(data));
-        console.error('data.output:', data.output);
-        console.error('data.text:', data.text);
+        logger.error('No output in response. Full response:', JSON.stringify(data, null, 2));
+        logger.error('Available fields:', Object.keys(data));
+        logger.error('data.output:', data.output);
+        logger.error('data.text:', data.text);
         throw new Error('No usable response from OpenAI /responses endpoint');
       }
       aiResponse = text;
@@ -552,7 +553,7 @@ Provide specific information about any threats, exploits, or active usage you fi
     return findings;
 
   } catch (error) {
-    console.error('Threat intelligence error:', error);
+    logger.error('Threat intelligence error:', error);
     updateSteps(prev => [...prev, `⚠️ Search failed: ${error.message}`]);
     return await performHeuristicAnalysis(cveId, cveData, epssData, setLoadingSteps);
   }
@@ -590,7 +591,7 @@ export async function generateAIAnalysis(
 
   if (ragDatabase) {
     await ragDatabase.ensureInitialized(useGemini ? apiKey : null);
-    console.log(`📊 RAG Database Status: ${ragDatabase.documents.length} documents available`);
+    logger.debug(`📊 RAG Database Status: ${ragDatabase.documents.length} documents available`);
   }
 
   const cveId = vulnerability.cve.id;
@@ -601,7 +602,7 @@ export async function generateAIAnalysis(
 
   if (ragDatabase && ragDatabase.initialized) {
     relevantDocs = await ragDatabase.search(ragQuery, 15);
-    console.log(`📚 RAG Retrieved: ${relevantDocs.length} relevant documents`);
+    logger.debug(`📚 RAG Retrieved: ${relevantDocs.length} relevant documents`);
 
     if (relevantDocs.length > 0) {
       ragContext = relevantDocs.map((doc, index) =>
@@ -656,15 +657,15 @@ export async function generateAIAnalysis(
       ? 'https://api.openai.com/v1/responses' // Use /responses for web search
       : 'https://api.openai.com/v1/chat/completions'; // Use chat completions as fallback
   
-  console.log('🚨 generateAIAnalysis REQUEST DEBUG:');
-  console.log('- apiUrl:', apiUrl);
-  console.log('- openAiSearchCapable:', openAiSearchCapable);
-  console.log('- useGemini:', useGemini);
+  logger.debug('🚨 generateAIAnalysis REQUEST DEBUG:');
+  logger.debug('- apiUrl:', apiUrl);
+  logger.debug('- openAiSearchCapable:', openAiSearchCapable);
+  logger.debug('- useGemini:', useGemini);
 
   try {
     const headers: any = { 'Content-Type': 'application/json' };
     if (!useGemini) {
-      console.log('🔧 DEBUG: Setting OpenAI auth header for AI analysis');
+      logger.debug('🔧 DEBUG: Setting OpenAI auth header for AI analysis');
       headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
     }
 
@@ -693,7 +694,7 @@ export async function generateAIAnalysis(
     const data = await response.json();
     let analysisText;
     
-    console.log('🔍 DEBUG: Full OpenAI response structure:', Object.keys(data));
+    logger.debug('🔍 DEBUG: Full OpenAI response structure:', Object.keys(data));
     
     if (useGemini) {
       // FIXED: Handle chunked/multi-part Gemini responses to fix truncation
@@ -718,11 +719,11 @@ export async function generateAIAnalysis(
     } else {
       // FIXED: Handle OpenAI /responses endpoint response format
       if (openAiSearchCapable) {
-        console.log('🔍 DEBUG: Checking /responses fields:');
-        console.log('- data.output:', !!data.output);
-        console.log('- data.output type:', typeof data.output);
-        console.log('- Is data.output an array?:', Array.isArray(data.output));
-        console.log('- Full response keys:', Object.keys(data));
+        logger.debug('🔍 DEBUG: Checking /responses fields:');
+        logger.debug('- data.output:', !!data.output);
+        logger.debug('- data.output type:', typeof data.output);
+        logger.debug('- Is data.output an array?:', Array.isArray(data.output));
+        logger.debug('- Full response keys:', Object.keys(data));
         
         // Extract text from the output array structure
         if (Array.isArray(data.output)) {
@@ -733,7 +734,7 @@ export async function generateAIAnalysis(
             
             if (textObj && textObj.text) {
               analysisText = textObj.text;
-              console.log('🔍 Found text in output array structure');
+              logger.debug('🔍 Found text in output array structure');
             }
           }
         } else if (typeof data.output === 'string') {
@@ -749,7 +750,7 @@ export async function generateAIAnalysis(
           } else if (data.output.message) {
             analysisText = data.output.message;
           } else {
-            console.error('❌ data.output is object:', data.output);
+            logger.error('❌ data.output is object:', data.output);
             analysisText = JSON.stringify(data.output);
           }
         } else if (data.text && typeof data.text === 'object') {
@@ -759,17 +760,17 @@ export async function generateAIAnalysis(
           } else if (data.text.text) {
             analysisText = data.text.text;
           } else {
-            console.error('❌ data.text is object:', data.text);
+            logger.error('❌ data.text is object:', data.text);
             analysisText = JSON.stringify(data.text);
           }
         } else {
           analysisText = '';
         }
         
-        console.log('🔍 DEBUG: Final analysisText type:', typeof analysisText);
-        console.log('🔍 DEBUG: Final analysisText length:', analysisText?.length || 0);
+        logger.debug('🔍 DEBUG: Final analysisText type:', typeof analysisText);
+        logger.debug('🔍 DEBUG: Final analysisText length:', analysisText?.length || 0);
         if (typeof analysisText === 'string' && analysisText.length > 0) {
-          console.log('🔍 DEBUG: First 200 chars of analysisText:', analysisText.substring(0, 200));
+          logger.debug('🔍 DEBUG: First 200 chars of analysisText:', analysisText.substring(0, 200));
         }
       } else {
         // Standard chat completions response format
@@ -777,8 +778,8 @@ export async function generateAIAnalysis(
       }
       
       if (!analysisText) {
-        console.error('❌ DEBUG: No text found in response');
-        console.error('❌ DEBUG: Available fields:', Object.keys(data));
+        logger.error('❌ DEBUG: No text found in response');
+        logger.error('❌ DEBUG: Available fields:', Object.keys(data));
         throw new Error('Invalid response from OpenAI API - no text content found');
       }
     }
@@ -810,7 +811,7 @@ export async function generateAIAnalysis(
     };
 
   } catch (error) {
-    console.error('Enhanced Analysis Error:', error);
+    logger.error('Enhanced Analysis Error:', error);
     return generateEnhancedFallbackAnalysis(vulnerability, error);
   }
 }
@@ -987,14 +988,14 @@ export async function generateAITaintAnalysis(
       ? 'https://api.openai.com/v1/responses' // Use /responses for web search
       : 'https://api.openai.com/v1/chat/completions'; // Use chat completions as fallback
 
-  console.log('🔧 TAINT ANALYSIS DEBUG:');
-  console.log('- useGemini:', useGemini);
-  console.log('- openAiSearchCapable:', openAiSearchCapable);
-  console.log('- apiUrl:', apiUrl);
+  logger.debug('🔧 TAINT ANALYSIS DEBUG:');
+  logger.debug('- useGemini:', useGemini);
+  logger.debug('- openAiSearchCapable:', openAiSearchCapable);
+  logger.debug('- apiUrl:', apiUrl);
 
   const headers: any = { 'Content-Type': 'application/json' };
   if (!useGemini) {
-    console.log('🔧 DEBUG: Setting OpenAI auth header for taint analysis');
+    logger.debug('🔧 DEBUG: Setting OpenAI auth header for taint analysis');
     headers['Authorization'] = `Bearer ${settings.openAiApiKey}`;
   }
 
@@ -1060,7 +1061,7 @@ export async function generateAITaintAnalysis(
 
 // Keep the existing helper functions unchanged...
 function parseTextResponseForPatches(response: string, cveId: string, groundingMetadata?: any): any {
-  console.log('Parsing patch response for', cveId, '- Length:', response.length);
+  logger.debug('Parsing patch response for', cveId, '- Length:', response.length);
   
   const patches: any[] = [];
   const advisories: any[] = [];
@@ -1177,7 +1178,7 @@ function parseTextResponseForPatches(response: string, cveId: string, groundingM
 }
 
 function parseTextResponseForThreatIntel(response: string, cveId: string, groundingMetadata?: any): any {
-  console.log('Parsing threat intel response for', cveId, '- Length:', response.length);
+  logger.debug('Parsing threat intel response for', cveId, '- Length:', response.length);
   
   const findings = {
     cisaKev: { listed: false, details: '', source: '', confidence: 'LOW', aiDiscovered: true },

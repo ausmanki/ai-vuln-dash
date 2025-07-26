@@ -8,6 +8,7 @@ import { CONSTANTS, COLORS } from './utils/constants';
 import { utils } from './utils/helpers';
 import { createStyles } from './utils/styles';
 import NotificationManager from './components/NotificationManager';
+import { logger } from './utils/logger';
 import SettingsModal from './components/SettingsModal';
 import SearchComponent from './components/SearchComponent';
 import LoadingComponent from './components/LoadingComponent';
@@ -42,6 +43,9 @@ const App = () => {
   const { settings, setSettings } = useSettings();
   const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
 
+  useEffect(() => {
+    logger.setVerbose(settings.verboseLogs);
+  }, [settings.verboseLogs]);
   // Apply theme to document body
   useEffect(() => {
     document.body.style.backgroundColor = styles.app.backgroundColor;

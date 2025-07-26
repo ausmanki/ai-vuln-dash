@@ -8,7 +8,8 @@ export const useSettings = () => {
     nvdApiKey: '',
     openAiApiKey: '',
     openAiModel: 'gpt-4.1',
-    enableRAG: true
+    enableRAG: true,
+    verboseLogs: import.meta.env.MODE === "development"
   });
 
   return { settings, setSettings };
