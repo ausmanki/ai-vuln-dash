@@ -200,7 +200,11 @@ cd vulnerability-intelligence-platform
 # Install dependencies
 npm install
 
-# Start the backend (requires OPENAI_API_KEY and GEMINI_API_KEY env vars)
+# Set your AI API keys (bash example)
+export OPENAI_API_KEY="your-openai-key"
+export GEMINI_API_KEY="your-gemini-key"
+
+# Start the backend
 npm run server &
 
 # Start development server
