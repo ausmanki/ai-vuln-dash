@@ -76,7 +76,7 @@ We've built the world's first **AI-Powered Real-Time Vulnerability Intelligence 
 ```
 ✅ Real-Time API Integration: NIST NVD + FIRST EPSS + CISA KEV
 ✅ AI-Powered Analysis: Gemini 2.5 with Web Grounding
-✅ Conversational Chatbot: OpenAI GPT-4o
+✅ CybersecurityAgent (RAG-enabled): orchestrates multi-source vulnerability research
 ✅ RAG-Enhanced Intelligence: Self-learning threat database
 ✅ Executive Decision Support: Business-ready risk assessments
 ```
@@ -104,6 +104,7 @@ Risk Score = f(CVSS, EPSS, KEV_Status, Threat_Intelligence, Business_Impact)
 
 ### **🧩 Agents Overview**
 Our analysis workflow is composed of several cooperating agents:
+- **CybersecurityAgent** – RAG-enabled orchestrator for cross-vendor vulnerability research.
 - **ResearchAgent** – gathers vulnerability intelligence and performs AI-driven searches.
 - **RAGCuratorAgent** – keeps the vector database fresh by re-analyzing stale summaries.
 - **ValidationAgent** – validates AI findings against trusted sources and stores the results.
@@ -118,7 +119,7 @@ Our analysis workflow is composed of several cooperating agents:
 BEFORE: 4-6 hours manual research per CVE
 AFTER:  30 seconds comprehensive analysis
 ```
-- **Instant Data Aggregation**: All vulnerability data in one view
+- **RAG-Enabled CybersecurityAgent**: Instant aggregation of vulnerability data across sources
 - **Live Threat Intelligence**: Current exploitation campaigns
 - **Automated Risk Scoring**: CVSS + EPSS + KEV integration
 - **Smart Prioritization**: "Fix This Release" vs "Plan for Future"
@@ -213,8 +214,12 @@ npm run dev
 
 2. **AI Analysis: Gemini or OpenAI API Key**
   - Gemini key: [Google AI Studio](https://makersuite.google.com/app/apikey)
-  - OpenAI key: [OpenAI Dashboard](https://platform.openai.com/)
+ - OpenAI key: [OpenAI Dashboard](https://platform.openai.com/)
   - Set `GEMINI_API_KEY` and `OPENAI_API_KEY` as environment variables before starting the backend
+
+3. **RAG Initialization**
+  - RAG features start automatically when "Enable RAG" is checked in Settings (default)
+  - Providing `GEMINI_API_KEY` enables high-quality embeddings; otherwise local embeddings are used
 
 4. **Configure in Settings**:
   - Click "Settings" in the top-right corner
