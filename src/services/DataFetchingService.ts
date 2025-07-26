@@ -1,5 +1,6 @@
 // DataFetchingService.ts - Fixed with OpenAI /responses endpoint for web search
 import { CONSTANTS } from '../utils/constants';
+import { logger } from '../utils/logger';
 import { processCVEData } from './UtilityService';
 
 export class AIApiRateLimitError extends Error {
@@ -18,8 +19,8 @@ export function setGlobalAISettings(settings: any) {
 
 // FIXED: Use AI native web search with proper OpenAI /responses endpoint
 async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?: string): Promise<Response> {
-  console.log('🤖 Using AI native web search for:', url);
-  console.log('🔧 AI Settings debug:', {
+  logger.debug('🤖 Using AI native web search for:', url);
+  logger.debug('🔧 AI Settings debug:', {
     hasGeminiKey: !!aiSettings?.geminiApiKey,
     hasOpenAIKey: !!aiSettings?.openAiApiKey,
     geminiModel: aiSettings?.geminiModel,
@@ -45,14 +46,14 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
   // FORCE OpenAI web search for all OpenAI requests
   const openAiSearchCapable = !useGemini; // Always true for OpenAI
   
-  console.log('🎯 Using:', useGemini ? 'Gemini' : 'OpenAI', 'with model:', model);
-  console.log('🔍 OpenAI search capable:', openAiSearchCapable);
-  console.log('🔍 FORCING WEB SEARCH for OpenAI');
+  logger.debug('🎯 Using:', useGemini ? 'Gemini' : 'OpenAI', 'with model:', model);
+  logger.debug('🔍 OpenAI search capable:', openAiSearchCapable);
+  logger.debug('🔍 FORCING WEB SEARCH for OpenAI');
   
   // Create targeted search queries based on the URL and purpose
   let searchPrompt = specificQuery || createSearchPrompt(url);
   
-  console.log('🔍 Search prompt:', searchPrompt);
+  logger.debug('🔍 Search prompt:', searchPrompt);
 
   try {
     let apiUrl: string;
@@ -74,12 +75,12 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
       if (geminiSearchCapable) {
         requestBody.tools = [{ google_search: {} }];
       } else {
-        console.log('⚠️ Gemini model does not support web search, proceeding without it');
+        logger.debug('⚠️ Gemini model does not support web search, proceeding without it');
       }
     } else if (openAiSearchCapable) {
       // FORCE /responses endpoint for web search
       apiUrl = 'https://api.openai.com/v1/responses';
-      console.log('🚀 FORCING /responses endpoint:', apiUrl);
+      logger.debug('🚀 FORCING /responses endpoint:', apiUrl);
       
       requestBody = {
         model: 'gpt-4.1', // Must use gpt-4.1 for /responses
@@ -88,7 +89,7 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
         // No max_tokens for /responses endpoint
       };
       
-      console.log('🚀 Request body for /responses:', JSON.stringify(requestBody, null, 2));
+      logger.debug('🚀 Request body for /responses:', JSON.stringify(requestBody, null, 2));
     } else {
       // Fallback to chat completions without web search
       apiUrl = 'https://api.openai.com/v1/chat/completions';
@@ -109,12 +110,12 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
         throw new Error('OpenAI API key is missing or undefined');
       }
       headers['Authorization'] = `Bearer ${activeSettings.openAiApiKey}`;
-      console.log('🔑 OpenAI key length:', activeSettings.openAiApiKey.length);
+      logger.debug('🔑 OpenAI key length:', activeSettings.openAiApiKey.length);
     }
 
-    console.log('🌐 Making request to:', apiUrl);
-    console.log('🌐 Using web search:', useGemini || openAiSearchCapable);
-    console.log('🌐 Request body preview:', JSON.stringify(requestBody).substring(0, 200));
+    logger.debug('🌐 Making request to:', apiUrl);
+    logger.debug('🌐 Using web search:', useGemini || openAiSearchCapable);
+    logger.debug('🌐 Request body preview:', JSON.stringify(requestBody).substring(0, 200));
 
     const response = await fetch(apiUrl, {
       method: 'POST',
@@ -122,12 +123,12 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
       body: JSON.stringify(requestBody)
     });
 
-    console.log('📡 Response status:', response.status);
-    console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+    logger.debug('📡 Response status:', response.status);
+    logger.debug('📡 Response headers:', Object.fromEntries(response.headers.entries()));
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('❌ API Error Response:', errorText);
+      logger.error('❌ API Error Response:', errorText);
       if (response.status === 429) {
         throw new AIApiRateLimitError(`AI API Error: ${response.status} - ${errorText}`);
       }
@@ -135,8 +136,8 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
     }
 
     const data = await response.json();
-    console.log('📦 Raw response structure keys:', Object.keys(data));
-    console.log('📦 Response preview:', JSON.stringify(data).substring(0, 500));
+    logger.debug('📦 Raw response structure keys:', Object.keys(data));
+    logger.debug('📦 Response preview:', JSON.stringify(data).substring(0, 500));
     
     let aiResponse = '';
     let groundingMetadata: any = {};
@@ -149,42 +150,42 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
       aiResponse = candidate.content.parts[0].text;
       groundingMetadata = candidate.groundingMetadata || {};
       
-      console.log('✅ Gemini web search completed');
-      console.log('📊 Grounding sources:', groundingMetadata.groundingSupports?.length || 0);
+      logger.debug('✅ Gemini web search completed');
+      logger.debug('📊 Grounding sources:', groundingMetadata.groundingSupports?.length || 0);
     } else if (openAiSearchCapable) {
       // Handle OpenAI /responses format
-      console.log('🔍 Parsing /responses format...');
-      console.log('🔍 data.output exists:', !!data.output);
-      console.log('🔍 data.output is array:', Array.isArray(data.output));
+      logger.debug('🔍 Parsing /responses format...');
+      logger.debug('🔍 data.output exists:', !!data.output);
+      logger.debug('🔍 data.output is array:', Array.isArray(data.output));
       
       if (Array.isArray(data.output)) {
-        console.log('🔍 Output array length:', data.output.length);
+        logger.debug('🔍 Output array length:', data.output.length);
         const messageObj = data.output.find(item => item.type === 'message' && item.content);
-        console.log('🔍 Found message object:', !!messageObj);
+        logger.debug('🔍 Found message object:', !!messageObj);
         
         if (messageObj && Array.isArray(messageObj.content)) {
-          console.log('🔍 Message content length:', messageObj.content.length);
+          logger.debug('🔍 Message content length:', messageObj.content.length);
           const textObj = messageObj.content.find(item => item.type === 'output_text' && item.text);
-          console.log('🔍 Found text object:', !!textObj);
+          logger.debug('🔍 Found text object:', !!textObj);
           
           if (textObj && textObj.text) {
             aiResponse = textObj.text;
-            console.log('✅ OpenAI web search completed (/responses)');
-            console.log('✅ Response length:', aiResponse.length);
+            logger.debug('✅ OpenAI web search completed (/responses)');
+            logger.debug('✅ Response length:', aiResponse.length);
           }
         }
       } else if (data.output) {
         aiResponse = data.output;
-        console.log('✅ OpenAI web search completed (/responses) - direct output');
+        logger.debug('✅ OpenAI web search completed (/responses) - direct output');
       } else if (data.text) {
         // Alternative format
         aiResponse = data.text;
-        console.log('✅ OpenAI web search completed (/responses) - text field');
+        logger.debug('✅ OpenAI web search completed (/responses) - text field');
       }
       
       if (!aiResponse) {
-        console.error('❌ Failed to extract response from /responses format');
-        console.error('❌ Full data structure:', JSON.stringify(data, null, 2));
+        logger.error('❌ Failed to extract response from /responses format');
+        logger.error('❌ Full data structure:', JSON.stringify(data, null, 2));
         throw new Error('No valid response from OpenAI /responses endpoint');
       }
     } else {
@@ -195,7 +196,7 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
       }
       aiResponse = choice.message.content;
       
-      console.log('✅ OpenAI completed (no web search)');
+      logger.debug('✅ OpenAI completed (no web search)');
     }
 
     // Parse the AI response based on what we're looking for
@@ -217,7 +218,7 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
     } as Response;
 
   } catch (error) {
-    console.error('❌ AI web search failed:', error);
+    logger.error('❌ AI web search failed:', error);
     throw error;
   }
 }
@@ -259,7 +260,7 @@ Focus on official NIST/NVD sources.`;
 
 // ENHANCED: Parse AI responses into structured data
 function parseAIWebSearchResponse(aiResponse: string, originalUrl: string, groundingMetadata?: any): any {
-  console.log('🔍 Parsing AI response for:', originalUrl);
+  logger.debug('🔍 Parsing AI response for:', originalUrl);
   
   if (originalUrl.includes('cisa.gov') && originalUrl.includes('known_exploited_vulnerabilities')) {
     return parseCISAKEVFromAI(aiResponse, groundingMetadata);
@@ -287,7 +288,7 @@ function parseAIWebSearchResponse(aiResponse: string, originalUrl: string, groun
 
 // ENHANCED CISA KEV parser
 function parseCISAKEVFromAI(aiResponse: string, groundingMetadata?: any): any {
-  console.log('📋 Parsing CISA KEV information from AI response');
+  logger.debug('📋 Parsing CISA KEV information from AI response');
   
   // Extract key information from the AI response
   const catalogVersionMatch = aiResponse.match(/version[:\s]+([0-9]{4}\.[0-9]{2}\.[0-9]{2}|[0-9.]+)/i);
@@ -316,7 +317,7 @@ function parseCISAKEVFromAI(aiResponse: string, groundingMetadata?: any): any {
 
 // ENHANCED EPSS parser
 function parseEPSSFromAI(aiResponse: string, groundingMetadata?: any): any {
-  console.log('📊 Parsing EPSS information from AI response');
+  logger.debug('📊 Parsing EPSS information from AI response');
   
   const epssData = {
     status: "OK",
@@ -340,7 +341,7 @@ function parseEPSSFromAI(aiResponse: string, groundingMetadata?: any): any {
 
 // ENHANCED NVD parser  
 function parseNVDFromAI(aiResponse: string, groundingMetadata?: any): any {
-  console.log('🗃️ Parsing NVD information from AI response');
+  logger.debug('🗃️ Parsing NVD information from AI response');
   
   const nvdStructure = {
     resultsPerPage: 0,
@@ -366,7 +367,7 @@ function parseNVDFromAI(aiResponse: string, groundingMetadata?: any): any {
 
 // SMART: CVE-specific search functions using AI web search
 export async function searchCISAKEVForCVE(cveId: string, aiSettings: any): Promise<any> {
-  console.log(`🔍 Searching CISA KEV for ${cveId} using AI web search`);
+  logger.debug(`🔍 Searching CISA KEV for ${cveId} using AI web search`);
   
   const searchPrompt = `Search the official CISA Known Exploited Vulnerabilities (KEV) catalog for CVE ${cveId}.
 
@@ -428,7 +429,7 @@ PRODUCT: [product if listed]`;
     return details;
 
   } catch (error) {
-    console.error(`❌ AI KEV search failed for ${cveId}:`, error);
+    logger.error(`❌ AI KEV search failed for ${cveId}:`, error);
     return {
       cve: cveId,
       listed: false,
@@ -479,7 +480,7 @@ async function fetchCisaKevFromCatalog(cveId: string): Promise<any> {
 }
 
 export async function searchEPSSForCVE(cveId: string, aiSettings: any): Promise<any> {
-  console.log(`📊 Searching EPSS data for ${cveId} using AI web search`);
+  logger.debug(`📊 Searching EPSS data for ${cveId} using AI web search`);
   
   const searchPrompt = `Search for EPSS (Exploit Prediction Scoring System) data for CVE ${cveId} from FIRST.org.
 
@@ -529,13 +530,13 @@ FOUND: [YES/NO]`;
     return null; // No EPSS data found
 
   } catch (error) {
-    console.error(`❌ AI EPSS search failed for ${cveId}:`, error);
+    logger.error(`❌ AI EPSS search failed for ${cveId}:`, error);
     return null;
   }
 }
 
 export async function searchNVDForCVE(cveId: string, aiSettings: any): Promise<any> {
-  console.log(`🗃️ Searching NVD for ${cveId} using AI web search`);
+  logger.debug(`🗃️ Searching NVD for ${cveId} using AI web search`);
   
   const searchPrompt = `Search for CVE ${cveId} in the National Vulnerability Database (NVD) from NIST.
 
@@ -561,7 +562,7 @@ Respond with detailed CVE information if found, or indicate if not found.`;
     // Enhanced parsing for better results
     const cveMatch = aiResponse.match(new RegExp(cveId, 'i'));
     if (!cveMatch && !aiResponse.toLowerCase().includes('not found')) {
-      console.log('🔍 CVE found in response, parsing details...');
+      logger.debug('🔍 CVE found in response, parsing details...');
     }
 
     // Extract description - look for various patterns
@@ -639,11 +640,11 @@ Respond with detailed CVE information if found, or indicate if not found.`;
       aiResponse: aiResponse.substring(0, 1000)
     };
 
-    console.log(`✅ Parsed NVD data - Score: ${cvssScore}, Severity: ${severity}`);
+    logger.debug(`✅ Parsed NVD data - Score: ${cvssScore}, Severity: ${severity}`);
     return processedData;
 
   } catch (error) {
-    console.error(`❌ AI NVD search failed for ${cveId}:`, error);
+    logger.error(`❌ AI NVD search failed for ${cveId}:`, error);
     throw error;
   }
 }
@@ -676,7 +677,7 @@ export async function fetchCVEData(cveId: string, apiKey: any, setLoadingSteps: 
         }
       }
     } catch (directError) {
-      console.log('Direct NVD fetch failed:', directError);
+      logger.debug('Direct NVD fetch failed:', directError);
     }
     
     throw new Error(`No AI settings configured and direct API failed for ${cveId}`);
@@ -745,7 +746,7 @@ export async function fetchEPSSData(cveId: string, setLoadingSteps: any, ragData
         }
       }
     } catch (directError) {
-      console.log('Direct EPSS fetch failed:', directError);
+      logger.debug('Direct EPSS fetch failed:', directError);
     }
     
     updateSteps((prev: string[]) => [...prev, `⚠️ No EPSS data available for ${cveId}`]);

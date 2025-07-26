@@ -1,3 +1,4 @@
+import { logger } from '../utils/logger';
 // GeminiRateLimiter.ts - Add this to handle Gemini rate limits better
 
 class GeminiRateLimiter {
@@ -36,7 +37,7 @@ class GeminiRateLimiter {
       
       if (timeSinceLastRequest < this.minDelayBetweenRequests) {
         const delay = this.minDelayBetweenRequests - timeSinceLastRequest;
-        console.log(`⏱️ Rate limiting: waiting ${delay}ms before next request`);
+        logger.debug(`⏱️ Rate limiting: waiting ${delay}ms before next request`);
         await new Promise(resolve => setTimeout(resolve, delay));
       }
       
@@ -47,7 +48,7 @@ class GeminiRateLimiter {
         try {
           await request();
         } catch (error) {
-          console.error('Request failed:', error);
+          logger.error('Request failed:', error);
         }
       }
     }
@@ -58,7 +59,7 @@ class GeminiRateLimiter {
   // Increase delay after 503 errors
   increaseDelay() {
     this.minDelayBetweenRequests = Math.min(this.minDelayBetweenRequests * 2, 10000); // Max 10 seconds
-    console.log(`📈 Increased rate limit delay to ${this.minDelayBetweenRequests}ms`);
+    logger.debug(`📈 Increased rate limit delay to ${this.minDelayBetweenRequests}ms`);
   }
   
   // Reset delay after successful requests
@@ -82,7 +83,7 @@ export async function fetchWithGeminiRateLimit(
     
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`🌐 Gemini API request (attempt ${attempt}/${maxRetries})`);
+        logger.debug(`🌐 Gemini API request (attempt ${attempt}/${maxRetries})`);
         
         const response = await fetch(apiUrl, {
           method: 'POST',
@@ -101,13 +102,13 @@ export async function fetchWithGeminiRateLimit(
         const errorData = JSON.parse(errorText);
         
         if (response.status === 503) {
-          console.log(`⚠️ Gemini model overloaded (attempt ${attempt}/${maxRetries})`);
+          logger.debug(`⚠️ Gemini model overloaded (attempt ${attempt}/${maxRetries})`);
           geminiRateLimiter.increaseDelay();
           
           if (attempt < maxRetries) {
             // Wait with exponential backoff
             const backoffDelay = Math.min(1000 * Math.pow(2, attempt), 30000);
-            console.log(`⏳ Waiting ${backoffDelay}ms before retry...`);
+            logger.debug(`⏳ Waiting ${backoffDelay}ms before retry...`);
             await new Promise(resolve => setTimeout(resolve, backoffDelay));
             continue;
           }
@@ -172,7 +173,7 @@ export async function fetchWithAIWebSearchEnhanced(
       throw new Error('Invalid response from Gemini API');
       
     } catch (error) {
-      console.error('Gemini API error:', error);
+      logger.error('Gemini API error:', error);
       throw error;
     }
   }

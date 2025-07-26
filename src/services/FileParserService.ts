@@ -1,5 +1,6 @@
 // Regex to identify CVE patterns (e.g., CVE-YYYY-NNNN or CVE-YYYY-NNNNN...)
 import { CVE_REGEX } from '../utils/cveRegex';
+import { logger } from '../utils/logger';
 
 /**
  * Reads a CSV file and extracts all valid CVE ID patterns from its content.
@@ -33,13 +34,13 @@ export async function extractCVEsFromCSV(file: File): Promise<string[]> {
 
         resolve(Array.from(cveIds));
       } catch (error) {
-        console.error("Error parsing CSV content:", error);
+        logger.error("Error parsing CSV content:", error);
         reject(new Error("Failed to parse CSV file. Ensure it's a valid text-based CSV."));
       }
     };
 
     reader.onerror = (error) => {
-      console.error("Error reading file:", error);
+      logger.error("Error reading file:", error);
       reject(new Error("Failed to read the file."));
     };
 
@@ -84,7 +85,7 @@ if (typeof window !== 'undefined' && !pdfjsLib.GlobalWorkerOptions.workerSrc) {
         const workerUrl = new URL('pdfjs-dist/build/pdf.worker.js', import.meta.url);
         pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl.href;
     } catch (e) {
-        console.warn("Could not set pdf.js workerSrc automatically. PDF processing might be slow or fail. Consider hosting pdf.worker.js in your public folder and setting pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.js'; or use a CDN.", e);
+        logger.warn("Could not set pdf.js workerSrc automatically. PDF processing might be slow or fail. Consider hosting pdf.worker.js in your public folder and setting pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.js'; or use a CDN.", e);
         // Fallback to a CDN - requires internet access
         pdfjsLib.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.js`;
     }
@@ -128,13 +129,13 @@ export async function extractCVEsFromPDF(file: File): Promise<string[]> {
         resolve(Array.from(cveIds));
 
       } catch (error) {
-        console.error("Error parsing PDF content:", error);
+        logger.error("Error parsing PDF content:", error);
         reject(new Error("Failed to parse PDF file. Ensure it's a valid PDF."));
       }
     };
 
     reader.onerror = (error) => {
-      console.error("Error reading file for PDF parsing:", error);
+      logger.error("Error reading file for PDF parsing:", error);
       reject(new Error("Failed to read the file for PDF processing."));
     };
 
@@ -184,13 +185,13 @@ export async function extractCVEsFromXLSX(file: File): Promise<string[]> {
         resolve(Array.from(cveIds));
 
       } catch (error) {
-        console.error("Error parsing XLSX content:", error);
+        logger.error("Error parsing XLSX content:", error);
         reject(new Error("Failed to parse XLSX file. Ensure it's a valid XLSX."));
       }
     };
 
     reader.onerror = (error) => {
-      console.error("Error reading file for XLSX parsing:", error);
+      logger.error("Error reading file for XLSX parsing:", error);
       reject(new Error("Failed to read the file for XLSX processing."));
     };
 

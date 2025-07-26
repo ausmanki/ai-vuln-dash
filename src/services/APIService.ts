@@ -1,5 +1,6 @@
 import { CONSTANTS } from '../utils/constants';
 import { utils } from '../utils/helpers';
+import { logger } from '../utils/logger';
 
 const cache = new Map();
 
@@ -85,7 +86,7 @@ export class APIService {
 
       return enhancedVulnerability;
     } catch (error) {
-      console.error(`APIService: Error processing ${cveId} via ResearchAgent:`, error);
+      logger.error(`APIService: Error processing ${cveId} via ResearchAgent:`, error);
       throw error;
     }
   }

@@ -1,5 +1,6 @@
 // Updated UtilityService.ts - Remove duplicate fetchWithFallback and focus on other utilities
 import { utils } from '../utils/helpers';
+import { logger } from '../utils/logger';
 import { CONSTANTS } from '../utils/constants';
 
 // Enhanced fetch with retry and fallback mechanisms
@@ -39,7 +40,7 @@ export async function fetchWithFallback(url: string, options: RequestInit = {}, 
       return response;
     } catch (error) {
       lastError = error as Error;
-      console.warn(`Fetch attempt ${attempt}/${retries} failed for ${url}:`, error);
+      logger.warn(`Fetch attempt ${attempt}/${retries} failed for ${url}:`, error);
       
       if (attempt === retries) {
         break;
@@ -265,7 +266,7 @@ Each section should consider:
 
 // CVE Data Processing Functions
 export function processCVEData(cveData: any) {
-  console.log('processCVEData received:', JSON.stringify(cveData, null, 2));
+  logger.debug('processCVEData received:', JSON.stringify(cveData, null, 2));
   
   if (!cveData) {
     throw new Error('No CVE data provided');
@@ -275,7 +276,7 @@ export function processCVEData(cveData: any) {
   const cve = cveData.cve || cveData;
   
   if (!cve || !cve.id) {
-    console.error('Invalid CVE structure:', cve);
+    logger.error('Invalid CVE structure:', cve);
     throw new Error('Invalid CVE data structure - missing CVE ID');
   }
   
@@ -283,7 +284,7 @@ export function processCVEData(cveData: any) {
   const descriptions = cve.descriptions || [];
   const description = descriptions.find((d: any) => d.lang === 'en')?.value || 'No description available';
   
-  console.log(`Extracted description for ${cve.id}:`, description);
+  logger.debug(`Extracted description for ${cve.id}:`, description);
   
   // Extract CVSS scores
   const metrics = cve.metrics || {};
@@ -325,7 +326,7 @@ export function processCVEData(cveData: any) {
     aiEnhanced: cve.aiParsed || false
   };
   
-  console.log('Processed CVE data:', processedData);
+  logger.debug('Processed CVE data:', processedData);
   return processedData;
 }
 
@@ -357,7 +358,7 @@ export function parsePatchAndAdvisoryResponse(response: any) {
       searchSummary
     };
   } catch (error) {
-    console.error('Error parsing patch and advisory response:', error);
+    logger.error('Error parsing patch and advisory response:', error);
     return { patches: [], advisories: [], searchSummary: {} };
   }
 }
@@ -422,7 +423,7 @@ export function parseAIThreatIntelligence(response: any, cveId: string) {
       extractionMetadata: response.extractionMetadata || {}
     };
   } catch (error) {
-    console.error('Error parsing AI threat intelligence:', error);
+    logger.error('Error parsing AI threat intelligence:', error);
     return {
       cisaKev: { listed: false },
       exploitDiscovery: { found: false, exploits: [], totalCount: 0 },
@@ -494,7 +495,7 @@ export function performHeuristicAnalysis(cveId: string, cveData: any, epssData: 
 
 // Enhanced Analysis Prompt Builder - More Informative and Comprehensive
 export function buildEnhancedAnalysisPrompt(vulnerability: any, settings: any = {}) {
-  console.log('buildEnhancedAnalysisPrompt called with vulnerability:', vulnerability);
+  logger.debug('buildEnhancedAnalysisPrompt called with vulnerability:', vulnerability);
   
   // Handle both nested structure (vulnerability.cve) and flat structure
   const cveData = vulnerability.cve || vulnerability;
@@ -716,7 +717,7 @@ ${detailedPatches.length > 0 ? '- ✅ **PATCHES AVAILABLE**: Apply immediately' 
 
 Remember: This is about ${cveId} specifically. Use the CVE ID throughout your response.`;
 
-  console.log('Generated enhanced prompt with CVE-specific focus and proper status determination');
+  logger.debug('Generated enhanced prompt with CVE-specific focus and proper status determination');
   return prompt;
 }
 
