@@ -4,6 +4,8 @@
 const query = process.argv.slice(2).join(' ') || 'what was a positive news story from today?'
 const geminiKey = process.env.GEMINI_API_KEY
 const openaiKey = process.env.OPENAI_API_KEY
+const userLocation = process.env.OPENAI_USER_LOCATION
+const searchContextSize = process.env.OPENAI_SEARCH_CONTEXT_SIZE
 
 if (!geminiKey && !openaiKey) {
   console.error('Please set GEMINI_API_KEY or OPENAI_API_KEY environment variable')
@@ -42,8 +44,20 @@ async function run() {
       const body = {
         model: 'gpt-4.1',
         tools: [{ type: 'web_search_preview' }],
-        input: query
+        input: query,
+        tool_choice: { type: 'web_search_preview' }
       }
+
+      if (userLocation) {
+        body.user_location = userLocation
+      }
+      if (searchContextSize) {
+        const size = parseInt(searchContextSize, 10)
+        if (!Number.isNaN(size)) {
+          body.search_context_size = size
+        }
+      }
+
       const response = await fetch('https://api.openai.com/v1/responses', {
         method: 'POST',
         headers: {
@@ -56,8 +70,23 @@ async function run() {
         throw new Error(`OpenAI API error: ${response.status}`)
       }
       const data = await response.json()
-      const text = data.choices?.[0]?.message?.content || data.result
-      console.log(text || JSON.stringify(data, null, 2))
+
+      const text =
+        data.output_text ||
+        data.output ||
+        data.response ||
+        data.text ||
+        data.choices?.[0]?.message?.content
+      console.log(text || '')
+
+      if (Array.isArray(data.annotations)) {
+        const urls = data.annotations
+          .filter(a => a.url)
+          .map(a => a.url)
+        if (urls.length) {
+          console.log('\nCitation URLs:\n' + urls.join('\n'))
+        }
+      }
     }
   } catch (err) {
     console.error('Request failed:', err.message)

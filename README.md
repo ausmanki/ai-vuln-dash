@@ -245,7 +245,9 @@ npm start
 
 ### 🕸️ Standalone Web Search Example
 Use the `scripts/ai-web-search.js` helper to quickly test AI-powered search. The script automatically selects Gemini grounding if `GEMINI_API_KEY` is set or OpenAI web search if `OPENAI_API_KEY` is provided.
+You can optionally set `OPENAI_USER_LOCATION` and `OPENAI_SEARCH_CONTEXT_SIZE` to refine the search context.
 ```bash
+OPENAI_USER_LOCATION=us OPENAI_SEARCH_CONTEXT_SIZE=5 \
 node scripts/ai-web-search.js "what was a positive news story from today?"
 ```
 
