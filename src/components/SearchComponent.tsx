@@ -255,18 +255,18 @@ const SearchComponent = () => {
           <div style={{
             marginTop: '24px',
             padding: '12px 16px',
-            background: `rgba(${utils.hexToRgb(COLORS.blue)}, 0.1)`,
+            background: `rgba(${utils.hexToRgb(COLORS.green)}, 0.1)`,
             borderRadius: '8px',
-            border: `1px solid rgba(${utils.hexToRgb(COLORS.blue)}, 0.2)`,
+            border: `1px solid rgba(${utils.hexToRgb(COLORS.green)}, 0.2)`,
             display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
             fontSize: '0.875rem',
-            color: COLORS.blue,
+            color: COLORS.green,
             fontWeight: '500'
           }}>
             <Brain size={16} />
-            OpenAI Analysis Mode - No Web Search
+            OpenAI Analysis Mode - Web Search
           </div>
         )}
 
