@@ -22,6 +22,7 @@ import { generateRemediationPlan } from '../utils/remediation';
 import { extractComponentNames } from '../utils/componentUtils';
 import { CONSTANTS } from '../utils/constants';
 import { CVE_REGEX } from '../utils/cveRegex';
+import { ragDatabase } from '../db/EnhancedVectorDatabase';
 
 // Utility to map CVSS score to severity label
 export const getCVSSSeverity = (score: number): string => {
@@ -156,15 +157,24 @@ export class CybersecurityAgent {
         this.currentCveIdForSession = operationalCveId;
       }
 
-      if (operationalCveId) {
-        return this.handleCVEQuery(query, operationalCveId);
+      // Search RAG database before making web requests
+      try {
+        await ragDatabase.ensureInitialized(this.settings.geminiApiKey);
+        const ragResults = await ragDatabase.search(operationalCveId ?? query, 1);
+        if (ragResults.length > 0) {
+          return {
+            text: ragResults[0].content,
+            sender: 'bot',
+            id: Date.now().toString(),
+            confidence: ragResults[0].similarity
+          };
+        }
+      } catch (e) {
+        console.warn('RAG search failed', e);
       }
 
-      if (this.groundingEngine) {
-        const grounded = await this.groundingEngine.search(query);
-        if (grounded.content) {
-          return { text: grounded.content, sender: 'bot', id: Date.now().toString(), confidence: grounded.confidence };
-        }
+      if (operationalCveId) {
+        return this.handleCVEQuery(query, operationalCveId);
       }
 
       if (this.groundingEngine) {
@@ -335,6 +345,22 @@ export class CybersecurityAgent {
 
       if (webIntel?.summary) {
         report += `\n**Web Intelligence Summary:**\n${webIntel.summary.substring(0, 400)}...\n\n`;
+      }
+
+      // Persist report in RAG database
+      try {
+        if (ragDatabase?.initialized) {
+          await ragDatabase.addDocument(report, {
+            title: `Comprehensive Report - ${cveId}`,
+            category: 'cybersecurity-report',
+            tags: ['cve-report', cveId.toLowerCase()],
+            source: 'cybersecurity-agent',
+            cveId,
+            timestamp: new Date().toISOString()
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to store report in RAG:', err);
       }
 
       return {
