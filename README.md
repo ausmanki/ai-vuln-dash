@@ -201,7 +201,7 @@ cd vulnerability-intelligence-platform
 npm install
 
 # Start development server
-npm start
+npm run dev
 ```
 
 ### **🔑 API Configuration**
