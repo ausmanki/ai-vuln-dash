@@ -249,6 +249,9 @@ export class CybersecurityAgent {
       return { content: '', sources: [], confidence: 0 };
     }
     const result = await this.groundingEngine.search(query);
+    if (this.groundingConfig?.autoLearn) {
+      await this.groundingEngine.learn(result);
+    }
     return result;
   }
 
