@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useContext, useMemo } from 'react';
-import { X, Eye, EyeOff, Save } from 'lucide-react';
+import { X, Save } from 'lucide-react';
 import { AppContext } from '../contexts/AppContext';
 import { createStyles } from '../utils/styles';
 import { COLORS } from '../utils/constants';
@@ -7,7 +7,6 @@ import { COLORS } from '../utils/constants';
 const SettingsModal = ({ isOpen, onClose }) => {
   const { settings, setSettings, addNotification } = useContext(AppContext);
   const [localSettings, setLocalSettings] = useState(settings);
-  const [showKeys, setShowKeys] = useState({ gemini: false, nvd: false, openai: false });
   const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
 
   useEffect(() => {
@@ -74,30 +73,12 @@ const SettingsModal = ({ isOpen, onClose }) => {
             <label style={{ display: 'block', fontSize: '1rem', fontWeight: '600', marginBottom: '8px' }}>
               Gemini API Key
             </label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type={showKeys.gemini ? 'text' : 'password'}
-                style={styles.input}
-                placeholder="Enter your Gemini API key"
-                value={localSettings.geminiApiKey || ''}
-                onChange={(e) => setLocalSettings(prev => ({ ...prev, geminiApiKey: e.target.value }))}
-              />
-              <button
-                style={{
-                  position: 'absolute',
-                  right: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '4px'
-                }}
-                onClick={() => setShowKeys(prev => ({ ...prev, gemini: !prev.gemini }))}
-              >
-                {showKeys.gemini ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
+            <input
+              type="text"
+              style={{ ...styles.input, cursor: 'not-allowed', opacity: 0.7 }}
+              value="Managed on server"
+              disabled
+            />
           </div>
 
           <div>
@@ -122,30 +103,12 @@ const SettingsModal = ({ isOpen, onClose }) => {
             <label style={{ display: 'block', fontSize: '1rem', fontWeight: '600', marginBottom: '8px' }}>
               OpenAI API Key
             </label>
-            <div style={{ position: 'relative' }}>
-              <input
-                type={showKeys.openai ? 'text' : 'password'}
-                style={styles.input}
-                placeholder="Enter your OpenAI API key"
-                value={localSettings.openAiApiKey || ''}
-                onChange={(e) => setLocalSettings(prev => ({ ...prev, openAiApiKey: e.target.value }))}
-              />
-              <button
-                style={{
-                  position: 'absolute',
-                  right: '12px',
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  background: 'transparent',
-                  border: 'none',
-                  cursor: 'pointer',
-                  padding: '4px'
-                }}
-                onClick={() => setShowKeys(prev => ({ ...prev, openai: !prev.openai }))}
-              >
-                {showKeys.openai ? <EyeOff size={18} /> : <Eye size={18} />}
-              </button>
-            </div>
+            <input
+              type="text"
+              style={{ ...styles.input, cursor: 'not-allowed', opacity: 0.7 }}
+              value="Managed on server"
+              disabled
+            />
           </div>
 
           <div>
