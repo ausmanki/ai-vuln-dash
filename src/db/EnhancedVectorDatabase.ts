@@ -25,7 +25,7 @@ export class EnhancedVectorDatabase {
   }
 
   async createGeminiEmbedding(text) {
-    const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-exp-03-07:embedContent';
+    const url = '/api/gemini?model=gemini-embedding-exp-03-07&action=embedContent';
     const requestBody = {
       model: "models/gemini-embedding-exp-03-07",
       content: {
@@ -38,7 +38,6 @@ export class EnhancedVectorDatabase {
       response = await fetch(url, {
         method: 'POST',
         headers: {
-          'x-goog-api-key': this.geminiApiKey,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(requestBody)
