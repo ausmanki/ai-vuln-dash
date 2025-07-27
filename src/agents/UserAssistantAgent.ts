@@ -66,7 +66,7 @@ export class AIGroundingEngine {
     if (this.keys.gemini) {
       try {
         const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${this.keys.gemini}`,
+          `/api/gemini?model=gemini-2.5-flash`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -90,11 +90,10 @@ export class AIGroundingEngine {
     // OpenAI search
     if (this.keys.openai) {
       try {
-        const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        const res = await fetch('/api/openai?endpoint=chat/completions', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${this.keys.openai}`
+            'Content-Type': 'application/json'
           },
           body: JSON.stringify({
             model: 'gpt-4.1',
@@ -2821,7 +2820,7 @@ export class UserAssistantAgent {
       // Retry logic for API failures
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${this.settings.geminiApiKey}`, {
+          const response = await fetch(`/api/gemini?model=gemini-2.5-flash`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -2853,11 +2852,10 @@ export class UserAssistantAgent {
 
           if (this.settings.openAiApiKey) {
             try {
-              const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
+              const openaiRes = await fetch('/api/openai?endpoint=chat/completions', {
                 method: 'POST',
                 headers: {
-                  'Content-Type': 'application/json',
-                  Authorization: `Bearer ${this.settings.openAiApiKey}`
+                  'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                   model: 'gpt-4.1',

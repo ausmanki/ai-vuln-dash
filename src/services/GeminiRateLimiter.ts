@@ -157,7 +157,7 @@ export async function fetchWithAIWebSearchEnhanced(
       }]
     };
     
-    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${settings.geminiApiKey}`;
+    const apiUrl = `/api/gemini?model=${model}`;
     
     try {
       const data = await fetchWithGeminiRateLimit(apiUrl, requestBody, settings.geminiApiKey);
