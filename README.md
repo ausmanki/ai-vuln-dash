@@ -259,6 +259,20 @@ OPENAI_USER_LOCATION=us OPENAI_SEARCH_CONTEXT_SIZE=5 \
 node scripts/ai-web-search.js "what was a positive news story from today?"
 ```
 
+### 🔄 Automated CVE Ingestion
+Use `scripts/ingest-cves.js` to download the latest CVE IDs from NVD, EPSS and
+the CISA KEV catalog. Each new ID is analyzed with `ResearchAgent.analyzeCVE`
+and stored in the RAG database.
+
+Schedule this job with cron to run daily:
+
+```bash
+0 0 * * * cd /path/to/repo && node --loader ts-node/esm scripts/ingest-cves.js >> logs/ingest.log 2>&1
+```
+
+Ensure your `.env` file contains `GEMINI_API_KEY`, `OPENAI_API_KEY` and
+optionally `NVD_API_KEY`.
+
 ### **🗣️ Smart Assistant Commands**
 ```
 /help             - List available assistant commands
