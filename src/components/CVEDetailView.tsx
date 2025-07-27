@@ -1106,9 +1106,31 @@ Focus on actionable information for security professionals.
                 marginBottom: '24px',
                 border: `1px solid ${safeSettings.darkMode ? COLORS.dark.border : COLORS.light.border}`
               }}>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '600', marginBottom: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: '600', margin: 0 }}>
                   Description
                 </h3>
+                <button
+                  onClick={() => {
+                    const desc = formatDescription(vulnerability?.cve?.description, vulnerability);
+                    if (desc) {
+                      navigator.clipboard.writeText(desc);
+                      safeAddNotification({ type: 'success', title: 'Copied!', message: 'Description copied to clipboard' });
+                    }
+                  }}
+                  style={{
+                    marginLeft: '8px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: COLORS.blue,
+                    display: 'flex',
+                    alignItems: 'center'
+                  }}
+                >
+                  <Copy size={14} />
+                </button>
+              </div>
                 <p style={{
                   fontSize: '1rem',
                   lineHeight: '1.6',
