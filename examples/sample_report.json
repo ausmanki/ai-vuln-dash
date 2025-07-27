@@ -1,0 +1,14 @@
+{
+  "description": "Buffer overflow in example application allows arbitrary code execution.",
+  "technical_details": "Overflow occurs when parsing user input.",
+  "cvss_score": 8.2,
+  "epss_score": 0.7,
+  "vendor_statements": [
+    "Vendor acknowledges the issue and provides patch."
+  ],
+  "third_party_analysis": [
+    "Researcher confirmed exploit with PoC."
+  ],
+  "exploitation_status": "active",
+  "validation_flags": []
+}
