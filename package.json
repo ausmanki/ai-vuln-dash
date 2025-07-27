@@ -10,7 +10,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "server": "node server/index.js",
-    "start": "concurrently \"npm run server\" \"npm run dev\""
+    "start": "concurrently \"npm run server\" \"npm run dev\"",
+    "curate": "ts-node scripts/curation-cycle.ts"
   },
   "dependencies": {
     "dotenv": "^17.2.1",
@@ -41,6 +42,8 @@
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
     "jsdom": "^26.1.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3",
     "vite": "^6.3.5",
     "vitest": "^3.2.4"
   }
