@@ -28,4 +28,23 @@ describe('CybersecurityAgent', () => {
 
     expect(learnSpy).toHaveBeenCalledWith(groundedResult);
   });
+
+  it('verifies CVE responses against known sources', async () => {
+    const agent = new CybersecurityAgent();
+    const handleSpy = vi
+      .spyOn(agent as any, 'handleCVEQuery')
+      .mockResolvedValue({ text: 'report', sender: 'bot', id: '1' });
+    const verifySpy = vi
+      .spyOn(agent as any, 'verifyResponse')
+      .mockResolvedValue({ overall: 0.9, flags: [] });
+
+    const res = await agent.handleQuery('tell me about CVE-2024-0001');
+
+    expect(handleSpy).toHaveBeenCalled();
+    expect(verifySpy).toHaveBeenCalledWith('CVE-2024-0001', 'report');
+    expect(res.data?.confidence.overall).toBe(0.9);
+
+    handleSpy.mockRestore();
+    verifySpy.mockRestore();
+  });
 });

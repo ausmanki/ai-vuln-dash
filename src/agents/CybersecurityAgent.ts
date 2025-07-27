@@ -169,7 +169,17 @@ export class CybersecurityAgent {
       }
 
       if (operationalCveId) {
-        return this.handleCVEQuery(query, operationalCveId);
+        const res = await this.handleCVEQuery(query, operationalCveId);
+        try {
+          const verification = await this.verifyResponse(
+            operationalCveId,
+            res.text
+          );
+          res.data = { ...(res.data || {}), confidence: verification };
+        } catch (e) {
+          console.error('Verification failed', e);
+        }
+        return res;
       }
 
       if (this.groundingEngine) {
@@ -446,6 +456,38 @@ export class CybersecurityAgent {
     const data = await fetcher();
     this.cache.set(key, { data, timestamp: Date.now() });
     return data;
+  }
+
+  private async verifyResponse(
+    cveId: string,
+    responseText: string
+  ): Promise<{ overall: number; flags: string[] }> {
+    const flags: string[] = [];
+    let confidence = 1;
+    try {
+      const [nvdData, kev] = await Promise.all([
+        APIService.fetchCVEData(cveId, this.settings?.nvdApiKey, () => {}),
+        fetchCISAKEVData(cveId, () => {}, ragDatabase, null, this.settings),
+      ]);
+
+      if (!nvdData) {
+        flags.push('NO_NVD_DATA');
+        confidence -= 0.3;
+      }
+
+      if (/cisa kev|actively exploited/i.test(responseText)) {
+        if (!kev?.listed) {
+          flags.push('CLAIMED_ACTIVE_NOT_IN_KEV');
+          confidence -= 0.3;
+        }
+      }
+    } catch (err) {
+      flags.push('VERIFICATION_FAILED');
+      confidence -= 0.2;
+    }
+
+    confidence = Math.max(0, Math.min(1, confidence));
+    return { overall: parseFloat(confidence.toFixed(2)), flags };
   }
 
   public setBulkAnalysisResults(results: BulkAnalysisResult[]): void {
