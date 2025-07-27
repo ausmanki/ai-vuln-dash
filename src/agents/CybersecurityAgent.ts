@@ -22,6 +22,7 @@ import { generateRemediationPlan } from '../utils/remediation';
 import { extractComponentNames } from '../utils/componentUtils';
 import { CONSTANTS } from '../utils/constants';
 import { CVE_REGEX } from '../utils/cveRegex';
+import { ragDatabase } from '../db/EnhancedVectorDatabase';
 
 // Utility to map CVSS score to severity label
 export const getCVSSSeverity = (score: number): string => {
@@ -116,8 +117,20 @@ export class AIGroundingEngine {
     return result;
   }
 
-  async learn(_result: GroundedSearchResult): Promise<void> {
-    // Placeholder for automatic learning storage
+  async learn(result: GroundedSearchResult): Promise<void> {
+    if (!ragDatabase?.initialized || !result.content) {
+      return;
+    }
+    try {
+      await ragDatabase.addDocument(result.content, {
+        title: 'Grounded Search Result',
+        category: 'grounded-info',
+        tags: ['grounding', 'auto-learn'],
+        source: result.sources?.join(', ') || 'web-search'
+      });
+    } catch (e) {
+      console.error('Grounding learn failed', e);
+    }
   }
 }
 
