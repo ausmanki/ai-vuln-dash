@@ -43,6 +43,8 @@ import {
   generateAIAnalysis as generateAIAnalysisInternal,
   generateAITaintAnalysis as generateAITaintAnalysisInternal,
   fetchGeneralAnswer as fetchGeneralAnswerInternal,
+  generateRemediationSuggestions as generateRemediationSuggestionsInternal,
+  findRelatedVulnerabilities as findRelatedVulnerabilitiesInternal,
 } from './AIEnhancementService';
 
 // Enhanced API Service Layer with Multi-Source Intelligence and Validation
@@ -75,6 +77,14 @@ export class APIService {
 
   static async fetchGeneralAnswer(query, settings = {}) {
     return fetchWithCache(`general-answer-${query}`, () => fetchGeneralAnswerInternal(query, settings, fetchWithFallback));
+  }
+
+  static async generateRemediationSuggestions(vulnerability, settings = {}) {
+    return fetchWithCache(`remediation-${vulnerability.cve.id}`, () => generateRemediationSuggestionsInternal(vulnerability, settings, fetchWithFallback));
+  }
+
+  static async findRelatedVulnerabilities(vulnerability, settings = {}) {
+    return fetchWithCache(`related-${vulnerability.cve.id}`, () => findRelatedVulnerabilitiesInternal(vulnerability, settings, fetchWithFallback));
   }
 
   // Enhanced main function with validation

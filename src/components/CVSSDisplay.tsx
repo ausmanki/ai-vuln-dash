@@ -2,7 +2,7 @@ import React, { useMemo, useContext } from 'react';
 import { AppContext } from '../contexts/AppContext';
 import { createStyles } from '../utils/styles';
 import { utils } from '../utils/helpers';
-import { COLORS, CONSTANTS } from '../utils/constants';
+import { COLORS } from '../utils/constants';
 
 const CVSSDisplay = ({ vulnerability }) => {
   const { settings } = useContext(AppContext);
@@ -12,25 +12,25 @@ const CVSSDisplay = ({ vulnerability }) => {
   const color = utils.getSeverityColor(severity);
 
   return (
-    <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+    <div style={{ textAlign: 'center' }}>
       <div style={{
         position: 'relative',
-        width: '120px',
-        height: '120px',
+        width: '150px',
+        height: '150px',
         margin: '0 auto 16px'
       }}>
-        <svg width="120" height="120" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
+        <svg width="150" height="150" viewBox="0 0 100 100" style={{ transform: 'rotate(-90deg)' }}>
           <circle
             cx="50" cy="50" r="45"
             fill="none"
             stroke={settings.darkMode ? COLORS.dark.border : COLORS.light.border}
-            strokeWidth="8"
+            strokeWidth="10"
           />
           <circle
             cx="50" cy="50" r="45"
             fill="none"
             stroke={color}
-            strokeWidth="8"
+            strokeWidth="10"
             strokeLinecap="round"
             strokeDasharray={`${(cvssScore / 10) * 283} 283`}
             style={{ transition: 'stroke-dasharray 1.5s ease' }}
@@ -44,89 +44,27 @@ const CVSSDisplay = ({ vulnerability }) => {
           transform: 'translate(-50%, -50%)',
           textAlign: 'center'
         }}>
-          <div style={{ fontSize: '1.625rem', fontWeight: '700' }}>
+          <div style={{ fontSize: '2rem', fontWeight: '700' }}>
             {cvssScore?.toFixed(1) || 'N/A'}
           </div>
-          <div style={{ fontSize: '0.75rem', fontWeight: '500' }}>
+          <div style={{ fontSize: '0.875rem', fontWeight: '500' }}>
             CVSS Score
           </div>
         </div>
       </div>
 
       <div style={{
-        marginBottom: '12px',
         display: 'inline-block',
-        padding: '6px 12px',
-        borderRadius: '6px',
-        fontSize: '0.8125rem',
+        padding: '8px 16px',
+        borderRadius: '8px',
+        fontSize: '1rem',
         fontWeight: '700',
-        background: severity === 'CRITICAL'
-          ? 'rgba(239, 68, 68, 0.15)'
-          : severity === 'HIGH'
-          ? 'rgba(245, 158, 11, 0.15)'
-          : severity === 'MEDIUM'
-          ? 'rgba(59, 130, 246, 0.15)'
-          : 'rgba(34, 197, 94, 0.15)',
-        color: severity === 'CRITICAL'
-          ? COLORS.red
-          : severity === 'HIGH'
-          ? COLORS.yellow
-          : severity === 'MEDIUM'
-          ? COLORS.blue
-          : COLORS.green,
-        borderWidth: '1px',
-        borderStyle: 'solid',
-        borderColor: severity === 'CRITICAL'
-          ? 'rgba(239, 68, 68, 0.3)'
-          : severity === 'HIGH'
-          ? 'rgba(245, 158, 11, 0.3)'
-          : severity === 'MEDIUM'
-          ? 'rgba(59, 130, 246, 0.3)'
-          : 'rgba(34, 197, 94, 0.3)'
+        background: `${color}20`,
+        color: color,
+        border: `1px solid ${color}30`
       }}>
-        {severity} Severity
+        {severity}
       </div>
-
-      {vulnerability.epss && (
-        <div style={{
-          background: `rgba(${utils.hexToRgb(COLORS.purple)}, 0.1)`,
-          borderRadius: '8px',
-          padding: '8px 12px',
-          borderWidth: '1px',
-          borderStyle: 'solid',
-          borderColor: `rgba(${utils.hexToRgb(COLORS.purple)}, 0.2)`
-        }}>
-          <div style={{ fontSize: '0.7rem', marginBottom: '4px' }}>
-            EPSS Exploitation Probability
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <div style={{
-              flex: 1,
-              height: '4px',
-              background: settings.darkMode ? COLORS.dark.border : COLORS.light.border,
-              borderRadius: '2px',
-              overflow: 'hidden'
-            }}>
-              <div style={{
-                width: `${vulnerability.epss.epssFloat * 100}%`,
-                height: '100%',
-                background: vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.HIGH ? COLORS.red :
-                           vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.MEDIUM ? COLORS.yellow : COLORS.green,
-                borderRadius: '2px',
-                transition: 'width 1s ease-out'
-              }} />
-            </div>
-            <span style={{
-              fontSize: '0.75rem',
-              fontWeight: '600',
-              color: vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.HIGH ? COLORS.red :
-                     vulnerability.epss.epssFloat > CONSTANTS.EPSS_THRESHOLDS.MEDIUM ? COLORS.yellow : COLORS.green
-            }}>
-              {(vulnerability.epss.epssFloat * 100).toFixed(1)}
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

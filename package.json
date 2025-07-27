@@ -8,15 +8,24 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test": "jest",
     "server": "node server/index.js",
     "start": "concurrently \"npm run server\" \"npm run dev\"",
     "curate": "ts-node scripts/curation-cycle.ts"
   },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "transform": {
+      "^.+\\.(ts|tsx|js|jsx)$": "babel-jest"
+    },
+    "transformIgnorePatterns": []
+  },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "dotenv": "^17.2.1",
     "express": "^4.19.2",
     "lucide-react": "^0.511.0",
+    "node-cache": "^5.1.2",
     "node-fetch": "^3.3.2",
     "pdfjs-dist": "^4.4.168",
     "react": "^19.1.0",
@@ -24,10 +33,12 @@
     "react-markdown": "^9.0.1",
     "recharts": "^2.15.3",
     "remark-gfm": "^4.0.0",
-    "xlsx": "^0.18.5",
-    "@google/generative-ai": "^0.24.1"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
+    "@babel/preset-env": "^7.28.0",
+    "@babel/preset-react": "^7.27.1",
+    "@babel/preset-typescript": "^7.27.1",
     "@eslint/js": "^9.25.0",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^16.3.0",
@@ -37,11 +48,13 @@
     "@vitejs/plugin-react": "^4.4.1",
     "acorn": "^8.15.0",
     "acorn-walk": "^8.3.4",
+    "babel-jest": "^30.0.5",
     "concurrently": "^8.0.0",
     "eslint": "^9.25.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
+    "jest-environment-jsdom": "^30.0.5",
     "jsdom": "^26.1.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.3",

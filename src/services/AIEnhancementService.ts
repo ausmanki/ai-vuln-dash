@@ -1052,6 +1052,219 @@ export async function generateAITaintAnalysis(
   };
 }
 
+export async function generateRemediationSuggestions(
+  vulnerability: any,
+  settings: any,
+  fetchWithFallbackFn: any
+) {
+  if (!settings.geminiApiKey && !settings.openAiApiKey) {
+    throw new Error("Gemini or OpenAI API key required for remediation suggestions");
+  }
+
+  const useGemini = !!settings.geminiApiKey;
+  const model = useGemini ? (settings.geminiModel || "gemini-2.5-flash") : (settings.openAiModel || 'gpt-4.1');
+  const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  const openAiSearchCapable = !useGemini && model === 'gpt-4.1';
+
+  const prompt = `
+Provide detailed remediation suggestions for the following vulnerability:
+
+CVE ID: ${vulnerability.cve.id}
+Description: ${vulnerability.cve.description}
+CVSS Score: ${vulnerability.cve.cvssV3?.baseScore || vulnerability.cve.cvssV2?.baseScore || 'N/A'}
+
+Please provide a step-by-step guide on how to remediate this vulnerability. Include the following sections:
+1.  **Immediate Steps:** Actions to take immediately to mitigate the risk.
+2.  **Short-Term Plan:** A plan for patching and verifying the fix.
+3.  **Long-Term Strategy:** Recommendations for preventing similar vulnerabilities in the future.
+
+Focus on practical, actionable advice.
+`;
+
+  const requestBody = useGemini
+    ? {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.2,
+          topK: 1,
+          topP: 0.8,
+          maxOutputTokens: 8192,
+          candidateCount: 1
+        },
+        tools: geminiSearchCapable ? [{ google_search: {} }] : undefined
+      }
+    : openAiSearchCapable
+      ? {
+          model: "gpt-4.1",
+          tools: [{"type": "web_search_preview"}],
+          input: prompt
+        }
+      : {
+          model,
+          messages: [{
+            role: 'user',
+            content: prompt
+          }],
+          max_tokens: 4096,
+          temperature: 0.2
+        };
+
+  const apiUrl = useGemini
+    ? `/api/gemini?model=${model}`
+    : openAiSearchCapable
+      ? '/api/openai?endpoint=responses'
+      : '/api/openai?endpoint=chat/completions';
+
+  const headers: any = { "Content-Type": "application/json" };
+
+  const response = await fetchWithFallbackFn(apiUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`AI remediation suggestions error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+
+  let text = '';
+  if (useGemini) {
+    if (data.candidates && data.candidates.length > 0) {
+      text = data.candidates
+        .map(candidate =>
+          candidate.content?.parts?.map(part => part.text).join('') || ''
+        )
+        .join('\n');
+    }
+  } else if (openAiSearchCapable) {
+    if (Array.isArray(data.output)) {
+      const messageObj = data.output.find(item => item.type === 'message' && item.content);
+      if (messageObj && Array.isArray(messageObj.content)) {
+        const textObj = messageObj.content.find(item => item.type === 'output_text' && item.text);
+        if (textObj && textObj.text) {
+          text = textObj.text;
+        }
+      }
+    } else if (typeof data.output === 'string') {
+      text = data.output;
+    }
+  } else {
+    text = data.choices?.[0]?.message?.content || '';
+  }
+
+  if (!text) {
+    throw new Error("Invalid AI response");
+  }
+
+  return { suggestions: text };
+}
+
+export async function findRelatedVulnerabilities(
+  vulnerability: any,
+  settings: any,
+  fetchWithFallbackFn: any
+) {
+  if (!settings.geminiApiKey && !settings.openAiApiKey) {
+    throw new Error("Gemini or OpenAI API key required for finding related vulnerabilities");
+  }
+
+  const useGemini = !!settings.geminiApiKey;
+  const model = useGemini ? (settings.geminiModel || "gemini-2.5-flash") : (settings.openAiModel || 'gpt-4.1');
+  const geminiSearchCapable = useGemini && (model.includes('2.0') || model.includes('2.5'));
+  const openAiSearchCapable = !useGemini && model === 'gpt-4.1';
+
+  const prompt = `
+Based on the following vulnerability, find related CVEs that are often associated with it.
+
+CVE ID: ${vulnerability.cve.id}
+Description: ${vulnerability.cve.description}
+
+Please provide a list of related CVEs and a brief explanation of why they are related.
+`;
+
+  const requestBody = useGemini
+    ? {
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          temperature: 0.2,
+          topK: 1,
+          topP: 0.8,
+          maxOutputTokens: 2048,
+          candidateCount: 1
+        },
+        tools: geminiSearchCapable ? [{ google_search: {} }] : undefined
+      }
+    : openAiSearchCapable
+      ? {
+          model: "gpt-4.1",
+          tools: [{"type": "web_search_preview"}],
+          input: prompt
+        }
+      : {
+          model,
+          messages: [{
+            role: 'user',
+            content: prompt
+          }],
+          max_tokens: 2048,
+          temperature: 0.2
+        };
+
+  const apiUrl = useGemini
+    ? `/api/gemini?model=${model}`
+    : openAiSearchCapable
+      ? '/api/openai?endpoint=responses'
+      : '/api/openai?endpoint=chat/completions';
+
+  const headers: any = { "Content-Type": "application/json" };
+
+  const response = await fetchWithFallbackFn(apiUrl, {
+    method: "POST",
+    headers,
+    body: JSON.stringify(requestBody)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => 'Unknown error');
+    throw new Error(`AI related vulnerabilities error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+
+  let text = '';
+  if (useGemini) {
+    if (data.candidates && data.candidates.length > 0) {
+      text = data.candidates
+        .map(candidate =>
+          candidate.content?.parts?.map(part => part.text).join('') || ''
+        )
+        .join('\n');
+    }
+  } else if (openAiSearchCapable) {
+    if (Array.isArray(data.output)) {
+      const messageObj = data.output.find(item => item.type === 'message' && item.content);
+      if (messageObj && Array.isArray(messageObj.content)) {
+        const textObj = messageObj.content.find(item => item.type === 'output_text' && item.text);
+        if (textObj && textObj.text) {
+          text = textObj.text;
+        }
+      }
+    } else if (typeof data.output === 'string') {
+      text = data.output;
+    }
+  } else {
+    text = data.choices?.[0]?.message?.content || '';
+  }
+
+  if (!text) {
+    throw new Error("Invalid AI response");
+  }
+
+  return { related: text };
+}
 // Keep the existing helper functions unchanged...
 function parseTextResponseForPatches(response: string, cveId: string, groundingMetadata?: any): any {
   logger.debug('Parsing patch response for', cveId, '- Length:', response.length);

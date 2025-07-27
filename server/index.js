@@ -3,6 +3,7 @@ import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import NodeCache from 'node-cache';
 
 // Get the directory name in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -37,15 +38,22 @@ app.use((req, res, next) => {
   next();
 });
 
+const apiCache = new NodeCache({ stdTTL: 3600 }); // Cache for 1 hour
+
 const OPENAI_BASE = 'https://api.openai.com/v1';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
-app.post('/api/openai', async (req, res) => {
+app.post('/api/openai', async (req, res, next) => {
   console.log('OpenAI request received');
+
+  const cacheKey = JSON.stringify(req.body);
+  if (apiCache.has(cacheKey)) {
+    console.log('Returning cached response for OpenAI');
+    return res.status(200).type('application/json').send(apiCache.get(cacheKey));
+  }
   
   if (!process.env.OPENAI_API_KEY) {
-    console.error('OPENAI_API_KEY is not set!');
-    return res.status(500).json({error: 'OpenAI API key not configured'});
+    return next(new Error('OPENAI_API_KEY is not set!'));
   }
   
   const endpoint = req.query.endpoint || 'chat/completions';
@@ -63,25 +71,29 @@ app.post('/api/openai', async (req, res) => {
     });
     
     const text = await resp.text();
-    console.log('OpenAI response status:', resp.status);
     
-    if (resp.status === 401) {
-      console.error('Authentication failed - check your API key');
+    if (!resp.ok) {
+      return next(new Error(`OpenAI API error: ${resp.status} - ${text}`));
     }
     
+    apiCache.set(cacheKey, text);
     res.status(resp.status).type('application/json').send(text);
   } catch (err) {
-    console.error('OpenAI API error:', err);
-    res.status(500).json({error: err.message});
+    next(err);
   }
 });
 
-app.post('/api/gemini', async (req, res) => {
+app.post('/api/gemini', async (req, res, next) => {
   console.log('Gemini request received');
+
+  const cacheKey = JSON.stringify(req.body);
+  if (apiCache.has(cacheKey)) {
+    console.log('Returning cached response for Gemini');
+    return res.status(200).type('application/json').send(apiCache.get(cacheKey));
+  }
   
   if (!process.env.GEMINI_API_KEY) {
-    console.error('GEMINI_API_KEY is not set!');
-    return res.status(500).json({error: 'Gemini API key not configured'});
+    return next(new Error('GEMINI_API_KEY is not set!'));
   }
   
   const model = req.query.model || 'gemini-2.0-flash-exp';
@@ -97,13 +109,22 @@ app.post('/api/gemini', async (req, res) => {
     });
     
     const text = await resp.text();
-    console.log('Gemini response status:', resp.status);
+
+    if (!resp.ok) {
+      return next(new Error(`Gemini API error: ${resp.status} - ${text}`));
+    }
     
+    apiCache.set(cacheKey, text);
     res.status(resp.status).type('application/json').send(text);
   } catch (err) {
-    console.error('Gemini API error:', err);
-    res.status(500).json({error: err.message});
+    next(err);
   }
+});
+
+// Centralized error handler
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: err.message || 'Something went wrong!' });
 });
 
 const port = process.env.PORT || 3001;
