@@ -6,6 +6,7 @@ export class EnhancedVectorDatabase {
     this.documents = [];
     this.initialized = false;
     this.geminiApiKey = null;
+    this.storagePath = 'rag_documents.json';
   }
 
   setApiKey(apiKey) {
@@ -111,6 +112,43 @@ export class EnhancedVectorDatabase {
     return dotProduct / (magnitude1 * magnitude2);
   }
 
+  async saveDocuments(filePath = this.storagePath) {
+    try {
+      if (typeof window === 'undefined') {
+        const fs = await import('fs/promises');
+        await fs.writeFile(filePath, JSON.stringify(this.documents, null, 2), 'utf8');
+      } else {
+        localStorage.setItem('ragDatabase', JSON.stringify(this.documents));
+      }
+      console.log(`💾 Saved ${this.documents.length} RAG documents to ${filePath}`);
+    } catch (error) {
+      console.error('Failed to save RAG documents:', error);
+    }
+  }
+
+  async loadDocuments(filePath = this.storagePath) {
+    try {
+      let data;
+      if (typeof window === 'undefined') {
+        const fs = await import('fs/promises');
+        data = await fs.readFile(filePath, 'utf8');
+      } else {
+        data = localStorage.getItem('ragDatabase');
+      }
+      if (data) {
+        this.documents = JSON.parse(data);
+        this.initialized = this.documents.length > 0;
+        console.log(`📂 Loaded ${this.documents.length} RAG documents from ${filePath}`);
+      }
+    } catch (error) {
+      if (error.code !== 'ENOENT') {
+        console.error('Failed to load RAG documents:', error);
+      } else {
+        console.log('No existing RAG database found.');
+      }
+    }
+  }
+
   async addDocument(content, metadata = {}) {
     const embedding = await this.createEmbedding(content);
     const doc = {
@@ -148,12 +186,20 @@ export class EnhancedVectorDatabase {
 
   async initialize(geminiApiKey = null) {
     if (this.initialized) return;
+    await this.loadDocuments();
+    if (this.initialized) {
+      if (geminiApiKey) {
+        await this.ensureInitialized(geminiApiKey);
+      }
+      return;
+    }
     if (geminiApiKey) {
       this.setApiKey(geminiApiKey);
     }
     console.log(`🚀 Initializing Enhanced RAG Vector Database with ${this.geminiApiKey ? 'Gemini' : 'local'} embeddings...`);
     await this.addComprehensiveSecurityKnowledgeBase();
     this.initialized = true;
+    await this.saveDocuments();
     console.log(`✅ RAG database initialized with ${this.documents.length} security documents using ${this.geminiApiKey ? 'Gemini' : 'local'} embeddings`);
   }
 
@@ -220,6 +266,9 @@ export class EnhancedVectorDatabase {
   }
 
   async ensureInitialized(geminiApiKey = null) {
+    if (!this.initialized) {
+      await this.loadDocuments();
+    }
     if (this.documents.length === 0) {
       console.log('🔄 RAG database empty, reinitializing...');
       await this.initialize(geminiApiKey);
@@ -246,6 +295,7 @@ export class EnhancedVectorDatabase {
           }
         }
       }
+      await this.saveDocuments();
     }
   }
 }
