@@ -149,12 +149,29 @@ export class CybersecurityAgent {
     this.cacheTTL = this.settings.cacheTTL ?? this.DEFAULT_CACHE_TTL;
 
     if (this.settings.openAiApiKey || this.settings.geminiApiKey) {
-      this.groundingConfig = { enableWebGrounding: true };
+      this.groundingConfig = { enableWebGrounding: true, autoLearn: true };
       this.groundingEngine = new AIGroundingEngine(this.groundingConfig, {
         gemini: this.settings.geminiApiKey,
         openai: this.settings.openAiApiKey,
       });
     }
+  }
+
+  private isCybersecurityRelated(query: string): boolean {
+    const keywords = [
+      'cve',
+      'vulnerability',
+      'exploit',
+      'patch',
+      'malware',
+      'cyber',
+      'security',
+      'kev',
+      'epss',
+      'threat'
+    ];
+    const lower = query.toLowerCase();
+    return keywords.some(k => lower.includes(k));
   }
 
   public async handleQuery(query: string): Promise<ChatResponse> {
@@ -182,8 +199,8 @@ export class CybersecurityAgent {
         return res;
       }
 
-      if (this.groundingEngine) {
-        const grounded = await this.groundingEngine.search(query);
+      if (this.groundingEngine && this.isCybersecurityRelated(query)) {
+        const grounded = await this.getGroundedInfo(query);
         if (grounded.content) {
           return {
             text: grounded.content,
