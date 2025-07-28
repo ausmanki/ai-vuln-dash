@@ -2808,8 +2808,8 @@ export class UserAssistantAgent {
   // Enhanced web search method with retry logic and fallback
   private async performWebSearch(query: string): Promise<any> {
     try {
-      if (!this.settings.geminiApiKey) {
-        return this.createFallbackWebSearchResult('Gemini API key not configured');
+      if (!this.settings.openAiApiKey && !this.settings.geminiApiKey) {
+        return this.createFallbackWebSearchResult('No AI key configured');
       }
 
       const searchPrompt = `Search for information about: ${query}. Provide a comprehensive analysis including current threat status, patches, advisories, and any dispute information.`;
@@ -2817,37 +2817,9 @@ export class UserAssistantAgent {
       // Retry logic for API failures
       for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-          const response = await fetch(`/api/gemini?model=gemini-2.5-flash`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              contents: [{
-                parts: [{
-                  text: searchPrompt
-                }]
-              }],
-              generationConfig: {
-                temperature: 0.1,
-                maxOutputTokens: 4096,
-              }
-            })
-          });
+          let generatedText = '';
 
-          if (!response.ok) {
-            if (response.status === 503 && attempt < 3) {
-              // Service unavailable, wait and retry
-              await this.sleep(1000 * attempt);
-              continue;
-            }
-            throw new Error(`Gemini API error: ${response.status}`);
-          }
-
-          const data = await response.json();
-          let generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-          if (this.settings.aiProvider === 'openai') {
+          if (this.settings.openAiApiKey) {
             try {
               const openaiRes = await fetch('/api/openai?endpoint=chat/completions', {
                 method: 'POST',
@@ -2862,14 +2834,43 @@ export class UserAssistantAgent {
               });
               if (openaiRes.ok) {
                 const openData = await openaiRes.json();
-                const openText = openData.choices?.[0]?.message?.content || '';
-                generatedText += `\n${openText}`;
+                generatedText = openData.choices?.[0]?.message?.content || '';
               }
             } catch (e) {
               console.error('OpenAI web search failed', e);
             }
           }
 
+          if (!generatedText && this.settings.geminiApiKey) {
+            const response = await fetch(`/api/gemini?model=gemini-2.5-flash`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [{
+                    text: searchPrompt
+                  }]
+                }],
+                generationConfig: {
+                  temperature: 0.1,
+                  maxOutputTokens: 4096,
+                }
+              })
+            });
+
+            if (!response.ok) {
+              if (response.status === 503 && attempt < 3) {
+                await this.sleep(1000 * attempt);
+                continue;
+              }
+              throw new Error(`Gemini API error: ${response.status}`);
+            }
+
+            const data = await response.json();
+            generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          }
           return {
             summary: generatedText,
             patches: [],

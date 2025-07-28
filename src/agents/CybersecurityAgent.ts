@@ -393,38 +393,15 @@ export class CybersecurityAgent {
 
   private async performWebSearch(query: string): Promise<any> {
     try {
-      if (!this.settings.geminiApiKey) {
-        return { summary: 'Web search unavailable: Gemini API key not configured' };
+      if (!this.settings.openAiApiKey && !this.settings.geminiApiKey) {
+        return { summary: 'Web search unavailable: no AI key configured' };
       }
 
       const searchPrompt = `Search for information about: ${query}. Provide a comprehensive analysis including current threat status, patches, advisories, and any dispute information.`;
 
-      const response = await fetch(`/api/gemini?model=gemini-2.5-flash`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{
-              text: searchPrompt
-            }]
-          }],
-          generationConfig: {
-            temperature: 0.1,
-            maxOutputTokens: 4096,
-          }
-        })
-      });
+      let generatedText = '';
 
-      if (!response.ok) {
-        throw new Error(`Gemini API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      let generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-
-      if (this.settings.aiProvider === 'openai') {
+      if (this.settings.openAiApiKey) {
         try {
           const openaiRes = await fetch('/api/openai?endpoint=chat/completions', {
             method: 'POST',
@@ -439,11 +416,37 @@ export class CybersecurityAgent {
           });
           if (openaiRes.ok) {
             const openData = await openaiRes.json();
-            const openText = openData.choices?.[0]?.message?.content || '';
-            generatedText += `\n${openText}`;
+            generatedText = openData.choices?.[0]?.message?.content || '';
           }
         } catch (e) {
           console.error('OpenAI web search failed', e);
+        }
+      }
+
+      if (!generatedText && this.settings.geminiApiKey) {
+        const response = await fetch(`/api/gemini?model=gemini-2.5-flash`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{
+                text: searchPrompt
+              }]
+            }],
+            generationConfig: {
+              temperature: 0.1,
+              maxOutputTokens: 4096,
+            }
+          })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        } else {
+          console.error('Gemini web search failed', response.status);
         }
       }
 
