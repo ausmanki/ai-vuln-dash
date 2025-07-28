@@ -4,14 +4,15 @@ import { CybersecurityAgent } from '../agents/CybersecurityAgent';
 const groundedResult = { content: 'grounded', sources: [], confidence: 0.9 };
 
 describe('CybersecurityAgent', () => {
-  it('calls groundingEngine.search only once', async () => {
+  it('calls groundingEngine.search only once for security query', async () => {
     const agent = new CybersecurityAgent();
     const searchSpy = vi
       .fn()
       .mockResolvedValue(groundedResult);
-    (agent as any).groundingEngine = { search: searchSpy };
+    const learnSpy = vi.fn();
+    (agent as any).groundingEngine = { search: searchSpy, learn: learnSpy };
 
-    const result = await agent.handleQuery('tell me something');
+    const result = await agent.handleQuery('explain vulnerability trends');
 
     expect(searchSpy).toHaveBeenCalledTimes(1);
     expect(result.text).toBe(groundedResult.content);
