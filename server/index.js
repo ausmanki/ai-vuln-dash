@@ -106,6 +106,19 @@ app.post('/api/gemini', async (req, res) => {
   }
 });
 
+app.get('/api/ai-config', (req, res) => {
+  const hasOpenAI = !!process.env.OPENAI_API_KEY;
+  const hasGemini = !!process.env.GEMINI_API_KEY;
+  const provider = hasOpenAI ? 'openai' : hasGemini ? 'gemini' : null;
+  res.json({
+    hasOpenAI,
+    hasGemini,
+    provider,
+    openAiModel: process.env.OPENAI_MODEL || 'gpt-4.1',
+    geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash'
+  });
+});
+
 const port = process.env.PORT || 3001;
 app.listen(port, () => {
   console.log(`Backend server listening on port ${port}`);

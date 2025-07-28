@@ -21,8 +21,7 @@ export function setGlobalAISettings(settings: any) {
 async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?: string): Promise<Response> {
   logger.debug('🤖 Using AI native web search for:', url);
   logger.debug('🔧 AI Settings debug:', {
-    hasGeminiKey: !!aiSettings?.geminiApiKey,
-    hasOpenAIKey: !!aiSettings?.openAiApiKey,
+    provider: aiSettings?.aiProvider,
     geminiModel: aiSettings?.geminiModel,
     openAiModel: aiSettings?.openAiModel,
     globalSettingsAvailable: !!globalAISettings
@@ -35,8 +34,8 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
     throw new Error('No AI settings provided');
   }
   
-  // Default to OpenAI unless explicitly configured to use Gemini
-  const useGemini = !!activeSettings.geminiApiKey;
+  // Determine provider from settings
+  const useGemini = activeSettings.aiProvider === 'gemini';
   // Default to Gemini 2.5 Flash for general use
   const model = useGemini ? (activeSettings.geminiModel || 'gemini-2.5-flash') : (activeSettings.openAiModel || 'gpt-4.1');
   
@@ -652,7 +651,7 @@ export async function fetchCVEData(cveId: string, apiKey: any, setLoadingSteps: 
   const activeAISettings = aiSettings || globalAISettings;
   
   // FIXED: Check for AI settings before proceeding
-  if (!activeAISettings?.geminiApiKey && !activeAISettings?.openAiApiKey) {
+  if (!activeAISettings?.aiProvider) {
     updateSteps((prev: string[]) => [...prev, `⚠️ No AI settings available - falling back to direct API`]);
     
     // Try direct NVD API call without AI
@@ -706,7 +705,7 @@ export async function fetchEPSSData(cveId: string, setLoadingSteps: any, ragData
   const activeAISettings = aiSettings || globalAISettings;
   
   // FIXED: Check for AI settings before proceeding
-  if (!activeAISettings?.geminiApiKey && !activeAISettings?.openAiApiKey) {
+  if (!activeAISettings?.aiProvider) {
     updateSteps((prev: string[]) => [...prev, `⚠️ No AI settings available - trying direct EPSS API`]);
     
     // Try direct EPSS API call
@@ -781,7 +780,7 @@ export async function fetchCISAKEVData(cveId: string, setLoadingSteps: any, ragD
   const activeAISettings = aiSettings || globalAISettings;
   
   // FIXED: Check for AI settings before proceeding
-  if (!activeAISettings?.geminiApiKey && !activeAISettings?.openAiApiKey) {
+  if (!activeAISettings?.aiProvider) {
     updateSteps((prev: any) => [...prev, `⚠️ No AI settings available - using direct CISA KEV catalog`]);
 
     try {

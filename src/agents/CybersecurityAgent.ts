@@ -148,12 +148,9 @@ export class CybersecurityAgent {
     this.settings = settings || {};
     this.cacheTTL = this.settings.cacheTTL ?? this.DEFAULT_CACHE_TTL;
 
-    if (this.settings.openAiApiKey || this.settings.geminiApiKey) {
+    if (this.settings.aiProvider) {
       this.groundingConfig = { enableWebGrounding: true, autoLearn: true };
-      this.groundingEngine = new AIGroundingEngine(this.groundingConfig, {
-        gemini: this.settings.geminiApiKey,
-        openai: this.settings.openAiApiKey,
-      });
+      this.groundingEngine = new AIGroundingEngine(this.groundingConfig, {});
     }
   }
 
@@ -427,7 +424,7 @@ export class CybersecurityAgent {
       const data = await response.json();
       let generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-      if (this.settings.openAiApiKey) {
+      if (this.settings.aiProvider === 'openai') {
         try {
           const openaiRes = await fetch('/api/openai?endpoint=chat/completions', {
             method: 'POST',

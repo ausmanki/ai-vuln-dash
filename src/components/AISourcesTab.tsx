@@ -18,8 +18,8 @@ const AISourcesTab: React.FC<AISourcesTabProps> = ({ vulnerability }) => {
   const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
 
   const generateTaintAnalysis = useCallback(async () => {
-    if (!settings.geminiApiKey && !settings.openAiApiKey) {
-      addNotification?.({ type: 'error', title: 'API Key Required', message: 'Configure Gemini or OpenAI API key in settings' });
+    if (!settings.aiProvider) {
+      addNotification?.({ type: 'error', title: 'AI Provider Required', message: 'Configure AI provider in settings' });
       return;
     }
     if (!vulnerability?.cve?.id) {
@@ -28,10 +28,9 @@ const AISourcesTab: React.FC<AISourcesTabProps> = ({ vulnerability }) => {
     }
     setLoading(true);
     try {
-      const useGemini = !!settings.geminiApiKey;
+      const useGemini = settings.aiProvider === 'gemini';
       const result = await APIService.generateAITaintAnalysis(
         vulnerability,
-        useGemini ? settings.geminiApiKey : undefined,
         useGemini ? settings.geminiModel : settings.openAiModel,
         settings
       );
@@ -63,7 +62,7 @@ const AISourcesTab: React.FC<AISourcesTabProps> = ({ vulnerability }) => {
             </>
           )}
         </button>
-        {!settings.geminiApiKey && !settings.openAiApiKey && (
+        {!settings.aiProvider && (
           <p style={{ fontSize: '0.8rem', color: settings.darkMode ? '#aaa' : '#555', marginTop: '8px' }}>
             Configure Gemini or OpenAI API key to enable analysis
           </p>

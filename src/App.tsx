@@ -175,7 +175,7 @@ const App = () => {
             
             <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
               {(() => {
-                const aiActive = settings.geminiApiKey || settings.openAiApiKey;
+                const aiActive = !!settings.aiProvider;
                 const badgeColor = aiActive ? COLORS.green : COLORS.yellow;
                 return (
                   <div

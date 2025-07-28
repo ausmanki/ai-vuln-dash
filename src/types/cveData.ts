@@ -449,11 +449,10 @@ export interface AISummaryData {
 
 
 export interface AgentSettings {
-  geminiApiKey?: string;
   nvdApiKey?: string;
   geminiModel?: string;
-  openAiApiKey?: string;
   openAiModel?: string;
+  aiProvider?: 'gemini' | 'openai';
   cacheTTL?: number; // TTL for caching in milliseconds
   [key: string]: any; // Allow other settings
 }
