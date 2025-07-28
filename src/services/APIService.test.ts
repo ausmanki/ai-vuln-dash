@@ -11,7 +11,7 @@ vi.mock('./AIEnhancementService', () => ({
 import { APIService } from './APIService'
 import * as AI from './AIEnhancementService'
 
-const dummySettings = { openAiApiKey: 'k', openAiModel: 'gpt-4.1' }
+const dummySettings = { aiProvider: 'openai', openAiModel: 'gpt-4.1' }
 
 describe('APIService.fetchPatchesAndAdvisories', () => {
   afterEach(() => {

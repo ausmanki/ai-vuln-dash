@@ -18,7 +18,7 @@ const mockResponse = {
 describe('fetchGeneralAnswer', () => {
   it('includes web search tool when using OpenAI', async () => {
     const fetcher = vi.fn().mockResolvedValue(mockResponse);
-    await fetchGeneralAnswer('hi', { openAiApiKey: 'key', openAiModel: 'gpt-4.1' }, fetcher);
+    await fetchGeneralAnswer('hi', { aiProvider: 'openai', openAiModel: 'gpt-4.1' }, fetcher);
     const options = fetcher.mock.calls[0][1];
     const body = JSON.parse(options.body);
     expect(body.tools).toEqual([{ type: 'web_search_preview' }]);

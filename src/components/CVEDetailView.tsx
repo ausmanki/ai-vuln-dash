@@ -60,7 +60,7 @@ const CVEDetailView = ({ vulnerability }) => {
   }
 
   // Ensure settings exists with defaults
-  const safeSettings = settings || { darkMode: false, geminiApiKey: null, openAiApiKey: null };
+  const safeSettings = settings || { darkMode: false, aiProvider: null };
   const safeAddNotification = addNotification || (() => {});
   const safeSetVulnerabilities = setVulnerabilities || (() => {});
 
@@ -654,11 +654,11 @@ const CVEDetailView = ({ vulnerability }) => {
 
   // Patch discovery function
   const discoverPatches = async () => {
-    if (!safeSettings.geminiApiKey) {
+    if (safeSettings.aiProvider !== 'gemini') {
       safeAddNotification({
         type: 'error',
-        title: 'API Key Required',
-        message: 'Configure Gemini API key to enable AI-powered patch discovery'
+        title: 'AI Provider Required',
+        message: 'Gemini provider required for AI-powered patch discovery'
       });
       return;
     }
@@ -760,11 +760,11 @@ const CVEDetailView = ({ vulnerability }) => {
 
   // Generate comprehensive AI analysis
   const generateAnalysis = useCallback(async () => {
-    if (!safeSettings.geminiApiKey && !safeSettings.openAiApiKey) {
+    if (!safeSettings.aiProvider) {
       safeAddNotification({
         type: 'error',
-        title: 'API Key Required',
-        message: 'Please configure your Gemini or OpenAI API key in settings'
+        title: 'AI Provider Required',
+        message: 'Please configure your AI provider in settings'
       });
       return;
     }
@@ -808,10 +808,9 @@ Focus on actionable information for security professionals.
         searchDepth: 'comprehensive'
       };
 
-      const useGemini = !!safeSettings.geminiApiKey;
+      const useGemini = safeSettings.aiProvider === 'gemini';
       const result = await APIService.generateAIAnalysis(
         enhancedVulnerability,
-        useGemini ? safeSettings.geminiApiKey : undefined,
         useGemini ? safeSettings.geminiModel : safeSettings.openAiModel,
         safeSettings
       );
@@ -1533,12 +1532,12 @@ Focus on actionable information for security professionals.
                   style={{
                     ...styles.button,
                     ...styles.buttonPrimary,
-                    opacity: aiLoading || (!safeSettings.geminiApiKey && !safeSettings.openAiApiKey) ? 0.7 : 1,
+                    opacity: aiLoading || !safeSettings.aiProvider ? 0.7 : 1,
                     fontSize: '1rem',
                     padding: '16px 32px'
                   }}
                   onClick={generateAnalysis}
-                  disabled={aiLoading || (!safeSettings.geminiApiKey && !safeSettings.openAiApiKey)}
+                  disabled={aiLoading || !safeSettings.aiProvider}
                 >
                   {aiLoading ? (
                     <>
@@ -1553,7 +1552,7 @@ Focus on actionable information for security professionals.
                     </>
                   )}
                 </button>
-                {!safeSettings.geminiApiKey && !safeSettings.openAiApiKey && (
+                {!safeSettings.aiProvider && (
                   <p style={{ fontSize: '0.9rem', color: safeSettings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText, marginTop: '12px' }}>
                     Configure Gemini or OpenAI API key in settings to enable AI analysis
                   </p>

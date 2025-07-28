@@ -292,7 +292,7 @@ export async function fetchPatchesWithWebSearch(
   setLoadingSteps: any,
   fetchWithFallback: any
 ) {
-  const useGemini = !settings.openAiApiKey && !!settings.geminiApiKey;
+  const useGemini = settings.aiProvider === 'gemini';
   const model = useGemini ? (settings.geminiModel || 'gemini-2.5-flash') : (settings.openAiModel || 'gpt-4');
   
   // Check web search capability

@@ -592,16 +592,15 @@ export class SmartResearchAgent {
       // RAG Initialization
       if (ragDatabase && !ragDatabase.initialized) {
         this.updateSteps(`📚 Initializing RAG knowledge base...`);
-        await ragDatabase.initialize(enhancedSettings.geminiApiKey || apiKeys.geminiApiKey);
+        await ragDatabase.initialize();
       }
 
       this.updateSteps(`🔍 Fetching primary data with smart parameters...`);
       
       // Create AI settings object
       const aiSettingsForFetch = {
-        geminiApiKey: apiKeys.geminiApiKey || enhancedSettings.geminiApiKey,
+        aiProvider: enhancedSettings.aiProvider,
         geminiModel: aiModel.model,
-        openAiApiKey: enhancedSettings.openAiApiKey,
         openAiModel: enhancedSettings.openAiModel || 'gpt-4.1'
       };
 

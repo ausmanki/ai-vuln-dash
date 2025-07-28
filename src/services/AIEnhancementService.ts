@@ -102,12 +102,12 @@ export async function fetchPatchesAndAdvisories(
   const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
   updateSteps(prev => [...prev, `🔍 Searching for patches and advisories for ${cveId}...`]);
 
-  if (!settings.geminiApiKey && !settings.openAiApiKey) {
-    updateSteps(prev => [...prev, `⚠️ API key required for patch search`]);
+  if (!settings.aiProvider) {
+    updateSteps(prev => [...prev, `⚠️ AI provider not configured`]);
     return getHeuristicPatchesAndAdvisories(cveId, cveData);
   }
 
-  const useGemini = !settings.openAiApiKey && !!settings.geminiApiKey;
+  const useGemini = settings.aiProvider === 'gemini';
   const model = useGemini ? (settings.geminiModel || 'gemini-2.5-flash') : (settings.openAiModel || 'gpt-4.1');
   // Web search supported on Gemini 2.0 and 2.5 models
   const geminiSearchCapable =
@@ -367,11 +367,11 @@ export async function fetchAIThreatIntelligence(
 ) {
   const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
 
-  if (!settings.geminiApiKey && !settings.openAiApiKey) {
-    throw new Error('Gemini or OpenAI API key required');
+  if (!settings.aiProvider) {
+    throw new Error('AI provider required');
   }
 
-  const useGemini = !!settings.geminiApiKey;
+  const useGemini = settings.aiProvider === 'gemini';
   const model = useGemini ? (settings.geminiModel || 'gemini-2.5-flash') : (settings.openAiModel || 'gpt-4.1');
   const geminiSearchCapable =
     useGemini && (model.includes('2.0') || model.includes('2.5'));
@@ -561,20 +561,20 @@ Provide specific information about any threats, exploits, or active usage you fi
  * FIXED: Enhanced AI analysis with proper OpenAI /responses endpoint support
  */
 export async function generateAIAnalysis(
-  vulnerability: any, 
-  apiKey: string, 
-  model: string, 
-  settings: any = {}, 
-  ragDatabase: any, 
-  fetchWithFallback: any, 
-  buildEnhancedAnalysisPrompt: any, 
+  vulnerability: any,
+  apiKey: string,
+  model: string,
+  settings: any = {},
+  ragDatabase: any,
+  fetchWithFallback: any,
+  buildEnhancedAnalysisPrompt: any,
   generateEnhancedFallbackAnalysis: any
 ) {
-  if (!apiKey && !settings.openAiApiKey) {
-    throw new Error('Gemini or OpenAI API key required');
+  if (!settings.aiProvider) {
+    throw new Error('AI provider required');
   }
 
-  const useGemini = !!apiKey;
+  const useGemini = settings.aiProvider === 'gemini';
 
   const now = Date.now();
   // @ts-ignore
@@ -817,11 +817,11 @@ export async function generateAIAnalysis(
  * FIXED: General answer with proper OpenAI /responses endpoint support
  */
 export async function fetchGeneralAnswer(query: string, settings: any, fetchWithFallbackFn: any) {
-  if (!settings.geminiApiKey && !settings.openAiApiKey) {
-    throw new Error("Gemini or OpenAI API key required for AI responses");
+  if (!settings.aiProvider) {
+    throw new Error('AI provider required for AI responses');
   }
-  
-  const useGemini = !!settings.geminiApiKey;
+
+  const useGemini = settings.aiProvider === 'gemini';
   const model = useGemini ? (settings.geminiModel || "gemini-2.5-flash") : (settings.openAiModel || 'gpt-4.1');
   const geminiSearchCapable =
     useGemini && (model.includes('2.0') || model.includes('2.5'));
@@ -933,11 +933,11 @@ export async function generateAITaintAnalysis(
   settings: any = {},
   fetchWithFallbackFn: any
 ) {
-  if (!apiKey && !settings.openAiApiKey) {
-    throw new Error('Gemini or OpenAI API key required');
+  if (!settings.aiProvider) {
+    throw new Error('AI provider required');
   }
 
-  const useGemini = !!apiKey;
+  const useGemini = settings.aiProvider === 'gemini';
   const geminiSearchCapable =
     useGemini && (model.includes('2.0') || model.includes('2.5'));
   // Re-enable OpenAI web search for taint analysis

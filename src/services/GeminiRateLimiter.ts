@@ -135,7 +135,7 @@ export async function fetchWithAIWebSearchEnhanced(
   prompt: string,
   settings: any
 ): Promise<any> {
-  const useGemini = !!settings.geminiApiKey && !settings.openAiApiKey;
+  const useGemini = settings.aiProvider === 'gemini';
   
   if (useGemini) {
     const model = settings.geminiModel || 'gemini-2.5-flash';
@@ -158,9 +158,9 @@ export async function fetchWithAIWebSearchEnhanced(
     };
     
     const apiUrl = `/api/gemini?model=${model}`;
-    
+
     try {
-      const data = await fetchWithGeminiRateLimit(apiUrl, requestBody, settings.geminiApiKey);
+      const data = await fetchWithGeminiRateLimit(apiUrl, requestBody, '');
       
       // Process the response
       if (data.candidates?.[0]?.content?.parts?.[0]?.text) {

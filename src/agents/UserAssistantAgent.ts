@@ -187,12 +187,9 @@ export class UserAssistantAgent {
     };
     this.conversationHistory = [];
 
-    if (this.settings.openAiApiKey || this.settings.geminiApiKey) {
+    if (this.settings.aiProvider) {
       this.groundingConfig = this.settings.groundingConfig;
-      this.groundingEngine = new AIGroundingEngine(this.groundingConfig || {}, {
-        gemini: this.settings.geminiApiKey,
-        openai: this.settings.openAiApiKey,
-      });
+      this.groundingEngine = new AIGroundingEngine(this.groundingConfig || {}, {});
     }
   }
 
@@ -2850,7 +2847,7 @@ export class UserAssistantAgent {
           const data = await response.json();
           let generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
 
-          if (this.settings.openAiApiKey) {
+          if (this.settings.aiProvider === 'openai') {
             try {
               const openaiRes = await fetch('/api/openai?endpoint=chat/completions', {
                 method: 'POST',

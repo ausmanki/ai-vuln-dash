@@ -62,7 +62,7 @@ describe('fetchCVEData', () => {
 
     const rag = { initialized: true, addDocument: vi.fn() }
     const res = await DFS.fetchCVEData('CVE-XYZ', null, () => {}, rag, {
-      openAiApiKey: 'k'
+      aiProvider: 'openai'
     })
 
     expect(fetchMock).toHaveBeenCalled()
