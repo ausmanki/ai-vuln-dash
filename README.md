@@ -267,6 +267,16 @@ OPENAI_USER_LOCATION=us OPENAI_SEARCH_CONTEXT_SIZE=5 \
 node scripts/ai-web-search.js "what was a positive news story from today?"
 ```
 
+### 🖥️ Cybersecurity Agent CLI
+Chat with the agent directly from your terminal. The script uses API keys from
+your `.env` file.
+
+```bash
+npx ts-node scripts/cybersecurity-agent-cli.ts
+```
+
+Type a question like `"tell me about CVE-2024-1234"` and enter `exit` to quit.
+
 ### **🗣️ Smart Assistant Commands**
 ```
 /help             - List available assistant commands
