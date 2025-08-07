@@ -1,21 +1,44 @@
 import { describe, it, expect, vi } from 'vitest';
 import { CybersecurityAgent } from '../agents/CybersecurityAgent';
+import { ragDatabase } from '../db/EnhancedVectorDatabase';
 
 const groundedResult = { content: 'grounded', sources: [], confidence: 0.9 };
 
 describe('CybersecurityAgent', () => {
-  it('calls groundingEngine.search only once for security query', async () => {
+  it('returns RAG result when confidence high and skips grounding', async () => {
     const agent = new CybersecurityAgent();
-    const searchSpy = vi
-      .fn()
-      .mockResolvedValue(groundedResult);
+    const ragSpy = vi
+      .spyOn(ragDatabase, 'search')
+      .mockResolvedValue([{ content: 'rag answer', similarity: 0.8 } as any]);
+    const groundingSearch = vi.fn();
+    const groundingLearn = vi.fn();
+    (agent as any).groundingEngine = { search: groundingSearch, learn: groundingLearn };
+
+    const result = await agent.handleQuery('explain vulnerability trends');
+
+    expect(ragSpy).toHaveBeenCalled();
+    expect(groundingSearch).not.toHaveBeenCalled();
+    expect(result.text).toBe('rag answer');
+
+    ragSpy.mockRestore();
+  });
+
+  it('falls back to grounding engine when RAG confidence low', async () => {
+    const agent = new CybersecurityAgent();
+    const ragSpy = vi
+      .spyOn(ragDatabase, 'search')
+      .mockResolvedValue([{ content: 'rag low', similarity: 0.3 } as any]);
+    const searchSpy = vi.fn().mockResolvedValue(groundedResult);
     const learnSpy = vi.fn();
     (agent as any).groundingEngine = { search: searchSpy, learn: learnSpy };
 
     const result = await agent.handleQuery('explain vulnerability trends');
 
+    expect(ragSpy).toHaveBeenCalled();
     expect(searchSpy).toHaveBeenCalledTimes(1);
     expect(result.text).toBe(groundedResult.content);
+
+    ragSpy.mockRestore();
   });
 
   it('calls groundingEngine.learn when autoLearn is enabled', async () => {
@@ -32,6 +55,7 @@ describe('CybersecurityAgent', () => {
 
   it('verifies CVE responses against known sources', async () => {
     const agent = new CybersecurityAgent();
+    const ragSpy = vi.spyOn(ragDatabase, 'search').mockResolvedValue([]);
     const handleSpy = vi
       .spyOn(agent as any, 'handleCVEQuery')
       .mockResolvedValue({ text: 'report', sender: 'bot', id: '1' });
@@ -47,5 +71,6 @@ describe('CybersecurityAgent', () => {
 
     handleSpy.mockRestore();
     verifySpy.mockRestore();
+    ragSpy.mockRestore();
   });
 });
