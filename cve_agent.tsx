@@ -20,7 +20,12 @@ async function analyze(path: string) {
   }
   const report: CVEReport = JSON.parse(fs.readFileSync(path, 'utf-8'));
   const genAI = new GoogleGenerativeAI(googleApiKey);
-  const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
+  const model = genAI.getGenerativeModel({
+    model: 'gemini-1.5-flash',
+    tools: [{
+      "googleSearch": {}
+    }],
+  });
 
   const prompt = `You are an expert cybersecurity analyst. Assess the following CVE report according to the CVE Validation & Legitimacy Analysis Framework.
   Core Responsibilities:

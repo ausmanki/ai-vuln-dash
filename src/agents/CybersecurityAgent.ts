@@ -462,6 +462,11 @@ export class CybersecurityAgent {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             contents: [{ parts: [{ text: searchPrompt }] }],
+            tools: [
+              {
+                "google_search": {}
+              }
+            ],
             generationConfig: {
               temperature: 0.2,
               maxOutputTokens: 4096,

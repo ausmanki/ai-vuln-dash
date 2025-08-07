@@ -151,4 +151,29 @@ describe('UserAssistantAgent', () => {
     groundSpy.mockRestore();
     ragDatabase.initialized = original;
   });
+
+  it('includes google_search tool in Gemini API call', async () => {
+    const agent = new UserAssistantAgent({
+      aiProvider: 'gemini',
+      geminiApiKey: 'test-key',
+    });
+    const ragSpy = vi.spyOn(ragDatabase, 'search').mockResolvedValue([]);
+    const fetchSpy = vi.spyOn(global, 'fetch').mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ candidates: [{ content: { parts: [{ text: 'gemini answer' }] } }] }),
+    } as any);
+
+    await agent.handleQuery('tell me about CVE-2024-0001');
+
+    const fetchCall = fetchSpy.mock.calls.find(call => call[0].toString().includes('/api/gemini'));
+    expect(fetchCall).toBeDefined();
+    if (fetchCall) {
+      const body = JSON.parse(fetchCall[1].body as string);
+      expect(body.tools).toBeDefined();
+      expect(body.tools[0]).toHaveProperty('google_search');
+    }
+
+    ragSpy.mockRestore();
+    fetchSpy.mockRestore();
+  });
 });
