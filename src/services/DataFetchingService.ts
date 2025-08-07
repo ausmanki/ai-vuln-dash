@@ -189,7 +189,7 @@ async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?
     }
 
     // Parse the AI response based on what we're looking for
-    const parsedContent = parseAIWebSearchResponse(aiResponse, url, groundingMetadata);
+    const parsedContent = await parseAIWebSearchResponse(aiResponse, url, groundingMetadata);
 
     return {
       ok: true,
@@ -248,21 +248,21 @@ Focus on official NIST/NVD sources.`;
 }
 
 // ENHANCED: Parse AI responses into structured data
-function parseAIWebSearchResponse(aiResponse: string, originalUrl: string, groundingMetadata?: any): any {
+async function parseAIWebSearchResponse(aiResponse: string, originalUrl: string, groundingMetadata?: any): Promise<any> {
   logger.debug('🔍 Parsing AI response for:', originalUrl);
-  
+
   if (originalUrl.includes('cisa.gov') && originalUrl.includes('known_exploited_vulnerabilities')) {
-    return parseCISAKEVFromAI(aiResponse, groundingMetadata);
+    return await parseCISAKEVFromAI(aiResponse, groundingMetadata);
   }
-  
+
   if (originalUrl.includes('first.org') && originalUrl.includes('epss')) {
-    return parseEPSSFromAI(aiResponse, groundingMetadata);
+    return await parseEPSSFromAI(aiResponse, groundingMetadata);
   }
-  
+
   if (originalUrl.includes('nvd.nist.gov')) {
     return parseNVDFromAI(aiResponse, groundingMetadata);
   }
-  
+
   // Generic response
   return {
     json: {
@@ -276,54 +276,37 @@ function parseAIWebSearchResponse(aiResponse: string, originalUrl: string, groun
 }
 
 // ENHANCED CISA KEV parser
-function parseCISAKEVFromAI(aiResponse: string, groundingMetadata?: any): any {
-  logger.debug('📋 Parsing CISA KEV information from AI response');
-  
-  // Extract key information from the AI response
-  const catalogVersionMatch = aiResponse.match(/version[:\s]+([0-9]{4}\.[0-9]{2}\.[0-9]{2}|[0-9.]+)/i);
-  const dateMatch = aiResponse.match(/([0-9]{4}-[0-9]{1,2}-[0-9]{1,2})/);
-  const countMatch = aiResponse.match(/(\d{1,5})\s*(?:vulnerabilities|CVEs|entries)/i);
-  
-  const mockKEVStructure = {
-    title: "CISA Known Exploited Vulnerabilities Catalog",
-    catalogVersion: catalogVersionMatch ? catalogVersionMatch[1] : new Date().toISOString().split('T')[0],
-    dateReleased: dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0],
-    count: countMatch ? parseInt(countMatch[1]) : 0,
-    vulnerabilities: [], // This will be populated by specific CVE searches
-    note: "Data retrieved via AI web search - use searchCISAKEVForCVE for specific CVE lookups",
-    aiParsed: true,
-    aiResponse: aiResponse,
-    groundingMetadata: groundingMetadata || {},
-    searchCapability: true
-  };
+async function parseCISAKEVFromAI(_aiResponse?: string, groundingMetadata?: any): Promise<any> {
+  logger.debug('📋 Fetching CISA KEV information from official API');
 
+  const url = 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json';
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch CISA KEV catalog: ${response.status}`);
+  }
+
+  const data = await response.json();
   return {
-    json: mockKEVStructure,
-    text: aiResponse,
+    json: { ...data, groundingMetadata: groundingMetadata || {} },
+    text: JSON.stringify(data),
     contentType: 'application/json'
   };
 }
 
 // ENHANCED EPSS parser
-function parseEPSSFromAI(aiResponse: string, groundingMetadata?: any): any {
-  logger.debug('📊 Parsing EPSS information from AI response');
-  
-  const epssData = {
-    status: "OK",
-    status_code: 200,
-    version: "v1",
-    access: "public",
-    note: "EPSS data structure from AI search - use searchEPSSForCVE for specific CVE scores",
-    data: [], // Will be populated by specific CVE searches
-    aiParsed: true,
-    aiResponse: aiResponse,
-    groundingMetadata: groundingMetadata || {},
-    searchCapability: true
-  };
+async function parseEPSSFromAI(_aiResponse?: string, groundingMetadata?: any): Promise<any> {
+  logger.debug('📊 Fetching EPSS information from official API');
 
+  const url = 'https://api.first.org/data/v1/epss';
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch EPSS data: ${response.status}`);
+  }
+
+  const data = await response.json();
   return {
-    json: epssData,
-    text: aiResponse,
+    json: { ...data, groundingMetadata: groundingMetadata || {} },
+    text: JSON.stringify(data),
     contentType: 'application/json'
   };
 }
@@ -355,74 +338,17 @@ function parseNVDFromAI(aiResponse: string, groundingMetadata?: any): any {
 }
 
 // SMART: CVE-specific search functions using AI web search
-export async function searchCISAKEVForCVE(cveId: string, aiSettings: any): Promise<any> {
-  logger.debug(`🔍 Searching CISA KEV for ${cveId} using AI web search`);
-  
-  const searchPrompt = `Search the official CISA Known Exploited Vulnerabilities (KEV) catalog for CVE ${cveId}.
-
-Please check:
-1. Is ${cveId} listed in the current CISA KEV catalog?
-2. If listed, what are the specific details:
-   - Date added to catalog
-   - Short description
-   - Required action
-   - Due date for patching
-   - Known ransomware campaign use
-   - Vendor/Project name
-   - Product name
-
-Search specifically on cisa.gov for the KEV catalog and ${cveId}. Be very precise about whether this CVE is actually listed or not.
-
-Respond in this exact format:
-LISTED: [YES/NO]
-DATE_ADDED: [date if listed]
-DESCRIPTION: [description if listed]
-REQUIRED_ACTION: [action if listed]
-DUE_DATE: [due date if listed]
-RANSOMWARE_USE: [yes/no/unknown if listed]
-VENDOR: [vendor if listed]
-PRODUCT: [product if listed]`;
+export async function searchCISAKEVForCVE(cveId: string, _aiSettings: any): Promise<any> {
+  logger.debug(`🔍 Searching CISA KEV for ${cveId} via official API`);
 
   try {
-    const response = await fetchWithAIWebSearch('https://www.cisa.gov/known-exploited-vulnerabilities', aiSettings, searchPrompt);
-    const data = await response.json();
-    
-    const aiResponse = data.aiResponse || data.content || '';
-    const isListed = aiResponse.toLowerCase().includes('listed: yes') || 
-                    (aiResponse.toLowerCase().includes('listed') && 
-                     !aiResponse.toLowerCase().includes('listed: no') &&
-                     aiResponse.toLowerCase().includes(cveId.toLowerCase()));
-
-    // Extract details if listed
-    let details: any = {
-      cve: cveId,
-      listed: isListed,
-      source: 'ai-kev-search',
-      confidence: isListed ? 'HIGH' : 'HIGH',
-      lastChecked: new Date().toISOString(),
-      aiResponse: aiResponse.substring(0, 1000),
-      groundingMetadata: data.groundingMetadata || {}
-    };
-
-    if (isListed) {
-      // Extract specific details from the response
-      details.dateAdded = extractField(aiResponse, 'DATE_ADDED');
-      details.shortDescription = extractField(aiResponse, 'DESCRIPTION');
-      details.requiredAction = extractField(aiResponse, 'REQUIRED_ACTION');
-      details.dueDate = extractField(aiResponse, 'DUE_DATE');
-      details.knownRansomwareCampaignUse = extractField(aiResponse, 'RANSOMWARE_USE');
-      details.vendorProject = extractField(aiResponse, 'VENDOR');
-      details.product = extractField(aiResponse, 'PRODUCT');
-    }
-
-    return details;
-
+    return await fetchCisaKevFromCatalog(cveId);
   } catch (error) {
-    logger.error(`❌ AI KEV search failed for ${cveId}:`, error);
+    logger.error(`❌ CISA KEV search failed for ${cveId}:`, error);
     return {
       cve: cveId,
       listed: false,
-      source: 'ai-search-failed',
+      source: 'kev-api-error',
       error: error instanceof Error ? error.message : String(error),
       confidence: 'LOW',
       lastChecked: new Date().toISOString()
@@ -468,58 +394,36 @@ async function fetchCisaKevFromCatalog(cveId: string): Promise<any> {
   };
 }
 
-export async function searchEPSSForCVE(cveId: string, aiSettings: any): Promise<any> {
-  logger.debug(`📊 Searching EPSS data for ${cveId} using AI web search`);
-  
-  const searchPrompt = `Search for EPSS (Exploit Prediction Scoring System) data for CVE ${cveId} from FIRST.org.
+export async function searchEPSSForCVE(cveId: string, _aiSettings: any): Promise<any> {
+  logger.debug(`📊 Fetching EPSS data for ${cveId} via official API`);
 
-Please find:
-1. The current EPSS score for ${cveId}
-2. The percentile ranking
-3. The date of the score
-4. Any recent changes to the score
-
-Search specifically on first.org for EPSS data and ${cveId}.
-
-Respond in this exact format:
-CVE: ${cveId}
-EPSS_SCORE: [decimal score 0.0-1.0]
-PERCENTILE: [decimal percentile 0.0-1.0] 
-DATE: [YYYY-MM-DD]
-FOUND: [YES/NO]`;
-
+  const url = `https://api.first.org/data/v1/epss?cve=${cveId}`;
   try {
-    const response = await fetchWithAIWebSearch('https://api.first.org/data/v1/epss', aiSettings, searchPrompt);
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`EPSS API error: ${response.status}`);
+    }
     const data = await response.json();
-    
-    const aiResponse = data.aiResponse || data.content || '';
-    const epssMatch = aiResponse.match(/EPSS_SCORE:\s*([0-9.]+)/i);
-    const percentileMatch = aiResponse.match(/PERCENTILE:\s*([0-9.]+)/i);
-    const dateMatch = aiResponse.match(/DATE:\s*([0-9]{4}-[0-9]{1,2}-[0-9]{1,2})/i);
-    const foundMatch = aiResponse.match(/FOUND:\s*(YES|NO)/i);
-
-    if (foundMatch && foundMatch[1].toUpperCase() === 'YES' && epssMatch && percentileMatch) {
-      const epssScore = parseFloat(epssMatch[1]);
-      const percentileScore = parseFloat(percentileMatch[1]);
-      
+    if (data.data?.length > 0) {
+      const epssData = data.data[0];
+      const epssScore = parseFloat(epssData.epss);
+      const percentileScore = parseFloat(epssData.percentile);
       return {
         cve: cveId,
-        epss: epssScore.toFixed(9).substring(0, 10),
-        percentile: percentileScore.toFixed(9).substring(0, 10),
+        epss: epssData.epss,
+        percentile: epssData.percentile,
         epssFloat: epssScore,
         percentileFloat: percentileScore,
         epssPercentage: (epssScore * 100).toFixed(3),
-        date: dateMatch ? dateMatch[1] : new Date().toISOString().split('T')[0],
-        aiEnhanced: true,
-        source: 'ai-epss-search',
-        aiResponse: aiResponse.substring(0, 500)
+        date: epssData.date,
+        model_version: data.model_version,
+        source: 'epss-api',
+        aiEnhanced: false
       };
     }
-
-    return null; // No EPSS data found
-
+    return null;
   } catch (error) {
-    logger.error(`❌ AI EPSS search failed for ${cveId}:`, error);
+    logger.error(`❌ EPSS fetch failed for ${cveId}:`, error);
     return null;
   }
 }
@@ -702,54 +606,15 @@ export async function fetchCVEData(cveId: string, apiKey: any, setLoadingSteps: 
 
 export async function fetchEPSSData(cveId: string, setLoadingSteps: any, ragDatabase: any, aiSettings?: any) {
   const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
-  const activeAISettings = aiSettings || globalAISettings;
-  
-  // FIXED: Check for AI settings before proceeding
-  if (!activeAISettings?.aiProvider) {
-    updateSteps((prev: string[]) => [...prev, `⚠️ No AI settings available - trying direct EPSS API`]);
-    
-    // Try direct EPSS API call
-    const url = `https://api.first.org/data/v1/epss?cve=${cveId}`;
-    try {
-      const response = await fetch(url);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.data?.length > 0) {
-          const epssData = data.data[0];
-          const epssScore = parseFloat(epssData.epss);
-          const percentileScore = parseFloat(epssData.percentile);
-          
-          updateSteps((prev: string[]) => [...prev, `✅ Retrieved EPSS data for ${cveId} directly`]);
-          
-          return {
-            cve: cveId,
-            epss: epssScore.toFixed(9).substring(0, 10),
-            percentile: percentileScore.toFixed(9).substring(0, 10),
-            epssFloat: epssScore,
-            percentileFloat: percentileScore,
-            epssPercentage: (epssScore * 100).toFixed(3),
-            date: epssData.date,
-            model_version: data.model_version,
-            aiEnhanced: false
-          };
-        }
-      }
-    } catch (directError) {
-      logger.debug('Direct EPSS fetch failed:', directError);
-    }
-    
-    updateSteps((prev: string[]) => [...prev, `⚠️ No EPSS data available for ${cveId}`]);
-    return null;
-  }
-  
-  updateSteps((prev: string[]) => [...prev, `📊 Searching for EPSS data for ${cveId}...`]);
+
+  updateSteps((prev: string[]) => [...prev, `📊 Fetching EPSS data for ${cveId}...`]);
 
   try {
-    const epssData = await searchEPSSForCVE(cveId, activeAISettings);
-    
+    const epssData = await searchEPSSForCVE(cveId, aiSettings);
+
     if (epssData) {
       updateSteps((prev: string[]) => [...prev, `✅ Retrieved EPSS data for ${cveId}: ${epssData.epssPercentage}%`]);
-      
+
       // Store in RAG database
       if (ragDatabase?.initialized) {
         await ragDatabase.addDocument(
@@ -757,54 +622,35 @@ export async function fetchEPSSData(cveId: string, setLoadingSteps: any, ragData
           {
             title: `EPSS Analysis - ${cveId}`,
             category: 'epss-data',
-            tags: ['epss', 'exploitation-probability', cveId.toLowerCase(), 'ai-enhanced'],
-            source: 'epss-ai-search',
+            tags: ['epss', 'exploitation-probability', cveId.toLowerCase(), 'epss-api'],
+            source: 'epss-api',
             cveId: cveId
           }
         );
       }
-      
+
       return epssData;
     } else {
       updateSteps((prev: string[]) => [...prev, `⚠️ No EPSS data available for ${cveId}`]);
       return null;
     }
   } catch (error) {
-    updateSteps((prev: string[]) => [...prev, `❌ EPSS search failed for ${cveId}`]);
+    updateSteps((prev: string[]) => [...prev, `❌ EPSS fetch failed for ${cveId}`]);
     return null;
   }
 }
 
-export async function fetchCISAKEVData(cveId: string, setLoadingSteps: any, ragDatabase: any, fetchWithFallbackParam: any, aiSettings?: any) {
+export async function fetchCISAKEVData(cveId: string, setLoadingSteps: any, ragDatabase: any, _fetchWithFallbackParam: any, aiSettings?: any) {
   const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
-  const activeAISettings = aiSettings || globalAISettings;
-  
-  // FIXED: Check for AI settings before proceeding
-  if (!activeAISettings?.aiProvider) {
-    updateSteps((prev: any) => [...prev, `⚠️ No AI settings available - using direct CISA KEV catalog`]);
 
-    try {
-      return await fetchCisaKevFromCatalog(cveId);
-    } catch (catalogErr) {
-      return {
-        cve: cveId,
-        listed: false,
-        source: 'kev-catalog-failed',
-        error: catalogErr instanceof Error ? catalogErr.message : String(catalogErr),
-        confidence: 'LOW',
-        lastChecked: new Date().toISOString()
-      };
-    }
-  }
-  
   updateSteps((prev: any) => [...prev, `🏛️ Searching CISA KEV for ${cveId}...`]);
 
   try {
-    const kevData = await searchCISAKEVForCVE(cveId, activeAISettings);
-    
+    const kevData = await searchCISAKEVForCVE(cveId, aiSettings);
+
     if (kevData.listed) {
       updateSteps((prev: any) => [...prev, `🚨 ${cveId} found in CISA KEV - ACTIVELY EXPLOITED`]);
-      
+
       // Store in RAG database
       if (ragDatabase?.initialized) {
         await ragDatabase.addDocument(
@@ -812,8 +658,8 @@ export async function fetchCISAKEVData(cveId: string, setLoadingSteps: any, ragD
           {
             title: `CISA KEV - ${cveId}`,
             category: 'cisa-kev',
-            tags: ['cisa', 'kev', 'actively-exploited', cveId.toLowerCase(), 'ai-verified'],
-            source: 'cisa-kev-ai-search',
+            tags: ['cisa', 'kev', 'actively-exploited', cveId.toLowerCase(), 'cisa-kev-api'],
+            source: 'cisa-kev-api',
             cveId: cveId,
             priority: 'CRITICAL'
           }
@@ -825,19 +671,15 @@ export async function fetchCISAKEVData(cveId: string, setLoadingSteps: any, ragD
 
     return kevData;
   } catch (error) {
-    updateSteps((prev: any) => [...prev, `❌ CISA KEV search failed for ${cveId} - falling back to catalog`]);
-    try {
-      return await fetchCisaKevFromCatalog(cveId);
-    } catch (catalogErr) {
-      return {
-        cve: cveId,
-        listed: false,
-        source: 'kev-catalog-failed',
-        error: catalogErr instanceof Error ? catalogErr.message : String(catalogErr),
-        confidence: 'LOW',
-        lastChecked: new Date().toISOString()
-      };
-    }
+    updateSteps((prev: any) => [...prev, `❌ CISA KEV search failed for ${cveId}`]);
+    return {
+      cve: cveId,
+      listed: false,
+      source: 'kev-api-error',
+      error: error instanceof Error ? error.message : String(error),
+      confidence: 'LOW',
+      lastChecked: new Date().toISOString()
+    };
   }
 }
 

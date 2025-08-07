@@ -76,3 +76,50 @@ describe('fetchCVEData', () => {
     await expect(DFS.fetchCVEData('CVE-BAD', null, () => {}, null)).rejects.toThrow()
   })
 })
+
+describe('searchCISAKEVForCVE', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('parses catalog entry from API', async () => {
+    const catalog = {
+      vulnerabilities: [
+        {
+          cveID: 'CVE-2024-1234',
+          dateAdded: '2024-01-01',
+          shortDescription: 'Test',
+          requiredAction: 'Patch',
+          dueDate: '2024-02-01',
+          knownRansomwareCampaignUse: 'Unknown',
+          vendorProject: 'Vendor',
+          product: 'Prod'
+        }
+      ]
+    }
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(catalog) }) as any
+    const res = await DFS.searchCISAKEVForCVE('CVE-2024-1234', null)
+    expect(res.listed).toBe(true)
+    expect(res.shortDescription).toBe('Test')
+  })
+})
+
+describe('searchEPSSForCVE', () => {
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  it('parses EPSS API response', async () => {
+    const api = {
+      data: [
+        { cve: 'CVE-2024-1234', epss: '0.5', percentile: '0.7', date: '2024-01-01' }
+      ],
+      model_version: 'v1'
+    }
+    global.fetch = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve(api) }) as any
+    const res = await DFS.searchEPSSForCVE('CVE-2024-1234', null)
+    expect(res?.epss).toBe('0.5')
+    expect(res?.percentile).toBe('0.7')
+    expect(res?.aiEnhanced).toBe(false)
+  })
+})
