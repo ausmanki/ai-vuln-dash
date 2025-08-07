@@ -31,7 +31,6 @@ const AISourcesTab: React.FC<AISourcesTabProps> = ({ vulnerability }) => {
       const useGemini = settings.aiProvider === 'gemini';
       const result = await APIService.generateAITaintAnalysis(
         vulnerability,
-        '',
         useGemini ? settings.geminiModel : settings.openAiModel,
         settings
       );

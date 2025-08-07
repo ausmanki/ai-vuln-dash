@@ -1,5 +1,6 @@
 import fs from 'fs';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getApiKeys } from './server/config/apiKeys';
 
 interface CVEReport {
   description: string;
@@ -13,12 +14,12 @@ interface CVEReport {
 }
 
 async function analyze(path: string) {
-  const apiKey = process.env.GOOGLE_API_KEY;
-  if (!apiKey) {
+  const { googleApiKey } = getApiKeys();
+  if (!googleApiKey) {
     throw new Error('GOOGLE_API_KEY environment variable not set');
   }
   const report: CVEReport = JSON.parse(fs.readFileSync(path, 'utf-8'));
-  const genAI = new GoogleGenerativeAI(apiKey);
+  const genAI = new GoogleGenerativeAI(googleApiKey);
   const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
   const prompt = `You are an expert cybersecurity analyst. Assess the following CVE report according to the CVE Validation & Legitimacy Analysis Framework.

@@ -14,7 +14,7 @@ export default [
     },
   },
   {
-    files: ['server/*.js', 'test-env.js'],
+    files: ['server/**/*.js', 'test-env.js'],
     languageOptions: {
       ecmaVersion: 2020,
       globals: globals.node,

@@ -811,7 +811,6 @@ Focus on actionable information for security professionals.
       const useGemini = safeSettings.aiProvider === 'gemini';
       const result = await APIService.generateAIAnalysis(
         enhancedVulnerability,
-        '',
         useGemini ? safeSettings.geminiModel : safeSettings.openAiModel,
         safeSettings
       );
