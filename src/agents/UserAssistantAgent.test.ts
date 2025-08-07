@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { UserAssistantAgent } from '../agents/UserAssistantAgent';
 import { ragDatabase } from '../db/EnhancedVectorDatabase';
 import type { BulkAnalysisResult, EnhancedVulnerabilityData } from '../types/cveData';
+import * as AIEnhancementService from '../services/AIEnhancementService';
 
 describe('UserAssistantAgent', () => {
   it('handleQuery returns help message for /help', async () => {
@@ -28,7 +29,7 @@ describe('UserAssistantAgent', () => {
     expect((agent as any).conversationContext.recentCVEs[0]).toBe('CVE-2024-1111');
   });
 
-  it('generateBulkAnalysisSummary summarizes results', () => {
+  it('generateBulkAnalysisSummary summarizes results', async () => {
     const agent = new UserAssistantAgent();
     const results: BulkAnalysisResult[] = [
       {
@@ -52,7 +53,7 @@ describe('UserAssistantAgent', () => {
         status: 'Error',
       },
     ];
-    agent.setBulkAnalysisResults(results);
+    await agent.setBulkAnalysisResults(results);
     const summary = agent.generateBulkAnalysisSummary();
     expect(summary.text).toContain('Bulk Analysis Summary');
     expect(summary.text).toContain('3 vulnerabilities');
@@ -64,6 +65,33 @@ describe('UserAssistantAgent', () => {
     const agent = new UserAssistantAgent();
     const summary = agent.generateBulkAnalysisSummary();
     expect(summary.text).toContain("don't have any bulk analysis results");
+  });
+
+  it('attaches group summaries for deduplicated CVEs', async () => {
+    const agent = new UserAssistantAgent({ aiProvider: 'openai' });
+    const spy = vi
+      .spyOn(AIEnhancementService, 'fetchGeneralAnswer')
+      .mockResolvedValue({ answer: 'merged summary' } as any);
+
+    const results: BulkAnalysisResult[] = [
+      {
+        cveId: 'CVE-1',
+        status: 'Complete',
+        data: { cve: { description: 'same desc' } } as any,
+      },
+      {
+        cveId: 'CVE-2',
+        status: 'Complete',
+        data: { cve: { description: 'same desc' } } as any,
+      },
+    ];
+
+    await agent.setBulkAnalysisResults(results);
+    const stored = (agent as any).bulkAnalysisResults;
+    expect(stored.length).toBe(1);
+    expect(stored[0].group).toEqual(['CVE-1', 'CVE-2']);
+    expect(stored[0].data.groupSummary).toBe('merged summary');
+    spy.mockRestore();
   });
 
   it('respects custom cache TTL', async () => {

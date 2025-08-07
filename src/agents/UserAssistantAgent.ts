@@ -23,6 +23,7 @@ import { extractComponentNames } from '../utils/componentUtils';
 import { CONSTANTS } from '../utils/constants';
 import { CVE_REGEX } from '../utils/cveRegex';
 import { ragDatabase } from '../db/EnhancedVectorDatabase';
+import { fetchGeneralAnswer } from '../services/AIEnhancementService';
 
 // Utility to map CVSS score to severity label
 export const getCVSSSeverity = (score: number): string => {
@@ -3002,8 +3003,59 @@ export class UserAssistantAgent {
     return null;
   }
 
-  public setBulkAnalysisResults(results: BulkAnalysisResult[]): void {
-    this.bulkAnalysisResults = results;
+  public async setBulkAnalysisResults(results: BulkAnalysisResult[]): Promise<void> {
+    this.bulkAnalysisResults = await this.attachGroupSummaries(results);
+  }
+
+  private async attachGroupSummaries(results: BulkAnalysisResult[]): Promise<BulkAnalysisResult[]> {
+    const groups = new Map<string, BulkAnalysisResult[]>();
+
+    for (const res of results) {
+      const desc = res.data?.cve?.description || res.data?.cve?.cve?.descriptions?.[0]?.value;
+      const key = (desc ? desc.trim().toLowerCase() : res.cveId);
+      if (!groups.has(key)) {
+        groups.set(key, []);
+      }
+      groups.get(key)!.push(res);
+    }
+
+    const deduped: BulkAnalysisResult[] = [];
+
+    for (const group of groups.values()) {
+      if (group.length === 0) continue;
+      const representative = group[0];
+      if (group.length > 1) {
+        const descriptions = group
+          .map(g => g.data?.cve?.description || g.data?.cve?.cve?.descriptions?.[0]?.value || '')
+          .filter(Boolean);
+        const summary = await this.summarizeDedupGroup(descriptions);
+        if (representative.data) {
+          representative.data.groupSummary = summary;
+        } else {
+          representative.data = { cve: null, lastUpdated: '', groupSummary: summary } as any;
+        }
+        representative.group = group.map(g => g.cveId);
+      }
+      deduped.push(representative);
+    }
+
+    return deduped;
+  }
+
+  private async summarizeDedupGroup(descriptions: string[]): Promise<string> {
+    if (descriptions.length === 0) return '';
+    const merged = descriptions.join('\n');
+    try {
+      const res: any = await fetchGeneralAnswer(
+        `Provide a concise summary highlighting the common points in these CVE descriptions:\n${merged}`,
+        this.settings,
+        (input: any, init?: any) => fetch(input, init)
+      );
+      return res.answer || '';
+    } catch (e) {
+      console.error('summarizeDedupGroup failed', e);
+      return '';
+    }
   }
 
   public clearCache(): void {
