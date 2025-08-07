@@ -199,15 +199,35 @@ export class CybersecurityAgent {
         return res;
       }
 
-      if (this.groundingEngine && this.isCybersecurityRelated(query)) {
-        const grounded = await this.getGroundedInfo(query);
-        if (grounded.content) {
-          return {
-            text: grounded.content,
-            sender: 'bot',
-            id: Date.now().toString(),
-            confidence: grounded.confidence,
-          };
+      if (this.isCybersecurityRelated(query)) {
+        // First attempt to answer using the local RAG database
+        try {
+          const k = 5;
+          const ragResults = await ragDatabase.search(query, k);
+          const topMatch = ragResults[0];
+          const confidenceThreshold = 0.75;
+          if (topMatch && topMatch.similarity >= confidenceThreshold) {
+            return {
+              text: topMatch.content,
+              sender: 'bot',
+              id: Date.now().toString(),
+              confidence: topMatch.similarity,
+            };
+          }
+        } catch (e) {
+          console.error('RAG search failed', e);
+        }
+
+        if (this.groundingEngine) {
+          const grounded = await this.getGroundedInfo(query);
+          if (grounded.content) {
+            return {
+              text: grounded.content,
+              sender: 'bot',
+              id: Date.now().toString(),
+              confidence: grounded.confidence,
+            };
+          }
         }
       }
 
