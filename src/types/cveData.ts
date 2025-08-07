@@ -407,6 +407,7 @@ export interface EnhancedVulnerabilityData {
 
   summary?: string; // Overall AI-generated summary of the CVE
   analysisSummary?: string; // Alias for summary used by some UI components
+  groupSummary?: string; // Summary for grouped/merged CVE descriptions
   threatLevel?: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
   dataFreshness?: string; // e.g., 'Real-time', 'Daily', 'As of YYYY-MM-DD'
   lastUpdated: string; // When this enhanced record was created/updated
@@ -473,4 +474,5 @@ export interface BulkAnalysisResult {
   data?: EnhancedVulnerabilityData;
   error?: string;
   status: 'Pending' | 'Processing' | 'Complete' | 'Error';
+  group?: string[]; // All CVE IDs represented in this deduplicated group
 }

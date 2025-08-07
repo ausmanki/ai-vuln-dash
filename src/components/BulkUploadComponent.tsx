@@ -208,6 +208,7 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {bulkAnalysisResults.map(resultItem => {
                 const cveId = resultItem.cveId;
+                const groupIds = resultItem.group || [cveId];
                 const resultData = resultItem.data; // This is EnhancedVulnerabilityData
                 const error = resultItem.error;
 
@@ -244,7 +245,7 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
                         style={{ fontWeight: 'bold', fontSize: '1.1rem', color: styles.app.color, textDecoration: 'none' }}
                         title={`View ${cveId} details`}
                       >
-                        {cveId} <ExternalLink size={14} style={{ display:'inline-block', marginLeft:'4px', opacity:0.7 }} />
+                        {groupIds.join(', ')} <ExternalLink size={14} style={{ display:'inline-block', marginLeft:'4px', opacity:0.7 }} />
                       </a>
                       <button
                         onClick={() => {
@@ -265,6 +266,12 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
                         <Eye size={14} /> Details
                       </button>
                     </div>
+
+                    {resultData?.groupSummary && (
+                      <div style={{ marginTop: '4px', whiteSpace: 'pre-wrap', fontSize: '0.85rem', color: styles.subtitle.color }}>
+                        {resultData.groupSummary}
+                      </div>
+                    )}
 
                     {error ? (
                       <div style={{ color: COLORS.red, fontWeight: 'bold' }}><AlertTriangle size={16} style={{marginRight: '5px'}}/> Error: {error}</div>
