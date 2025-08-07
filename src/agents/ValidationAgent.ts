@@ -2,6 +2,7 @@ import { ValidationService } from '../services/ValidationService';
 import { ragDatabase } from '../db/EnhancedVectorDatabase';
 import { BaseCVEInfo, PatchData, CVEValidationData } from '../types/cveData';
 import { AIThreatIntelData } from '../types/aiThreatIntel';
+import { CONSTANTS } from '../utils/constants';
 
 interface ValidationConfig {
   maxRetries?: number;
@@ -65,6 +66,28 @@ interface ValidationStage {
   validator: (data: any) => Promise<any>;
   required: boolean;
   timeout?: number;
+}
+
+interface MLFeatures {
+  cveYear: number;
+  hasNVDData: boolean;
+  descriptionLength: number;
+  confidenceScore: number;
+}
+
+interface NvdApiResponse {
+  vulnerabilities?: any[];
+}
+
+interface MitreCveResponse {
+  cveMetadata?: { id: string };
+}
+
+interface ThreatIntelInfo {
+  actor: string;
+  exploitProbability: number;
+  relatedCVEs: string[];
+  campaigns: string[];
 }
 
 interface AlertConfig {
@@ -146,14 +169,6 @@ export class ValidationAgent {
     });
 
     this.addValidationRule({
-      id: 'exploit-availability',
-      name: 'Exploit Availability Check',
-      weight: 0.4,
-      validator: (data) => this.checkExploitAvailability(data.cveId),
-      errorMessage: 'Failed to verify exploit availability'
-    });
-
-    this.addValidationRule({
       id: 'patch-availability',
       name: 'Patch Availability Check',
       weight: 0.3,
@@ -173,7 +188,6 @@ export class ValidationAgent {
     try {
       this.updateSteps(`🤖 Applying ML enhancement for ${cveId}...`);
       
-      // Simulated ML enhancement - replace with actual ML service
       const features = this.extractFeatures(cveId, result, nvdData);
       const mlScore = await this.callMLService(features);
       
@@ -185,19 +199,30 @@ export class ValidationAgent {
     }
   }
 
-  private extractFeatures(cveId: string, result: CVEValidationData, nvdData: BaseCVEInfo | null): any {
+  private extractFeatures(cveId: string, result: CVEValidationData, nvdData: BaseCVEInfo | null): MLFeatures {
     return {
       cveYear: parseInt(cveId.split('-')[1]),
       hasNVDData: !!nvdData,
       descriptionLength: result.legitimacySummary?.length || 0,
-      confidenceScore: result.confidence || 0,
-      // Add more features as needed
+      confidenceScore: result.confidence || 0
     };
   }
 
-  private async callMLService(features: any): Promise<number> {
-    // Mock ML service call - replace with actual implementation
-    return Math.random() * 100;
+  private async callMLService(features: MLFeatures): Promise<number> {
+    const weights = {
+      cveYear: 0.1,
+      hasNVDData: 0.3,
+      descriptionLength: 0.2,
+      confidenceScore: 0.4
+    };
+
+    const currentYear = new Date().getFullYear();
+    const ageScore = Math.max(0, currentYear - features.cveYear) * weights.cveYear;
+    const nvdScore = (features.hasNVDData ? 1 : 0) * 100 * weights.hasNVDData;
+    const descScore = Math.min(features.descriptionLength / 1000, 1) * 100 * weights.descriptionLength;
+    const confidenceScore = features.confidenceScore * weights.confidenceScore;
+
+    return ageScore + nvdScore + descScore + confidenceScore;
   }
 
   // Cross-Validation
@@ -210,15 +235,14 @@ export class ValidationAgent {
     this.updateSteps(`🔍 Performing cross-validation for ${cveId}...`);
 
     try {
-      // Check against known vulnerability databases
       const crossValidationResults = await Promise.allSettled([
         this.validateAgainstNIST(cveId),
-        this.validateAgainstMITRE(cveId),
-        this.validateAgainstVulnDB(cveId),
-        this.checkThreatIntelFeeds(cveId)
+        this.validateAgainstMITRE(cveId)
       ]);
 
-      const validationCount = crossValidationResults.filter(r => r.status === 'fulfilled').length;
+      const validationCount = crossValidationResults.filter(
+        r => r.status === 'fulfilled' && r.value === true
+      ).length;
       const crossValidationScore = (validationCount / crossValidationResults.length) * 100;
 
       result.metrics.validationScore = (result.metrics.validationScore + crossValidationScore) / 2;
@@ -232,23 +256,29 @@ export class ValidationAgent {
   }
 
   private async validateAgainstNIST(cveId: string): Promise<boolean> {
-    // Mock implementation - replace with actual NIST API call
-    return Math.random() > 0.3;
+    try {
+      const url = `${CONSTANTS.API_ENDPOINTS.NVD}?cveId=${encodeURIComponent(cveId)}`;
+      const response = await fetch(url);
+      if (!response.ok) return false;
+      const data: NvdApiResponse = await response.json();
+      return (data.vulnerabilities?.length ?? 0) > 0;
+    } catch (error) {
+      console.warn('NIST validation failed:', error);
+      return false;
+    }
   }
 
   private async validateAgainstMITRE(cveId: string): Promise<boolean> {
-    // Mock implementation - replace with actual MITRE API call
-    return Math.random() > 0.2;
-  }
-
-  private async validateAgainstVulnDB(cveId: string): Promise<boolean> {
-    // Mock implementation - replace with actual vulnerability database query
-    return Math.random() > 0.4;
-  }
-
-  private async checkThreatIntelFeeds(cveId: string): Promise<boolean> {
-    // Mock implementation - replace with actual threat intelligence feeds
-    return Math.random() > 0.25;
+    try {
+      const url = `https://cveawg.mitre.org/api/cve/${encodeURIComponent(cveId)}`;
+      const response = await fetch(url);
+      if (!response.ok) return false;
+      const data: MitreCveResponse = await response.json();
+      return !!data.cveMetadata;
+    } catch (error) {
+      console.warn('MITRE validation failed:', error);
+      return false;
+    }
   }
 
   // Smart Prioritization
@@ -360,14 +390,24 @@ export class ValidationAgent {
     }
   }
 
-  private async fetchThreatIntelligence(cveId: string): Promise<any> {
-    // Mock implementation - replace with actual threat intelligence API
-    return {
-      actor: 'APT29',
-      exploitProbability: Math.random() * 100,
-      relatedCVEs: [`CVE-2023-${Math.floor(Math.random() * 10000)}`],
-      campaigns: ['Operation CloudHopper']
-    };
+  private async fetchThreatIntelligence(cveId: string): Promise<ThreatIntelInfo | null> {
+    try {
+      const url = `https://otx.alienvault.com/api/v1/indicators/cve/${encodeURIComponent(cveId)}`;
+      const response = await fetch(url);
+      if (!response.ok) return null;
+      const data = await response.json();
+      const pulses = data.pulse_info?.pulses || [];
+
+      return {
+        actor: pulses[0]?.author_name || 'Unknown',
+        exploitProbability: data.exploitdb?.length ? 80 : 20,
+        relatedCVEs: data.related?.cve || [],
+        campaigns: pulses.map((p: any) => p.name)
+      };
+    } catch (error) {
+      console.warn('Threat intelligence fetch failed:', error);
+      return null;
+    }
   }
 
   // Advanced Analytics
@@ -464,11 +504,6 @@ export class ValidationAgent {
   }
 
   // Utility Methods
-  private async checkExploitAvailability(cveId: string): Promise<boolean> {
-    // Mock implementation - replace with actual exploit database check
-    return Math.random() > 0.6;
-  }
-
   private generateRecommendations(result: ValidationResult): string[] {
     const recommendations: string[] = [];
     
@@ -746,8 +781,18 @@ export class ValidationAgent {
   }
 
   private calculateFalsePositiveScore(result: CVEValidationData, aiIntel: AIThreatIntelData | null): number {
-    // Mock implementation - replace with actual false positive detection logic
-    return Math.random() * 100;
+    let score = 0;
+    if (result.falsePositive?.isFalsePositive) {
+      score += 50;
+    }
+    if (aiIntel?.hallucinationFlags && aiIntel.hallucinationFlags.length > 0) {
+      score += 25;
+    }
+    const descriptionLength = result.legitimacySummary?.length || 0;
+    if (descriptionLength < 50) {
+      score += 25;
+    }
+    return Math.min(score, 100);
   }
 
   private async storeInRAG(cveId: string, result: ValidationResult): Promise<void> {
