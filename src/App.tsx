@@ -24,6 +24,7 @@ import { useSettings } from './hooks/useSettings';
 import { ragDatabase } from './db/EnhancedVectorDatabase';
 import { AppContext } from './contexts/AppContext'; // Corrected import
 import { APIService } from './services/APIService'; // Added for bulk analysis
+import { resolveAliases } from './services/DataFetchingService';
 
 // Main Application Component - Renamed from VulnerabilityIntelligence to App for main.jsx
 const App = () => {
@@ -35,7 +36,7 @@ const App = () => {
   const [showBulkUploadView, setShowBulkUploadView] = useState(false); // State for bulk upload UI
   
   // State for bulk analysis
-  const [bulkAnalysisResults, setBulkAnalysisResults] = useState<Array<{cveId: string, data?: any, error?: string}>>([]);
+  const [bulkAnalysisResults, setBulkAnalysisResults] = useState<Array<{cveId: string, data?: any, error?: string, aliases?: string[]}>>([]);
   const [isBulkLoading, setIsBulkLoading] = useState<boolean>(false);
   const [bulkProgress, setBulkProgress] = useState<{ current: number, total: number } | null>(null);
 
@@ -89,22 +90,31 @@ const App = () => {
     setBulkProgress({ current: 0, total: cveIds.length });
     addNotification({ type: 'info', title: 'Bulk Analysis Started', message: `Analyzing ${cveIds.length} CVEs...` });
 
-    const results: Array<{cveId: string, data?: any, error?: string}> = [];
+    const resultsMap = new Map<string, {cveId: string, data?: any, error?: string, aliases?: string[]}>();
     for (let i = 0; i < cveIds.length; i++) {
-      const cveId = cveIds[i];
+      const inputId = cveIds[i];
       setBulkProgress({ current: i + 1, total: cveIds.length });
-      try {
-        // Pass necessary API keys from settings; APIService.fetchVulnerabilityDataWithAI expects them.
-        // The setLoadingSteps can be a dummy function for bulk mode or could update a more detailed log.
-        const result = await APIService.fetchVulnerabilityDataWithAI(cveId, () => {}, { nvd: settings.nvdApiKey }, settings);
-        results.push({ cveId, data: result });
-      } catch (error: any) {
-        console.error(`Error analyzing ${cveId} in bulk:`, error);
-        results.push({ cveId, error: error.message || 'Unknown error during analysis' });
+
+      const { canonical, aliases } = await resolveAliases(inputId);
+      let entry = resultsMap.get(canonical);
+
+      if (entry) {
+        entry.aliases = Array.from(new Set([...(entry.aliases || []), ...aliases]));
+      } else {
+        try {
+          // Pass necessary API keys from settings; APIService.fetchVulnerabilityDataWithAI expects them.
+          // The setLoadingSteps can be a dummy function for bulk mode or could update a more detailed log.
+          const result = await APIService.fetchVulnerabilityDataWithAI(canonical, () => {}, { nvd: settings.nvdApiKey }, settings);
+          entry = { cveId: canonical, data: result, aliases };
+        } catch (error: any) {
+          console.error(`Error analyzing ${inputId} in bulk:`, error);
+          entry = { cveId: canonical, error: error.message || 'Unknown error during analysis', aliases };
+        }
+        resultsMap.set(canonical, entry);
       }
-      // Update results incrementally or all at once at the end.
-      // For now, updating incrementally to show progress.
-      setBulkAnalysisResults([...results]);
+
+      // Update results incrementally to show progress.
+      setBulkAnalysisResults([...resultsMap.values()]);
 
       await utils.sleep(delayMs);
     }

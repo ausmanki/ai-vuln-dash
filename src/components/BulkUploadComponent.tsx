@@ -10,7 +10,7 @@ import { COLORS } from '../utils/constants'; // For direct color usage if needed
 interface BulkUploadComponentProps {
   onClose: () => void;
   startBulkAnalysis: (cveIds: string[]) => Promise<void>;
-  bulkAnalysisResults: Array<{cveId: string, data?: any, error?: string}>;
+  bulkAnalysisResults: Array<{cveId: string, data?: any, error?: string, aliases?: string[]}>;
   isBulkLoading: boolean;
   bulkProgress: { current: number, total: number } | null;
 }

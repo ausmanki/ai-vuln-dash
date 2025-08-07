@@ -18,7 +18,7 @@ interface Message {
 
 interface ChatInterfaceProps {
   initialCveId?: string | null;
-  bulkAnalysisResults?: Array<{ cveId: string; data?: any; error?: string }>;
+  bulkAnalysisResults?: Array<{ cveId: string; data?: any; error?: string; aliases?: string[] }>;
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId, bulkAnalysisResults = [] }) => {

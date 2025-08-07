@@ -17,6 +17,27 @@ export function setGlobalAISettings(settings: any) {
   globalAISettings = settings;
 }
 
+// Resolve vulnerability aliases (e.g. GHSA IDs) to their canonical CVE ID
+// using the public OSV API.  Returns both the canonical ID and the list of
+// all known aliases for display purposes.
+export async function resolveAliases(id: string): Promise<{ canonical: string; aliases: string[] }> {
+  try {
+    const res = await fetch(`https://api.osv.dev/v1/vuln/${encodeURIComponent(id)}`);
+    if (!res.ok) {
+      throw new Error(`OSV lookup failed: ${res.status}`);
+    }
+    const data = await res.json();
+    // Combine the requested id with any aliases returned from OSV
+    const aliases: string[] = Array.from(new Set([data.id, ...(data.aliases || []), id]));
+    // Prefer a CVE identifier as the canonical ID when available
+    const canonical = aliases.find(a => a.startsWith('CVE-')) || data.id || id;
+    return { canonical, aliases };
+  } catch (error) {
+    logger.error('Alias resolution failed for', id, error);
+    return { canonical: id, aliases: [id] };
+  }
+}
+
 // FIXED: Use AI native web search with proper OpenAI /responses endpoint
 async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?: string): Promise<Response> {
   logger.debug('🤖 Using AI native web search for:', url);

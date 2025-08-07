@@ -473,4 +473,5 @@ export interface BulkAnalysisResult {
   data?: EnhancedVulnerabilityData;
   error?: string;
   status: 'Pending' | 'Processing' | 'Complete' | 'Error';
+  aliases?: string[];
 }
