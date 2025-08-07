@@ -161,17 +161,50 @@ export class CybersecurityAgent {
     const keywords = [
       'cve',
       'vulnerability',
+      'vulnerabilities',
       'exploit',
       'patch',
+      'patching',
       'malware',
       'cyber',
       'security',
       'kev',
       'epss',
-      'threat'
+      'threat',
+      'attack',
+      'intrusion',
+      'phishing',
+      'ransomware',
+      'zero day',
+      'zeroday',
+      'privilege escalation',
+      'botnet',
+      'ddos',
+      'denial of service',
+      'injection',
+      'sql injection',
+      'xss',
+      'cross site scripting',
+      'csrf',
+      'mitre',
+      'cisa',
+      'nvd',
+      'exploitdb',
+      'breach',
+      'leak',
+      'rootkit',
+      'worm',
+      'virus',
+      'payload',
+      'firewall',
+      'penetration test',
+      'pentest',
+      'red team'
     ];
-    const lower = query.toLowerCase();
-    return keywords.some(k => lower.includes(k));
+    const normalized = query
+      .toLowerCase()
+      .replace(/[^\w\s]/g, ' ');
+    return keywords.some(k => normalized.includes(k));
   }
 
   public async handleQuery(query: string): Promise<ChatResponse> {
@@ -199,40 +232,46 @@ export class CybersecurityAgent {
         return res;
       }
 
-      if (this.isCybersecurityRelated(query)) {
-        // First attempt to answer using the local RAG database
-        try {
-          const k = 5;
-          const ragResults = await ragDatabase.search(query, k);
-          const topMatch = ragResults[0];
-          const confidenceThreshold = 0.75;
-          if (topMatch && topMatch.similarity >= confidenceThreshold) {
-            return {
-              text: topMatch.content,
-              sender: 'bot',
-              id: Date.now().toString(),
-              confidence: topMatch.similarity,
-            };
-          }
-        } catch (e) {
-          console.error('RAG search failed', e);
-        }
+      if (!this.isCybersecurityRelated(query)) {
+        return {
+          text: `I'm designed to assist with cybersecurity topics. Please ask a security-related question.`,
+          sender: 'bot',
+          id: Date.now().toString(),
+        };
+      }
 
-        try {
-          const webResult = await APIService.fetchGeneralAnswer(
-            query,
-            this.settings || {}
-          );
-          if (webResult?.answer) {
-            return {
-              text: webResult.answer,
-              sender: 'bot',
-              id: Date.now().toString(),
-            };
-          }
-        } catch (e) {
-          console.error('Web search failed', e);
+      // First attempt to answer using the local RAG database
+      try {
+        const k = 5;
+        const ragResults = await ragDatabase.search(query, k);
+        const topMatch = ragResults[0];
+        const confidenceThreshold = 0.75;
+        if (topMatch && topMatch.similarity >= confidenceThreshold) {
+          return {
+            text: topMatch.content,
+            sender: 'bot',
+            id: Date.now().toString(),
+            confidence: topMatch.similarity,
+          };
         }
+      } catch (e) {
+        console.error('RAG search failed', e);
+      }
+
+      try {
+        const webResult = await APIService.fetchGeneralAnswer(
+          query,
+          this.settings || {}
+        );
+        if (webResult?.answer) {
+          return {
+            text: webResult.answer,
+            sender: 'bot',
+            id: Date.now().toString(),
+          };
+        }
+      } catch (e) {
+        console.error('Web search failed', e);
       }
 
       let response = `I understand you're asking about cybersecurity. `;

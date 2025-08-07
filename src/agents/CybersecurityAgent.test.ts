@@ -6,6 +6,28 @@ import { APIService } from '../services/APIService';
 const groundedResult = { content: 'grounded', sources: [], confidence: 0.9 };
 
 describe('CybersecurityAgent', () => {
+  it('classifies queries for cybersecurity relevance', () => {
+    const agent = new CybersecurityAgent();
+    const isRelated = (agent as any).isCybersecurityRelated;
+    expect(isRelated('Discuss ransomware trends')).toBe(true);
+    expect(isRelated('How do I bake a cake?')).toBe(false);
+  });
+
+  it('filters out non-security queries before searching', async () => {
+    const agent = new CybersecurityAgent();
+    const ragSpy = vi.spyOn(ragDatabase, 'search');
+    const webSpy = vi.spyOn(APIService, 'fetchGeneralAnswer');
+
+    const result = await agent.handleQuery('What is the weather today?');
+
+    expect(ragSpy).not.toHaveBeenCalled();
+    expect(webSpy).not.toHaveBeenCalled();
+    expect(result.text).toMatch(/cybersecurity/);
+
+    ragSpy.mockRestore();
+    webSpy.mockRestore();
+  });
+
   it('returns RAG result when confidence high and skips web search', async () => {
     const agent = new CybersecurityAgent();
     const ragSpy = vi
