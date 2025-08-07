@@ -17,6 +17,12 @@ export function setGlobalAISettings(settings: any) {
   globalAISettings = settings;
 }
 
+// URLs for the CISA Known Exploited Vulnerabilities catalog
+const CISA_KEV_URL =
+  'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json';
+const CISA_KEV_FALLBACK_URL =
+  'https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json';
+
 // FIXED: Use AI native web search with proper OpenAI /responses endpoint
 async function fetchWithAIWebSearch(url: string, aiSettings: any, specificQuery?: string): Promise<Response> {
   logger.debug('🤖 Using AI native web search for:', url);
@@ -276,16 +282,30 @@ async function parseAIWebSearchResponse(aiResponse: string, originalUrl: string,
 }
 
 // ENHANCED CISA KEV parser
+async function fetchCisaKevCatalogData(): Promise<any> {
+  try {
+    const response = await fetch(CISA_KEV_URL);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch CISA KEV catalog: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    logger.warn('Primary CISA KEV fetch failed, using GitHub mirror', error);
+    const response = await fetch(CISA_KEV_FALLBACK_URL);
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch CISA KEV catalog from fallback: ${response.status}`
+      );
+    }
+    return await response.json();
+  }
+}
+
+// ENHANCED CISA KEV parser
 async function parseCISAKEVFromAI(_aiResponse?: string, groundingMetadata?: any): Promise<any> {
   logger.debug('📋 Fetching CISA KEV information from official API');
 
-  const url = 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json';
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch CISA KEV catalog: ${response.status}`);
-  }
-
-  const data = await response.json();
+  const data = await fetchCisaKevCatalogData();
   return {
     json: { ...data, groundingMetadata: groundingMetadata || {} },
     text: JSON.stringify(data),
@@ -358,14 +378,7 @@ export async function searchCISAKEVForCVE(cveId: string, _aiSettings: any): Prom
 
 // Fallback: Directly check the CISA KEV catalog if AI search fails or is unavailable
 async function fetchCisaKevFromCatalog(cveId: string): Promise<any> {
-  const url = 'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json';
-
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch CISA KEV catalog: ${response.status}`);
-  }
-
-  const catalog = await response.json();
+  const catalog = await fetchCisaKevCatalogData();
   const entry = (catalog.vulnerabilities || []).find((v: any) => v.cveID === cveId);
 
   if (entry) {
