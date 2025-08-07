@@ -56,7 +56,7 @@ const EmptyState = () => {
         Real-time intelligence enhanced with semantic search, security sources, and domain expertise.
       </p>
 
-      {!settings.geminiApiKey && (
+      {!settings.aiProvider && (
         <div style={{
           marginTop: '32px',
           padding: '16px 20px',
@@ -91,7 +91,7 @@ const EmptyState = () => {
             color: settings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText,
             lineHeight: 1.5
           }}>
-            Configure your Gemini API key in settings to enable AI-enhanced multi-source vulnerability analysis.
+            Configure AI provider settings to enable AI-enhanced multi-source vulnerability analysis.
           </p>
         </div>
       )}

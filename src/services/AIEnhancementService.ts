@@ -562,7 +562,6 @@ Provide specific information about any threats, exploits, or active usage you fi
  */
 export async function generateAIAnalysis(
   vulnerability: any,
-  apiKey: string,
   model: string,
   settings: any = {},
   ragDatabase: any,
@@ -588,7 +587,7 @@ export async function generateAIAnalysis(
   if (useGemini) window.lastGeminiRequest = now;
 
   if (ragDatabase) {
-    await ragDatabase.ensureInitialized(useGemini ? apiKey : null);
+    await ragDatabase.ensureInitialized();
     logger.debug(`📊 RAG Database Status: ${ragDatabase.documents.length} documents available`);
   }
 
@@ -928,7 +927,6 @@ export async function fetchGeneralAnswer(query: string, settings: any, fetchWith
  */
 export async function generateAITaintAnalysis(
   vulnerability: any,
-  apiKey: string,
   model: string,
   settings: any = {},
   fetchWithFallbackFn: any

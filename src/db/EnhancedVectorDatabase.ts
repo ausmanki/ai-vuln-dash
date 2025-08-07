@@ -5,21 +5,27 @@ export class EnhancedVectorDatabase {
   constructor() {
     this.documents = [];
     this.initialized = false;
-    this.geminiApiKey = null;
+    this.useGemini = false;
     this.storagePath = 'rag_documents.json';
   }
 
-  setApiKey(apiKey) {
-    this.geminiApiKey = apiKey;
+  async loadConfig() {
+    try {
+      const res = await fetch('/api/ai-config');
+      const cfg = await res.json();
+      this.useGemini = cfg.hasGemini;
+    } catch {
+      this.useGemini = false;
+    }
   }
 
   async createEmbedding(text) {
-    if (this.geminiApiKey) {
+    if (this.useGemini) {
       try {
         return await this.createGeminiEmbedding(text);
       } catch (error) {
         console.warn('Gemini embedding failed, falling back to local embeddings:', error.message);
-        return this.createLocalEmbedding(text);
+        this.useGemini = false;
       }
     }
     return this.createLocalEmbedding(text);
@@ -157,7 +163,7 @@ export class EnhancedVectorDatabase {
       metadata,
       embedding,
       timestamp: new Date().toISOString(),
-      embeddingType: this.geminiApiKey ? 'gemini' : 'local'
+      embeddingType: this.useGemini ? 'gemini' : 'local'
     };
     this.documents.push(doc);
     console.log(`📚 Added document to RAG database (${doc.embeddingType} embedding):`, metadata.title || 'Untitled');
@@ -184,23 +190,19 @@ export class EnhancedVectorDatabase {
     return results;
   }
 
-  async initialize(geminiApiKey = null) {
+  async initialize() {
     if (this.initialized) return;
+    await this.loadConfig();
     await this.loadDocuments();
     if (this.initialized) {
-      if (geminiApiKey) {
-        await this.ensureInitialized(geminiApiKey);
-      }
+      await this.ensureInitialized();
       return;
     }
-    if (geminiApiKey) {
-      this.setApiKey(geminiApiKey);
-    }
-    console.log(`🚀 Initializing Enhanced RAG Vector Database with ${this.geminiApiKey ? 'Gemini' : 'local'} embeddings...`);
+    console.log(`🚀 Initializing Enhanced RAG Vector Database with ${this.useGemini ? 'Gemini' : 'local'} embeddings...`);
     await this.addComprehensiveSecurityKnowledgeBase();
     this.initialized = true;
     await this.saveDocuments();
-    console.log(`✅ RAG database initialized with ${this.documents.length} security documents using ${this.geminiApiKey ? 'Gemini' : 'local'} embeddings`);
+    console.log(`✅ RAG database initialized with ${this.documents.length} security documents using ${this.useGemini ? 'Gemini' : 'local'} embeddings`);
   }
 
   async addComprehensiveSecurityKnowledgeBase() {
@@ -265,16 +267,15 @@ export class EnhancedVectorDatabase {
     }
   }
 
-  async ensureInitialized(geminiApiKey = null) {
+  async ensureInitialized() {
     if (!this.initialized) {
       await this.loadDocuments();
     }
     if (this.documents.length === 0) {
       console.log('🔄 RAG database empty, reinitializing...');
-      await this.initialize(geminiApiKey);
-    } else if (geminiApiKey && !this.geminiApiKey) {
+      await this.initialize();
+    } else if (this.useGemini && this.documents.some(doc => doc.embeddingType !== 'gemini')) {
       console.log('🔄 Upgrading to Gemini embeddings...');
-      this.setApiKey(geminiApiKey);
       const localEmbeddedDocs = this.documents.filter(doc => doc.embeddingType !== 'gemini');
       if (localEmbeddedDocs.length > 0) {
         console.log(`🔄 Re-embedding ${localEmbeddedDocs.length} documents with Gemini embeddings...`);

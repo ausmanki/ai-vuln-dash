@@ -356,6 +356,15 @@ CVE Input → API Aggregation → AI Analysis → Risk Scoring → Decision Supp
 
 ---
 
+## 🔐 Environment Variables
+
+Create a `.env` file in the project root with the following variables to enable AI features:
+
+- `OPENAI_API_KEY` – OpenAI API key used for GPT models.
+- `GOOGLE_API_KEY` – Google Generative AI (Gemini) key. `GEMINI_API_KEY` is also supported.
+- `OPENAI_MODEL` *(optional)* – Override default OpenAI model.
+- `GEMINI_MODEL` *(optional)* – Override default Gemini model.
+
 ## 🤝 **Contributing**
 
 We welcome contributions to improve the Vulnerability Intelligence Platform:

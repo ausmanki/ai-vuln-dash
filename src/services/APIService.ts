@@ -65,12 +65,12 @@ export class APIService {
     return fetchWithCache(`threat-intel-${cveId}`, () => fetchAIThreatIntelligenceInternal(cveId, cveData, epssData, settings, setLoadingSteps, ragDatabase, fetchWithFallback, parseAIThreatIntelligence, performHeuristicAnalysis));
   }
 
-  static async generateAIAnalysis(vulnerability, apiKey, model, settings = {}) {
-    return fetchWithCache(`analysis-${vulnerability.cve.id}`, () => generateAIAnalysisInternal(vulnerability, apiKey, model, settings, ragDatabase, fetchWithFallback, buildEnhancedAnalysisPrompt, generateEnhancedFallbackAnalysis));
+  static async generateAIAnalysis(vulnerability, model, settings = {}) {
+    return fetchWithCache(`analysis-${vulnerability.cve.id}`, () => generateAIAnalysisInternal(vulnerability, model, settings, ragDatabase, fetchWithFallback, buildEnhancedAnalysisPrompt, generateEnhancedFallbackAnalysis));
   }
 
-  static async generateAITaintAnalysis(vulnerability, apiKey, model, settings = {}) {
-    return fetchWithCache(`taint-analysis-${vulnerability.cve.id}`, () => generateAITaintAnalysisInternal(vulnerability, apiKey, model, settings, fetchWithFallback));
+  static async generateAITaintAnalysis(vulnerability, model, settings = {}) {
+    return fetchWithCache(`taint-analysis-${vulnerability.cve.id}`, () => generateAITaintAnalysisInternal(vulnerability, model, settings, fetchWithFallback));
   }
 
   static async fetchGeneralAnswer(query, settings = {}) {
