@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { UserAssistantAgent } from '../agents/UserAssistantAgent';
+import { ragDatabase } from '../db/EnhancedVectorDatabase';
 import type { BulkAnalysisResult, EnhancedVulnerabilityData } from '../types/cveData';
 
 describe('UserAssistantAgent', () => {
@@ -89,5 +90,37 @@ describe('UserAssistantAgent', () => {
     const agent = new UserAssistantAgent();
     const res = (agent as any).isActualDispute('Vendor disputes this issue and marked as false positive', 'CVE-2023-1234');
     expect(res).toBe(true);
+  });
+
+  it('handleGeneralQuery uses RAG results when available', async () => {
+    const agent = new UserAssistantAgent();
+    const original = ragDatabase.initialized;
+    ragDatabase.initialized = true;
+    const ragSpy = vi
+      .spyOn(ragDatabase, 'search')
+      .mockResolvedValue([{ content: 'RAG answer', similarity: 0.9, metadata: {} } as any]);
+    const groundSpy = vi.spyOn(agent as any, 'getGroundedInfo');
+    const res = await (agent as any).handleGeneralQuery('general question');
+    expect(res.text).toContain('RAG answer');
+    expect(groundSpy).not.toHaveBeenCalled();
+    ragSpy.mockRestore();
+    groundSpy.mockRestore();
+    ragDatabase.initialized = original;
+  });
+
+  it('handleGeneralQuery falls back to grounding engine when RAG misses', async () => {
+    const agent = new UserAssistantAgent({ aiProvider: 'test' });
+    const original = ragDatabase.initialized;
+    ragDatabase.initialized = true;
+    const ragSpy = vi.spyOn(ragDatabase, 'search').mockResolvedValue([]);
+    const groundSpy = vi
+      .spyOn(agent as any, 'getGroundedInfo')
+      .mockResolvedValue({ content: 'grounded', sources: [], confidence: 0.8 });
+    const res = await (agent as any).handleGeneralQuery('another question');
+    expect(res.text).toBe('grounded');
+    expect(groundSpy).toHaveBeenCalled();
+    ragSpy.mockRestore();
+    groundSpy.mockRestore();
+    ragDatabase.initialized = original;
   });
 });
