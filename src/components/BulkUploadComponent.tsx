@@ -10,7 +10,7 @@ import { COLORS } from '../utils/constants'; // For direct color usage if needed
 interface BulkUploadComponentProps {
   onClose: () => void;
   startBulkAnalysis: (cveIds: string[]) => Promise<void>;
-  bulkAnalysisResults: Array<{cveId: string, data?: any, error?: string}>;
+  bulkAnalysisResults: Array<{cveId: string, data?: any, error?: string, conflictNote?: string}>;
   isBulkLoading: boolean;
   bulkProgress: { current: number, total: number } | null;
 }
@@ -210,6 +210,7 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
                 const cveId = resultItem.cveId;
                 const resultData = resultItem.data; // This is EnhancedVulnerabilityData
                 const error = resultItem.error;
+                const conflictNote = resultItem.conflictNote;
 
                 let cvssScore: number | string = 'N/A';
                 let cvssSeverity: string = 'N/A';
@@ -265,6 +266,11 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
                         <Eye size={14} /> Details
                       </button>
                     </div>
+                    {conflictNote && (
+                      <div style={{ marginTop: '4px', color: COLORS.yellow, fontSize: '0.85rem' }}>
+                        {conflictNote}
+                      </div>
+                    )}
 
                     {error ? (
                       <div style={{ color: COLORS.red, fontWeight: 'bold' }}><AlertTriangle size={16} style={{marginRight: '5px'}}/> Error: {error}</div>
