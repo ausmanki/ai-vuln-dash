@@ -7,10 +7,17 @@ import { extractCVEsFromCSV, extractCVEsFromPDF, extractCVEsFromXLSX } from '../
 import { utils } from '../utils/helpers'; // For severity color and level
 import { COLORS } from '../utils/constants'; // For direct color usage if needed
 
+interface BulkResult {
+  cveId: string;
+  data?: any;
+  error?: string;
+  duplicates?: BulkResult[];
+}
+
 interface BulkUploadComponentProps {
   onClose: () => void;
   startBulkAnalysis: (cveIds: string[]) => Promise<void>;
-  bulkAnalysisResults: Array<{cveId: string, data?: any, error?: string}>;
+  bulkAnalysisResults: BulkResult[];
   isBulkLoading: boolean;
   bulkProgress: { current: number, total: number } | null;
 }
@@ -210,6 +217,7 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
                 const cveId = resultItem.cveId;
                 const resultData = resultItem.data; // This is EnhancedVulnerabilityData
                 const error = resultItem.error;
+                const duplicates = resultItem.duplicates || [];
 
                 let cvssScore: number | string = 'N/A';
                 let cvssSeverity: string = 'N/A';
@@ -283,6 +291,30 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
                       </div>
                     ) : (
                       <div>No analysis data available.</div>
+                    )}
+
+                    {duplicates.length > 0 && (
+                      <details style={{ marginTop: '10px' }}>
+                        <summary style={{ cursor: 'pointer' }}>Duplicates ({duplicates.length})</summary>
+                        <ul style={{ marginTop: '6px', paddingLeft: '20px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                          {duplicates.map(dup => (
+                            <li key={dup.cveId} style={{ listStyle: 'disc' }}>
+                              {dup.error ? (
+                                <span style={{ color: COLORS.red }}>{dup.cveId} - {dup.error}</span>
+                              ) : (
+                                <a
+                                  href={utils.getVulnerabilityUrl(dup.cveId)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ color: styles.app.color, textDecoration: 'none' }}
+                                >
+                                  {dup.cveId}
+                                </a>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
                     )}
                   </div>
                 );
