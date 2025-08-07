@@ -229,8 +229,6 @@ export class CybersecurityAgent {
 
   private async handleCVEQuery(query: string, cveId: string): Promise<ChatResponse> {
     try {
-      const lowerQuery = query.toLowerCase();
-
       // Future CVE warning
       const yearMatch = cveId.match(/CVE-(\d{4})-/);
       if (yearMatch) {
@@ -245,29 +243,8 @@ export class CybersecurityAgent {
         }
       }
 
-      // Use grounded info for specific intents
-      if (this.groundingEngine && (lowerQuery.includes('exploit') || lowerQuery.includes('patch') || lowerQuery.includes('validate') || lowerQuery.includes('risk'))) {
-        const grounded = await this.getGroundedInfo(`${cveId} ${query}`);
-        if (grounded.content && grounded.confidence >= (this.groundingConfig?.confidenceThreshold ?? 0)) {
-          return { text: grounded.content, sender: 'bot', id: Date.now().toString(), confidence: grounded.confidence };
-        }
-      }
-
-      // Determine intent based on keywords
-      if (lowerQuery.includes('validate') || lowerQuery.includes('verify') || lowerQuery.includes('legitimate')) {
-        return await this.getValidationInfo(cveId);
-      } else if (lowerQuery.includes('epss') || lowerQuery.includes('exploit') && lowerQuery.includes('score')) {
-        return await this.getEPSSScore(cveId);
-      } else if (lowerQuery.includes('patch') || lowerQuery.includes('fix') || lowerQuery.includes('update')) {
-        return await this.getPatchAndAdvisoryInfo(cveId);
-      } else if (lowerQuery.includes('exploit') || lowerQuery.includes('poc')) {
-        return await this.getExploitInfo(cveId);
-      } else if (lowerQuery.includes('risk') || lowerQuery.includes('assessment')) {
-        return await this.getRiskAssessment(cveId);
-      } else {
-        // Default comprehensive report
-        return await this.generateComprehensiveCVEReport(cveId);
-      }
+      // All CVE queries now go through the comprehensive report generator
+      return await this.generateComprehensiveCVEReport(query, cveId);
 
     } catch (error: any) {
       console.error('CVE Query Error:', error);
@@ -291,91 +268,78 @@ export class CybersecurityAgent {
     return result;
   }
 
-  private async getValidationInfo(cveId: string): Promise<ChatResponse> {
-    return this.generateComprehensiveCVEReport(cveId);
+  private async generateNaturalLanguageReport(
+    query: string,
+    cveId: string,
+    context: {
+      cveData: any;
+      epssData: any;
+      webIntel: any;
+      errors: string[];
+    }
+  ): Promise<string> {
+    const { cveData, epssData, webIntel, errors } = context;
+
+    const prompt = `
+      You are a helpful, expert cybersecurity analyst. Your user has asked the following query: "${query}".
+      Analyze the user's query and the provided data to give a comprehensive, yet easy-to-understand, natural language response.
+      Do not just list the data. Synthesize it into a coherent answer. Use Markdown for formatting if it helps clarity (e.g., bolding, lists).
+
+      Here is the data I have gathered for ${cveId}:
+
+      **NVD Data:**
+      ${cveData ? JSON.stringify(cveData, null, 2) : 'Not available.'}
+
+      **EPSS (Exploit Prediction Scoring System) Data:**
+      ${epssData ? JSON.stringify(epssData, null, 2) : 'Not available.'}
+
+      **Live Web Intelligence & Analysis:**
+      ${webIntel?.summary ? webIntel.summary : 'Not available.'}
+
+      **Data Fetching Errors:**
+      ${errors.length > 0 ? errors.join(', ') : 'None'}
+
+      Based on all of this information, please provide a response to the user's query: "${query}".
+      If the user is asking a general question, provide a summary. If they are asking a specific question (e.g., about patches or exploits), focus on that.
+      If data is missing, mention it, but try to provide a useful answer with the information you do have.
+      Conclude your response with a clear, actionable summary or recommendation.
+    `;
+
+    // Re-use the performWebSearch logic to call the LLM
+    const result = await this.performWebSearch(prompt);
+    return result.summary || 'I was unable to generate a response based on the available information.';
   }
 
-  private async getEPSSScore(cveId: string): Promise<ChatResponse> {
-    return this.generateComprehensiveCVEReport(cveId);
-  }
-
-  private async getPatchAndAdvisoryInfo(cveId: string): Promise<ChatResponse> {
-    return this.generateComprehensiveCVEReport(cveId);
-  }
-
-  private async getExploitInfo(cveId: string): Promise<ChatResponse> {
-    return this.generateComprehensiveCVEReport(cveId);
-  }
-
-  private async getRiskAssessment(cveId: string): Promise<ChatResponse> {
-    return this.generateComprehensiveCVEReport(cveId);
-  }
-
-  private async generateComprehensiveCVEReport(cveId: string): Promise<ChatResponse> {
+  private async generateComprehensiveCVEReport(query: string, cveId: string): Promise<ChatResponse> {
     try {
-      let cveData = null;
-      let epssData = null;
-      let webIntel = null;
       const errors: string[] = [];
+      const [cveData, epssData, webIntel] = await Promise.all([
+        this.getCachedOrFetch(`cve_${cveId}`, () => APIService.fetchCVEData(cveId, this.settings?.nvdApiKey, () => {})).catch(err => {
+          console.log('CVE data fetch failed:', err);
+          errors.push('Official CVE data unavailable');
+          return null;
+        }),
+        this.getCachedOrFetch(`epss_${cveId}`, () => APIService.fetchEPSSData(cveId, () => {})).catch(err => {
+          console.log('EPSS data fetch failed:', err);
+          errors.push('EPSS score unavailable');
+          return null;
+        }),
+        this.performWebSearch(`${cveId} vulnerability analysis patches advisories exploits`).catch(err => {
+          console.log('Web intelligence failed:', err);
+          errors.push('Web intelligence limited');
+          return null;
+        })
+      ]);
 
-      try {
-        cveData = await this.getCachedOrFetch(
-          `cve_${cveId}`,
-          () => APIService.fetchCVEData(cveId, this.settings?.nvdApiKey, () => {})
-        );
-      } catch (error) {
-        console.log('CVE data fetch failed:', error);
-        errors.push('Official CVE data unavailable');
-      }
-
-      try {
-        epssData = await this.getCachedOrFetch(
-          `epss_${cveId}`,
-          () => APIService.fetchEPSSData(cveId, () => {})
-        );
-      } catch (error) {
-        console.log('EPSS data fetch failed:', error);
-        errors.push('EPSS score unavailable');
-      }
-
-      try {
-        webIntel = await this.performWebSearch(
-          `${cveId} vulnerability analysis patches advisories exploits`
-        );
-      } catch (error) {
-        console.log('Web intelligence failed:', error);
-        errors.push('Web intelligence limited');
-      }
-
-      let report = `**${cveId} Comprehensive Analysis**\n\n`;
-
-      if (errors.length > 0) {
-        report += `⚠️ **Analysis Limitations**: ${errors.join(', ')}\n\n`;
-      }
-
-      if (cveData?.description) {
-        report += `🔍 **Key Finding:** ${cveData.description}\n\n`;
-      }
-
-      if (cveData?.cvssV3) {
-        report += `📊 **Technical Details:**\n`;
-        report += `• **CVSS v3 Score:** ${cveData.cvssV3.baseScore}/10 (${getCVSSSeverity(cveData.cvssV3.baseScore)})\n`;
-      }
-
-      if (epssData?.epss) {
-        report += `• **EPSS Score:** ${epssData.epss} (${epssData.epssPercentage}%)\n`;
-      }
-
-      report += `\n🔗 **Official Sources:**\n`;
-      report += `• [NVD Entry](https://nvd.nist.gov/vuln/detail/${cveId})\n`;
-      report += `• [MITRE CVE Details](https://cve.mitre.org/cgi-bin/cvename.cgi?name=${cveId})\n`;
-
-      if (webIntel?.summary) {
-        report += `\n**Web Intelligence Summary:**\n${webIntel.summary.substring(0, 400)}...\n\n`;
-      }
+      const reportText = await this.generateNaturalLanguageReport(query, cveId, {
+        cveData,
+        epssData,
+        webIntel,
+        errors,
+      });
 
       return {
-        text: report,
+        text: reportText,
         sender: 'bot',
         id: Date.now().toString(),
       };
@@ -397,10 +361,11 @@ export class CybersecurityAgent {
         return { summary: 'Web search unavailable: no AI key configured' };
       }
 
-      const searchPrompt = `Search for information about: ${query}. Provide a comprehensive analysis including current threat status, patches, advisories, and any dispute information.`;
-
+      // The `query` is now the full prompt for the LLM
+      const searchPrompt = query;
       let generatedText = '';
 
+      // Prefer OpenAI if available, as it might handle complex prompts better
       if (this.settings.openAiApiKey) {
         try {
           const openaiRes = await fetch('/api/openai?endpoint=chat/completions', {
@@ -409,9 +374,10 @@ export class CybersecurityAgent {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              model: 'gpt-4.1',
-              messages: [{ role: 'user', content: query }],
-              max_tokens: 4096
+              model: 'gpt-4.1', // Using a powerful model for synthesis
+              messages: [{ role: 'user', content: searchPrompt }],
+              max_tokens: 4096,
+              temperature: 0.2, // Lower temperature for more factual responses
             })
           });
           if (openaiRes.ok) {
@@ -423,20 +389,15 @@ export class CybersecurityAgent {
         }
       }
 
+      // Fallback to Gemini
       if (!generatedText && this.settings.geminiApiKey) {
         const response = await fetch(`/api/gemini?model=gemini-2.5-flash`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            contents: [{
-              parts: [{
-                text: searchPrompt
-              }]
-            }],
+            contents: [{ parts: [{ text: searchPrompt }] }],
             generationConfig: {
-              temperature: 0.1,
+              temperature: 0.2,
               maxOutputTokens: 4096,
             }
           })
