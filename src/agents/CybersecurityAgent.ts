@@ -150,7 +150,10 @@ export class CybersecurityAgent {
 
     if (this.settings.aiProvider) {
       this.groundingConfig = { enableWebGrounding: true, autoLearn: true };
-      this.groundingEngine = new AIGroundingEngine(this.groundingConfig, {});
+      this.groundingEngine = new AIGroundingEngine(this.groundingConfig, {
+        gemini: this.settings.geminiApiKey,
+        openai: this.settings.openAiApiKey,
+      });
     }
   }
 
