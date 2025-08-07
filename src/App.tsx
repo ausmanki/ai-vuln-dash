@@ -24,6 +24,7 @@ import { useSettings } from './hooks/useSettings';
 import { ragDatabase } from './db/EnhancedVectorDatabase';
 import { AppContext } from './contexts/AppContext'; // Corrected import
 import { APIService } from './services/APIService'; // Added for bulk analysis
+import { dedupeResults, BulkAnalysisResult } from './analysis/BulkDeduplicator';
 
 // Main Application Component - Renamed from VulnerabilityIntelligence to App for main.jsx
 const App = () => {
@@ -35,7 +36,7 @@ const App = () => {
   const [showBulkUploadView, setShowBulkUploadView] = useState(false); // State for bulk upload UI
   
   // State for bulk analysis
-  const [bulkAnalysisResults, setBulkAnalysisResults] = useState<Array<{cveId: string, data?: any, error?: string}>>([]);
+  const [bulkAnalysisResults, setBulkAnalysisResults] = useState<BulkAnalysisResult[]>([]);
   const [isBulkLoading, setIsBulkLoading] = useState<boolean>(false);
   const [bulkProgress, setBulkProgress] = useState<{ current: number, total: number } | null>(null);
 
@@ -108,6 +109,9 @@ const App = () => {
 
       await utils.sleep(delayMs);
     }
+
+    const deduped = await dedupeResults(results);
+    setBulkAnalysisResults(deduped);
 
     setIsBulkLoading(false);
     setBulkProgress(null);
