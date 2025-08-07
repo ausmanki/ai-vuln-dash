@@ -79,6 +79,7 @@ export interface CVE {
   published: string;
   lastModified: string;
   vulnStatus: string;
+  aliases?: string[]; // Additional identifiers referring to this CVE
   descriptions: Array<{
     lang: string;
     value: string;

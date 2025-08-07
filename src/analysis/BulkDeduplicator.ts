@@ -21,9 +21,6 @@ export async function dedupeResults(
 ): Promise<BulkAnalysisResult[]> {
   if (results.length === 0) return [];
 
-  const descriptions = results.map(r => r.data?.cve?.description || '');
-  const embeddings = await Promise.all(descriptions.map(d => embedFn(d)));
-
   const n = results.length;
   const parent = Array.from({ length: n }, (_, i) => i);
 
@@ -40,6 +37,24 @@ export async function dedupeResults(
     const pb = find(b);
     if (pa !== pb) parent[pa] = pb;
   };
+
+  // First, group CVEs that explicitly list the same aliases.
+  const aliasMap = new Map<string, number>();
+  for (let i = 0; i < n; i++) {
+    const aliases: string[] = [results[i].cveId, ...(results[i].data?.cve?.aliases || [])];
+    for (const alias of aliases) {
+      const existing = aliasMap.get(alias);
+      if (existing !== undefined) {
+        union(i, existing);
+      } else {
+        aliasMap.set(alias, i);
+      }
+    }
+  }
+
+  // Embed descriptions after alias-based grouping; aliases may already cover duplicates.
+  const descriptions = results.map(r => r.data?.cve?.description || '');
+  const embeddings = await Promise.all(descriptions.map(d => embedFn(d)));
 
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {

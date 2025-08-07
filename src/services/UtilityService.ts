@@ -314,6 +314,7 @@ export function processCVEData(cveData: any) {
     references: cve.references || [],
     configurations: cve.configurations || [],
     weaknesses: cve.weaknesses || [],
+    aliases: cve.aliases || [],
     sourceIdentifier: cve.sourceIdentifier,
     vulnStatus: cve.vulnStatus,
     evaluatorComment: cve.evaluatorComment,

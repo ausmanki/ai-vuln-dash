@@ -41,4 +41,25 @@ describe('BulkDeduplicator', () => {
     expect(deduped[0].duplicates?.length).toBe(0);
     expect(deduped[1].duplicates?.length).toBe(0);
   });
+
+  it('deduplicates using explicit CVE aliases', async () => {
+    const results: BulkAnalysisResult[] = [
+      {
+        cveId: 'CVE-1',
+        data: { cve: { description: 'alpha', aliases: ['CVE-2'] } }
+      },
+      {
+        cveId: 'CVE-2',
+        data: { cve: { description: 'beta', aliases: [] } }
+      }
+    ];
+
+    const embed = vi.fn()
+      .mockResolvedValueOnce([1, 0])
+      .mockResolvedValueOnce([0, 1]);
+
+    const deduped = await dedupeResults(results, 0.9, embed);
+    expect(deduped.length).toBe(1);
+    expect(deduped[0].duplicates?.[0].cveId).toBe('CVE-2');
+  });
 });
