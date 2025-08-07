@@ -1,11 +1,12 @@
 import React, { useState, useCallback, useContext } from 'react';
 import stylesModule from './BulkResults.module.css';
-import { UploadCloud, FileText, XCircle, Loader2, AlertTriangle, Zap, ExternalLink, Eye } from 'lucide-react'; // Added ExternalLink, Eye
+import { UploadCloud, FileText, XCircle, Loader2, AlertTriangle, Zap, ExternalLink, Eye, RefreshCcw } from 'lucide-react'; // Added ExternalLink, Eye, RefreshCcw
 import { AppContext } from '../contexts/AppContext';
 import { createStyles } from '../utils/styles';
 import { extractCVEsFromCSV, extractCVEsFromPDF, extractCVEsFromXLSX } from '../services/FileParserService';
 import { utils } from '../utils/helpers'; // For severity color and level
 import { COLORS } from '../utils/constants'; // For direct color usage if needed
+import { DedupCache } from '../services/DedupCache';
 
 interface BulkUploadComponentProps {
   onClose: () => void;
@@ -91,6 +92,11 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
     }
   };
 
+  const handleResetCache = () => {
+    DedupCache.reset();
+    addNotification({ type: 'info', title: 'Dedup Cache Cleared', message: 'Stored hashes removed.' });
+  };
+
   return (
     <div style={{
       position: 'fixed',
@@ -107,9 +113,18 @@ const BulkUploadComponent: React.FC<BulkUploadComponentProps> = ({
       <div style={{ ...styles.card, width: '90%', maxWidth: '800px', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
           <h2 style={{ ...styles.title, fontSize: '1.5rem' }}>Bulk CVE Analysis</h2>
-          <button onClick={onClose} style={{ ...styles.button, ...styles.buttonSecondary, padding: '8px' }} aria-label="Close">
-            <XCircle size={20} />
-          </button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button
+              onClick={handleResetCache}
+              style={{ ...styles.button, ...styles.buttonSecondary, padding: '8px' }}
+              title="Reset Dedup Cache"
+            >
+              <RefreshCcw size={20} />
+            </button>
+            <button onClick={onClose} style={{ ...styles.button, ...styles.buttonSecondary, padding: '8px' }} aria-label="Close">
+              <XCircle size={20} />
+            </button>
+          </div>
         </div>
 
         <div style={{ marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'stretch' }}>

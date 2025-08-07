@@ -24,6 +24,7 @@ import { useSettings } from './hooks/useSettings';
 import { ragDatabase } from './db/EnhancedVectorDatabase';
 import { AppContext } from './contexts/AppContext'; // Corrected import
 import { APIService } from './services/APIService'; // Added for bulk analysis
+import { DedupCache } from './services/DedupCache';
 
 // Main Application Component - Renamed from VulnerabilityIntelligence to App for main.jsx
 const App = () => {
@@ -94,6 +95,14 @@ const App = () => {
       const cveId = cveIds[i];
       setBulkProgress({ current: i + 1, total: cveIds.length });
       try {
+        // Fetch CVE description to check for duplicates before heavy analysis
+        const cveData = await APIService.fetchCVEData(cveId, settings.nvdApiKey, () => {});
+        const description = cveData?.description || '';
+        if (!DedupCache.shouldProcess(description)) {
+          results.push({ cveId, error: 'Skipped: similar to previously processed CVE' });
+          continue;
+        }
+
         // Pass necessary API keys from settings; APIService.fetchVulnerabilityDataWithAI expects them.
         // The setLoadingSteps can be a dummy function for bulk mode or could update a more detailed log.
         const result = await APIService.fetchVulnerabilityDataWithAI(cveId, () => {}, { nvd: settings.nvdApiKey }, settings);
