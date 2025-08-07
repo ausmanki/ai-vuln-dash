@@ -22,6 +22,7 @@ import { generateRemediationPlan } from '../utils/remediation';
 import { extractComponentNames } from '../utils/componentUtils';
 import { CONSTANTS } from '../utils/constants';
 import { CVE_REGEX } from '../utils/cveRegex';
+import { ragDatabase } from '../db/EnhancedVectorDatabase';
 
 // Utility to map CVSS score to severity label
 export const getCVSSSeverity = (score: number): string => {
@@ -409,6 +410,32 @@ export class UserAssistantAgent {
   }
 
   private async handleGeneralQuery(query: string): Promise<ChatResponse> {
+    const k = 5;
+    try {
+      if (ragDatabase && !ragDatabase.initialized) {
+        await ragDatabase.initialize();
+      }
+      if (ragDatabase?.initialized) {
+        const ragResults = await ragDatabase.search(query, k);
+        const highConfidence = ragResults.filter(r => r.similarity > 0.2);
+        if (highConfidence.length > 0) {
+          const ragText = highConfidence
+            .map(doc => `${doc.metadata?.title ? `${doc.metadata.title}: ` : ''}${doc.content}`)
+            .join('\n\n');
+          const finalText = this.applyTechnicalTone(this.varyResponse(`Here is information from my knowledge base:\n\n${ragText}`));
+          this.storeConversation(query, finalText);
+          return {
+            text: finalText,
+            sender: 'bot',
+            id: Date.now().toString(),
+            confidence: highConfidence[0].similarity
+          };
+        }
+      }
+    } catch (error) {
+      console.error('RAG search failed', error);
+    }
+
     if (this.groundingEngine) {
       const grounded = await this.getGroundedInfo(query);
       if (grounded.content) {
