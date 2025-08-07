@@ -102,6 +102,19 @@ describe('searchCISAKEVForCVE', () => {
     expect(res.listed).toBe(true)
     expect(res.shortDescription).toBe('Test')
   })
+
+  it('falls back to GitHub when primary fetch fails', async () => {
+    const catalog = { vulnerabilities: [] }
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(catalog) })
+    global.fetch = fetchMock as any
+
+    await DFS.searchCISAKEVForCVE('CVE-2024-9999', null)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(fetchMock.mock.calls[1][0]).toContain('githubusercontent')
+  })
 })
 
 describe('searchEPSSForCVE', () => {
