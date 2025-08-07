@@ -218,16 +218,20 @@ export class CybersecurityAgent {
           console.error('RAG search failed', e);
         }
 
-        if (this.groundingEngine) {
-          const grounded = await this.getGroundedInfo(query);
-          if (grounded.content) {
+        try {
+          const webResult = await APIService.fetchGeneralAnswer(
+            query,
+            this.settings || {}
+          );
+          if (webResult?.answer) {
             return {
-              text: grounded.content,
+              text: webResult.answer,
               sender: 'bot',
               id: Date.now().toString(),
-              confidence: grounded.confidence,
             };
           }
+        } catch (e) {
+          console.error('Web search failed', e);
         }
       }
 
