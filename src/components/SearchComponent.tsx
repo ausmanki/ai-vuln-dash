@@ -10,83 +10,106 @@ import { COLORS } from '../utils/constants';
 const SearchComponent = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchHistory, setSearchHistory] = useState([]);
-  const { setVulnerabilities, setLoading, loading, setLoadingSteps, addNotification, settings } = useContext(AppContext);
+  const { setVulnerabilities, setSearchResults, setLoading, loading, setLoadingSteps, addNotification, settings } = useContext(AppContext);
   const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
 
   const handleSearch = useCallback(async () => {
-    if (!searchTerm.trim()) {
+    const query = searchTerm.trim();
+    if (!query) {
       addNotification({
         type: 'warning',
         title: 'Search Required',
-        message: 'Please enter a CVE ID to analyze'
+        message: 'Please enter a CVE ID or a question to analyze'
       });
       return;
     }
 
-    const cveId = searchTerm.trim().toUpperCase();
+    const isCVE = utils.validateCVE(query.toUpperCase());
 
-    if (!utils.validateCVE(cveId)) {
-      addNotification({
-        type: 'error',
-        title: 'Invalid CVE Format',
-        message: 'Please enter a valid CVE ID (e.g., CVE-2024-12345)'
-      });
-      return;
-    }
+    if (isCVE) {
+      const cveId = query.toUpperCase();
+      // Initialize AI settings for web search fallbacks
+      if (settings.aiProvider) {
+        setGlobalAISettings({
+          aiProvider: settings.aiProvider,
+          geminiModel: settings.geminiModel || 'gemini-2.5-flash',
+          openAiModel: settings.openAiModel || 'gpt-4.1'
+        });
+        console.log('🤖 AI settings initialized for web search fallbacks');
+      } else {
+        console.warn('⚠️ No AI provider configured - AI web search fallbacks will not be available');
+      }
 
-    // Initialize AI settings for web search fallbacks
-    if (settings.aiProvider) {
-      setGlobalAISettings({
-        aiProvider: settings.aiProvider,
-        geminiModel: settings.geminiModel || 'gemini-2.5-flash',
-        openAiModel: settings.openAiModel || 'gpt-4.1'
-      });
-      console.log('🤖 AI settings initialized for web search fallbacks');
+      // Initialize loading state and steps
+      setLoading(true);
+      setLoadingSteps(['🔍 Starting AI-enhanced vulnerability analysis...']);
+      setVulnerabilities([]); // Clear previous results
+      setSearchResults([]); // Clear previous results
+
+      try {
+        // Use the enhanced AI-powered search with multi-source discovery
+        const vulnerability = await APIService.fetchVulnerabilityDataWithAI(
+          cveId,
+          setLoadingSteps,
+          { nvd: settings.nvdApiKey },
+          settings
+        );
+
+        setVulnerabilities([vulnerability]);
+        setSearchHistory(prev => [...new Set([cveId, ...prev])].slice(0, 5));
+
+        // Enhanced completion message with AI attribution
+        const aiEnhancedSources = vulnerability.discoveredSources?.length || 0;
+        const isAIEnhanced = vulnerability.aiSearchPerformed || vulnerability.ragEnhanced;
+
+        setLoadingSteps(prev => [...prev, '✅ Analysis complete!']);
+
+        addNotification({
+          type: 'success',
+          title: 'AI Analysis Complete',
+          message: `Successfully analyzed ${cveId} with ${aiEnhancedSources} sources${isAIEnhanced ? ' (AI-enhanced)' : ''}`
+        });
+
+      } catch (error: any) {
+        console.error('Search failed:', error);
+
+        setLoadingSteps(prev => [...prev, `❌ Error: ${error.message}`]);
+
+        addNotification({
+          type: 'error',
+          title: 'Search Failed',
+          message: error.message || 'An error occurred while searching'
+        });
+      } finally {
+        setLoading(false);
+      }
     } else {
-      console.warn('⚠️ No AI provider configured - AI web search fallbacks will not be available');
-    }
+      // Handle natural language query
+      setLoading(true);
+      setLoadingSteps([`🔍 Searching for answers with RAG...`]);
+      setVulnerabilities([]); // Clear previous results
+      setSearchResults([]); // Clear previous results
 
-    // Initialize loading state and steps
-    setLoading(true);
-    setLoadingSteps(['🔍 Starting AI-enhanced vulnerability analysis...']);
-    setVulnerabilities([]); // Clear previous results
-
-    try {
-      // Use the enhanced AI-powered search with multi-source discovery
-      const vulnerability = await APIService.fetchVulnerabilityDataWithAI(
-        cveId,
-        setLoadingSteps,
-        { nvd: settings.nvdApiKey },
-        settings
-      );
-
-      setVulnerabilities([vulnerability]);
-      setSearchHistory(prev => [...new Set([cveId, ...prev])].slice(0, 5));
-
-      // Enhanced completion message with AI attribution
-      const aiEnhancedSources = vulnerability.discoveredSources?.length || 0;
-      const isAIEnhanced = vulnerability.aiSearchPerformed || vulnerability.ragEnhanced;
-      
-      setLoadingSteps(prev => [...prev, '✅ Analysis complete!']);
-
-      addNotification({
-        type: 'success',
-        title: 'AI Analysis Complete',
-        message: `Successfully analyzed ${cveId} with ${aiEnhancedSources} sources${isAIEnhanced ? ' (AI-enhanced)' : ''}`
-      });
-
-    } catch (error: any) {
-      console.error('Search failed:', error);
-      
-      setLoadingSteps(prev => [...prev, `❌ Error: ${error.message}`]);
-      
-      addNotification({
-        type: 'error',
-        title: 'Search Failed',
-        message: error.message || 'An error occurred while searching'
-      });
-    } finally {
-      setLoading(false);
+      try {
+        const results = await APIService.performNaturalLanguageSearch(query);
+        setSearchResults(results);
+        setLoadingSteps(prev => [...prev, '✅ RAG search complete!']);
+        addNotification({
+          type: 'success',
+          title: 'RAG Search Complete',
+          message: `Found ${results.length} relevant documents.`
+        });
+      } catch (error: any) {
+        console.error('Natural language search failed:', error);
+        setLoadingSteps(prev => [...prev, `❌ Error: ${error.message}`]);
+        addNotification({
+          type: 'error',
+          title: 'Search Failed',
+          message: error.message || 'An error occurred while searching'
+        });
+      } finally {
+        setLoading(false);
+      }
     }
   }, [searchTerm, settings, setLoading, setLoadingSteps, setVulnerabilities, addNotification]);
 
@@ -145,7 +168,7 @@ const SearchComponent = () => {
           }} />
           <input
             type="text"
-            placeholder="Enter CVE ID (e.g., CVE-2024-12345)"
+            placeholder="Ask a question or enter a CVE ID (e.g., CVE-2024-12345)"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             onKeyPress={handleKeyPress}

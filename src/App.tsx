@@ -14,6 +14,7 @@ import SearchComponent from './components/SearchComponent';
 import LoadingComponent from './components/LoadingComponent';
 import CVEDetailView from './components/CVEDetailView';
 import EmptyState from './components/EmptyState';
+import SearchResults from './components/SearchResults';
 import ChatInterface from './components/ChatInterface';
 import BulkUploadComponent from './components/BulkUploadComponent'; // Added
 import ErrorBoundary from './components/ErrorBoundary'; // Added ErrorBoundary
@@ -29,6 +30,7 @@ import { dedupeResults, BulkAnalysisResult } from './analysis/BulkDeduplicator';
 // Main Application Component - Renamed from VulnerabilityIntelligence to App for main.jsx
 const App = () => {
   const [vulnerabilities, setVulnerabilities] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingSteps, setLoadingSteps] = useState([]);
   const [showSettings, setShowSettings] = useState(false);
@@ -62,6 +64,8 @@ const App = () => {
   const contextValue = useMemo(() => ({
     vulnerabilities,
     setVulnerabilities,
+    searchResults,
+    setSearchResults,
     loading,
     setLoading,
     loadingSteps,
@@ -72,6 +76,7 @@ const App = () => {
     setSettings
   }), [
     vulnerabilities,
+    searchResults,
     loading,
     loadingSteps,
     notifications,
@@ -231,10 +236,9 @@ const App = () => {
 
           <div style={{ maxWidth: '1536px', margin: '0 auto', padding: '24px 32px' }}>
             {loading && <LoadingComponent />}
-
-            {!loading && vulnerabilities.length === 0 && <EmptyState />}
-
-            {!loading && vulnerabilities.length > 0 && (
+            {!loading && searchResults.length > 0 && <SearchResults />}
+            {!loading && searchResults.length === 0 && vulnerabilities.length === 0 && <EmptyState />}
+            {!loading && searchResults.length === 0 && vulnerabilities.length > 0 && (
               <CVEDetailView vulnerability={vulnerabilities[0]} />
             )}
           </div>
