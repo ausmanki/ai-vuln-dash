@@ -1,4 +1,4 @@
-import React, { useState, createContext, useContext, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useContext, useEffect, useCallback, useMemo, useRef } from 'react';
 import { 
   Search, Brain, Settings, Target, Database, Activity, CheckCircle, XCircle, X, 
   Eye, EyeOff, Save, Globe, AlertTriangle, Loader2, RefreshCw, Copy, Clock, 
@@ -27,6 +27,7 @@ import { ragDatabase } from './db/EnhancedVectorDatabase';
 import { AppContext } from './contexts/AppContext'; // Corrected import
 import { APIService } from './services/APIService'; // Added for bulk analysis
 import { dedupeResults, BulkAnalysisResult } from './analysis/BulkDeduplicator';
+import { UpdateNotifier } from './services/UpdateNotifier';
 
 // Main Application Component - Renamed from VulnerabilityIntelligence to App for main.jsx
 const App = () => {
@@ -47,6 +48,15 @@ const App = () => {
   const { settings, setSettings } = useSettings();
   const styles = useMemo(() => createStyles(settings.darkMode), [settings.darkMode]);
 
+  const chatHandlerRef = useRef<(msg: string) => void>();
+  const pushChatMessage = useCallback((msg: string) => {
+    chatHandlerRef.current?.(msg);
+  }, []);
+  const setChatMessageHandler = useCallback((handler: (msg: string) => void) => {
+    chatHandlerRef.current = handler;
+  }, []);
+  const notifierRef = useRef<UpdateNotifier | null>(null);
+
   useEffect(() => {
     logger.setVerbose(settings.verboseLogs);
   }, [settings.verboseLogs]);
@@ -62,6 +72,30 @@ const App = () => {
     ragDatabase.initialize().catch(console.error);
   }, []);
 
+  // Start update notifier for monitored CVEs
+  useEffect(() => {
+    const getCves = () =>
+      vulnerabilities
+        .map((v: any) => v?.cve?.id || v?.cveId)
+        .filter(Boolean);
+    if (notifierRef.current) {
+      notifierRef.current.stop();
+    }
+    notifierRef.current = new UpdateNotifier(
+      getCves,
+      settings,
+      addNotification,
+      pushChatMessage
+    );
+    notifierRef.current.start();
+    return () => notifierRef.current?.stop();
+  }, [
+    vulnerabilities,
+    settings,
+    addNotification,
+    pushChatMessage
+  ]);
+
   const contextValue = useMemo(() => ({
     vulnerabilities,
     setVulnerabilities,
@@ -74,7 +108,9 @@ const App = () => {
     notifications,
     addNotification,
     settings,
-    setSettings
+    setSettings,
+    pushChatMessage,
+    setChatMessageHandler
   }), [
     vulnerabilities,
     searchResults,
@@ -83,7 +119,9 @@ const App = () => {
     notifications,
     addNotification,
     settings,
-    setSettings
+    setSettings,
+    pushChatMessage,
+    setChatMessageHandler
   ]);
 
   const startBulkAnalysis = async (cveIds: string[]) => {
