@@ -53,11 +53,10 @@ export interface AIGroundingConfig {
 // Simple grounding engine using Gemini and OpenAI
 export class AIGroundingEngine {
   constructor(
-    private config: AIGroundingConfig = {},
-    private keys: { gemini?: string; openai?: string } = {}
+    private config: AIGroundingConfig = {}
   ) {}
 
-  async search(query: string): Promise<GroundedSearchResult> {
+  async search(query: string, aiProvider: 'gemini' | 'openai' | null): Promise<GroundedSearchResult> {
     const result: GroundedSearchResult = { content: '', sources: [], confidence: 0 };
 
     if (!this.config.enableWebGrounding) {
@@ -65,7 +64,7 @@ export class AIGroundingEngine {
     }
 
     // Gemini search
-    if (this.keys.gemini) {
+    if (aiProvider === 'gemini') {
       try {
         const res = await fetch(
           `/api/gemini?model=gemini-2.5-flash`,
@@ -88,9 +87,8 @@ export class AIGroundingEngine {
         console.error('Gemini grounding failed', e);
       }
     }
-
     // OpenAI search
-    if (this.keys.openai) {
+    else if (aiProvider === 'openai') {
       try {
         const res = await fetch('/api/openai?endpoint=chat/completions', {
           method: 'POST',
@@ -191,7 +189,7 @@ export class UserAssistantAgent {
 
     if (this.settings.aiProvider) {
       this.groundingConfig = this.settings.groundingConfig;
-      this.groundingEngine = new AIGroundingEngine(this.groundingConfig || {}, {});
+      this.groundingEngine = new AIGroundingEngine(this.groundingConfig || {});
     }
   }
 
@@ -440,11 +438,13 @@ export class UserAssistantAgent {
     if (this.groundingEngine) {
       const grounded = await this.getGroundedInfo(query);
       if (grounded.content) {
-        return { text: grounded.content, sender: 'bot', id: Date.now().toString(), confidence: grounded.confidence };
+        const responseText = `I couldn't find a direct answer in my knowledge base. Based on a web search, here's what I found:\n\n${grounded.content}`;
+        this.storeConversation(query, responseText);
+        return { text: responseText, sender: 'bot', id: Date.now().toString(), confidence: grounded.confidence };
       }
     }
 
-    let response = `I understand you're asking about cybersecurity. `;
+    let response = `I could not find an answer in my knowledge base or through a web search. `;
 
     response += `To provide you with the most helpful information, could you:\n\n`;
     response += `• Specify a CVE ID (like CVE-2024-1234) if you're asking about a specific vulnerability\n`;
@@ -742,7 +742,7 @@ export class UserAssistantAgent {
     if (!this.groundingEngine) {
       return { content: '', sources: [], confidence: 0 };
     }
-    const result = await this.groundingEngine.search(query);
+    const result = await this.groundingEngine.search(query, this.settings.aiProvider);
     if (this.groundingConfig?.autoLearn) {
       await this.groundingEngine.learn(result);
     }
