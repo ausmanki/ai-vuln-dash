@@ -279,9 +279,16 @@ export class UserAssistantAgent {
   // Main query handler
   public async handleQuery(query: string): Promise<ChatResponse> {
     try {
+      const lowerQuery = query.toLowerCase().trim();
       // Handle special commands
-      if (query.toLowerCase().trim() === '/help') {
+      if (lowerQuery === '/help') {
         return this.generateHelpMessage();
+      }
+      if (lowerQuery === '/bulk_summary') {
+        return this.generateBulkAnalysisSummary();
+      }
+      if (lowerQuery === '/component_summary') {
+        return this.generateBulkComponentImpactSummary();
       }
 
       const analysis = this.analyzeQuery(query);

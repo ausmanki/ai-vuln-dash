@@ -11,6 +11,26 @@ describe('UserAssistantAgent', () => {
     expect(result.text).toContain('cybersecurity assistant');
   });
 
+  it('handleQuery delegates to generateBulkAnalysisSummary for /bulk_summary', async () => {
+    const agent = new UserAssistantAgent();
+    const spy = vi
+      .spyOn(agent, 'generateBulkAnalysisSummary')
+      .mockReturnValue({ text: 'bulk summary', sender: 'bot', id: '1' });
+    await agent.handleQuery('/bulk_summary');
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
+  it('handleQuery delegates to generateBulkComponentImpactSummary for /component_summary', async () => {
+    const agent = new UserAssistantAgent();
+    const spy = vi
+      .spyOn(agent, 'generateBulkComponentImpactSummary')
+      .mockReturnValue({ text: 'component summary', sender: 'bot', id: '1' });
+    await agent.handleQuery('/component_summary');
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
   it('handleQuery delegates to handleCVEQuery when CVE present', async () => {
     const agent = new UserAssistantAgent();
     const spy = vi
