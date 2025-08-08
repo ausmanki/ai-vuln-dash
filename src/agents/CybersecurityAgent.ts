@@ -199,7 +199,18 @@ export class CybersecurityAgent {
       'firewall',
       'penetration test',
       'pentest',
-      'red team'
+      'red team',
+      'policy',
+      'policies',
+      'compliance',
+      'governance',
+      'risk',
+      'risk management',
+      'best practice',
+      'best practices',
+      'incident response',
+      'awareness',
+      'training'
     ];
     const normalized = query
       .toLowerCase()
@@ -234,7 +245,7 @@ export class CybersecurityAgent {
 
       if (!this.isCybersecurityRelated(query)) {
         return {
-          text: `I'm designed to assist with cybersecurity topics. Please ask a security-related question.`,
+          text: `Besides technical cybersecurity topics—like vulnerabilities, threat modeling, or secure architectures—I can also help with broader questions such as policy considerations, organizational best practices, risk management, or even general knowledge. Feel free to ask about anything you need clarified.`,
           sender: 'bot',
           id: Date.now().toString(),
         };

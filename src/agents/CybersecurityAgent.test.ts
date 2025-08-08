@@ -10,6 +10,8 @@ describe('CybersecurityAgent', () => {
     const agent = new CybersecurityAgent();
     const isRelated = (agent as any).isCybersecurityRelated;
     expect(isRelated('Discuss ransomware trends')).toBe(true);
+    expect(isRelated('Explain risk management strategies')).toBe(true);
+    expect(isRelated('How should companies handle compliance policies?')).toBe(true);
     expect(isRelated('How do I bake a cake?')).toBe(false);
   });
 
@@ -22,7 +24,7 @@ describe('CybersecurityAgent', () => {
 
     expect(ragSpy).not.toHaveBeenCalled();
     expect(webSpy).not.toHaveBeenCalled();
-    expect(result.text).toMatch(/cybersecurity/);
+    expect(result.text).toMatch(/policy considerations/);
 
     ragSpy.mockRestore();
     webSpy.mockRestore();
