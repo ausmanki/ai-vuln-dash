@@ -4,3 +4,4 @@ export * from './UserAssistantAgent';
 export * from './ValidationAgent';
 export * from './RiskAssessmentAgent';
 export * from './CybersecurityAgent';
+export * from './DualModelCybersecurityAgent';
