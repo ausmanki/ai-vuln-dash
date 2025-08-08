@@ -161,6 +161,19 @@ const SettingsModal = ({ isOpen, onClose }) => {
               Enable AI-Enhanced Analysis
             </label>
           </div>
+
+          <div>
+            <label style={{ display: 'block', fontSize: '1rem', fontWeight: '600', marginBottom: '8px' }}>
+              Alert Frequency (minutes)
+            </label>
+            <input
+              type="number"
+              min={1}
+              value={localSettings.alertFrequencyMinutes || 60}
+              onChange={(e) => setLocalSettings(prev => ({ ...prev, alertFrequencyMinutes: parseInt(e.target.value, 10) }))}
+              style={{ ...styles.input, width: '120px' }}
+            />
+          </div>
         </div>
 
         <div style={{

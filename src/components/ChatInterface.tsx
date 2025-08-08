@@ -22,7 +22,7 @@ interface ChatInterfaceProps {
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId, bulkAnalysisResults = [] }) => {
-  const { settings, setSettings, addNotification } = useContext(AppContext);
+  const { settings, setSettings, addNotification, setChatMessageHandler } = useContext(AppContext);
   const styles = createStyles(settings.darkMode); // Assuming createStyles is memoized or lightweight
 
   const [agent, setAgent] = useState<UserAssistantAgent | CybersecurityAgent | null>(null);
@@ -44,6 +44,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId, bulkAnalysi
   );
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setChatMessageHandler?.((msg: string) => {
+      setChatHistory(prev => [
+        ...prev,
+        { id: `system-${Date.now()}`, text: msg, sender: 'system' }
+      ]);
+    });
+    return () => setChatMessageHandler?.(() => {});
+  }, [setChatMessageHandler]);
 
   useEffect(() => {
     setEnvOs(settings.environmentProfile?.os || '');
