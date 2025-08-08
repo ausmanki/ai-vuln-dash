@@ -455,8 +455,7 @@ export interface AgentSettings {
   geminiModel?: string;
   openAiModel?: string;
   aiProvider?: 'gemini' | 'openai';
-  cacheTTL?: number; // TTL for general caching in milliseconds
-  groundingCacheTTL?: number; // TTL for grounding search cache
+  cacheTTL?: number; // TTL for caching in milliseconds
   [key: string]: any; // Allow other settings
 }
 
@@ -469,7 +468,6 @@ export interface ChatResponse<T = any> {
   sender?: 'user' | 'bot' | 'system';
   confidence?: number;
   followUps?: string[];
-  sources?: string[];
 }
 
 export interface BulkAnalysisResult {

@@ -4,12 +4,13 @@ import { APIService } from '../services/APIService';
 import { utils } from '../utils/helpers';
 import { createStyles } from '../utils/styles';
 import { COLORS, CONSTANTS } from '../utils/constants';
-import CVSSDisplay from './CVSSDisplay';
 import { Brain, Database, Globe, Info, Loader2, Copy, RefreshCw, Package, CheckCircle, XCircle, AlertTriangle, Target, ChevronRight, FileText, ExternalLink, Search, Clock } from 'lucide-react';
 import TechnicalBrief from './TechnicalBrief';
-import ScoreChart from './ScoreChart';
 import AISourcesTab from './AISourcesTab';
+import RiskScore from './RiskScore';
 import { vendorPortalMap } from '../utils/vendorPortals';
+import CVEInfoBlock from './CVEInfoBlock';
+import CVESection from './CVESection';
 
 const CVEDetailView = ({ vulnerability }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -1093,423 +1094,183 @@ Focus on actionable information for security professionals.
         <div>
           {activeTab === 'overview' && (
             <div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '16px' }}>
-                Vulnerability Overview
-              </h2>
-
-              {/* CVE Description */}
-              <div style={{
-                background: safeSettings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
-                borderRadius: '8px',
-                padding: '20px',
-                marginBottom: '24px',
-                border: `1px solid ${safeSettings.darkMode ? COLORS.dark.border : COLORS.light.border}`
-              }}>
-              <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: '600', margin: 0 }}>
-                  Description
-                </h3>
-                <button
-                  onClick={() => {
-                    const desc = formatDescription(vulnerability?.cve?.description, vulnerability);
-                    if (desc) {
-                      navigator.clipboard.writeText(desc);
-                      safeAddNotification({ type: 'success', title: 'Copied!', message: 'Description copied to clipboard' });
-                    }
-                  }}
-                  style={{
-                    marginLeft: '8px',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: COLORS.blue,
-                    display: 'flex',
-                    alignItems: 'center'
-                  }}
-                >
-                  <Copy size={14} />
-                </button>
-              </div>
-                <p style={{
-                  fontSize: '1rem',
-                  lineHeight: '1.6',
-                  color: safeSettings.darkMode ? COLORS.dark.text : COLORS.light.text,
-                  margin: 0
+              <CVESection title="Vulnerability Overview">
+                <div style={{
+                  background: safeSettings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
+                  borderRadius: '8px',
+                  padding: '20px',
+                  border: `1px solid ${safeSettings.darkMode ? COLORS.dark.border : COLORS.light.border}`
                 }}>
-                  {formatDescription(vulnerability?.cve?.description, vulnerability)}
-                </p>
-                
-                {/* Show toggle for rich AI descriptions */}
-                {hasRichDescription(vulnerability?.cve?.description, vulnerability) && (
-                  <div style={{ marginTop: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: '12px' }}>
+                    <h3 style={{ fontSize: '1.1rem', fontWeight: '600', margin: 0 }}>
+                      Description
+                    </h3>
                     <button
-                      onClick={() => setShowFullDescription(!showFullDescription)}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        color: COLORS.blue,
-                        fontSize: '0.9rem',
-                        cursor: 'pointer',
-                        padding: 0,
-                        textDecoration: 'underline'
+                      onClick={() => {
+                        const desc = formatDescription(vulnerability?.cve?.description, vulnerability);
+                        if (desc) {
+                          navigator.clipboard.writeText(desc);
+                          safeAddNotification({ type: 'success', title: 'Copied!', message: 'Description copied to clipboard' });
+                        }
                       }}
+                      style={{ marginLeft: '8px', background: 'none', border: 'none', cursor: 'pointer', color: COLORS.blue, display: 'flex', alignItems: 'center' }}
                     >
-                      {showFullDescription ? 'Show Less' : 'Show Full AI Analysis'}
+                      <Copy size={14} />
                     </button>
-                    
-                    {showFullDescription && (
-                      <div style={{
-                        marginTop: '12px',
-                        padding: '12px',
-                        background: safeSettings.darkMode ? COLORS.dark.background : COLORS.light.background,
-                        borderRadius: '6px',
-                        border: `1px solid ${safeSettings.darkMode ? COLORS.dark.border : COLORS.light.border}`,
-                        fontSize: '0.9rem',
-                        lineHeight: '1.5',
-                        whiteSpace: 'pre-line'
-                      }}>
-                        {vulnerability.cve.description}
-                      </div>
-                    )}
                   </div>
-                )}
-                {(vulnerability?.cve?.aiEnhanced || vulnerability?.aiSearchPerformed) && (
-                  <div style={{
-                    marginTop: '12px',
-                    padding: '8px 12px',
-                    background: `${COLORS.blue}15`,
-                    borderRadius: '6px',
-                    fontSize: '0.85rem',
-                    color: COLORS.blue,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px'
-                  }}>
-                    <Brain size={14} />
-                    {vulnerability?.cve?.description === 'Description retrieved via AI search' 
-                      ? 'Processing vulnerability data with AI - Generate AI Analysis for detailed information'
-                      : 'Enhanced with AI web search'}
-                  </div>
-                )}
-              </div>
-
-              {/* Basic Information Grid */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                gap: '16px',
-                marginBottom: '24px'
-              }}>
-                <div style={{
-                  background: safeSettings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
-                  padding: '16px',
-                  borderRadius: '8px',
-                  border: `1px solid ${safeSettings.darkMode ? COLORS.dark.border : COLORS.light.border}`
-                }}>
-                  <h4 style={{ margin: '0 0 8px 0', fontSize: '0.9rem', fontWeight: '600', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
-                    CVE ID
-                  </h4>
-                  <p style={{ margin: 0, fontSize: '1rem', fontFamily: 'monospace', color: COLORS.blue, fontWeight: '600' }}>
-                    {vulnerability?.cve?.id || 'N/A'}
+                  <p style={{ fontSize: '1rem', lineHeight: '1.6', color: safeSettings.darkMode ? COLORS.dark.text : COLORS.light.text, margin: 0 }}>
+                    {formatDescription(vulnerability?.cve?.description, vulnerability)}
                   </p>
                 </div>
+              </CVESection>
 
-                <div style={{
-                  background: safeSettings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
-                  padding: '16px',
-                  borderRadius: '8px',
-                  border: `1px solid ${safeSettings.darkMode ? COLORS.dark.border : COLORS.light.border}`
-                }}>
-                  <h4 style={{ margin: '0 0 8px 0', fontSize: '0.9rem', fontWeight: '600', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
-                    Published Date
-                  </h4>
-                  <p style={{ margin: 0, fontSize: '1rem' }}>
+              <CVESection title="Key Information">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px' }}>
+                  <CVEInfoBlock label="CVE ID" settings={safeSettings}>
+                    <span style={{ fontFamily: 'monospace', color: COLORS.blue, fontWeight: '600' }}>
+                      {vulnerability?.cve?.id || 'N/A'}
+                    </span>
+                  </CVEInfoBlock>
+                  <CVEInfoBlock label="Published Date" settings={safeSettings}>
                     {vulnerability?.cve?.published ? new Date(vulnerability.cve.published).toLocaleDateString() : 'N/A'}
-                  </p>
-                </div>
-
-                <div style={{
-                  background: safeSettings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
-                  padding: '16px',
-                  borderRadius: '8px',
-                  border: `1px solid ${safeSettings.darkMode ? COLORS.dark.border : COLORS.light.border}`
-                }}>
-                  <h4 style={{ margin: '0 0 8px 0', fontSize: '0.9rem', fontWeight: '600', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
-                    Last Modified
-                  </h4>
-                  <p style={{ margin: 0, fontSize: '1rem' }}>
+                  </CVEInfoBlock>
+                  <CVEInfoBlock label="Last Modified" settings={safeSettings}>
                     {vulnerability?.cve?.lastModified ? new Date(vulnerability.cve.lastModified).toLocaleDateString() : 'N/A'}
-                  </p>
+                  </CVEInfoBlock>
+                  <CVEInfoBlock label="Status" settings={safeSettings}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', padding: '4px 8px', borderRadius: '4px', fontSize: '0.85rem', fontWeight: '600', background: `${COLORS.blue}20`, color: COLORS.blue }}>
+                      {vulnerability?.cve?.vulnStatus || 'Analyzed'}
+                    </span>
+                  </CVEInfoBlock>
                 </div>
+              </CVESection>
 
-                <div style={{
-                  background: safeSettings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
-                  padding: '16px',
-                  borderRadius: '8px',
-                  border: `1px solid ${safeSettings.darkMode ? COLORS.dark.border : COLORS.light.border}`
-                }}>
-                  <h4 style={{ margin: '0 0 8px 0', fontSize: '0.9rem', fontWeight: '600', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText }}>
-                    Status
-                  </h4>
-                  <span style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    padding: '4px 8px',
-                    borderRadius: '4px',
-                    fontSize: '0.85rem',
-                    fontWeight: '600',
-                    background: `${COLORS.blue}20`,
-                    color: COLORS.blue
-                  }}>
-                    {vulnerability?.cve?.vulnStatus || 'Analyzed'}
-                  </span>
-                </div>
-              </div>
-
-
-              {/* EPSS Analysis */}
               {vulnerability?.epss && (
-                <div style={{
-                  background: vulnerability.epss.epssFloat > 0.7 ? `${COLORS.red}10` : 
-                             vulnerability.epss.epssFloat > 0.3 ? `${COLORS.yellow}10` : `${COLORS.green}10`,
-                  border: `1px solid ${vulnerability.epss.epssFloat > 0.7 ? `${COLORS.red}30` : 
-                                         vulnerability.epss.epssFloat > 0.3 ? `${COLORS.yellow}30` : `${COLORS.green}30`}`,
-                  borderRadius: '8px',
-                  padding: '20px',
-                  marginBottom: '24px'
-                }}>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '12px' }}>
-                    Exploitation Probability (EPSS)
-                  </h3>
-                  
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '16px' }}>
-                    <div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '600', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText, marginBottom: '4px' }}>
-                        EPSS Score
-                      </div>
-                      <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
-                        {vulnerability.epss.epss || 'N/A'}
-                      </div>
-                      <div style={{ fontSize: '0.85rem', color: safeSettings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
-                        ({vulnerability.epss.epssPercentage}%)
-                      </div>
-                    </div>
-
-                    <div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '600', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText, marginBottom: '4px' }}>
-                        Percentile
-                      </div>
-                      <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
-                        {vulnerability.epss.percentile ? parseFloat(vulnerability.epss.percentile).toFixed(3) : 'N/A'}
-                      </div>
-                      <div style={{ fontSize: '0.85rem', color: safeSettings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
-                        of all CVEs
-                      </div>
-                    </div>
-
-                    <div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '600', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText, marginBottom: '4px' }}>
-                        Risk Level
-                      </div>
-                      <div style={{
-                        fontSize: '1rem',
-                        fontWeight: 'bold',
-                        color: getEPSSRiskLevel(vulnerability.epss.epssFloat).color
-                      }}>
-                        {getEPSSRiskLevel(vulnerability.epss.epssFloat).level}
-                      </div>
-                    </div>
-
-                    <div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: '600', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText, marginBottom: '4px' }}>
-                        Date
-                      </div>
-                      <div style={{ fontSize: '1rem' }}>
-                        {vulnerability.epss.date ? new Date(vulnerability.epss.date).toLocaleDateString() : 'N/A'}
-                      </div>
-                    </div>
-                  </div>
-
+                <CVESection title="Exploitation Probability (EPSS)">
                   <div style={{
-                    padding: '12px 16px',
-                    background: safeSettings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
-                    borderRadius: '6px',
-                    border: `1px solid ${safeSettings.darkMode ? COLORS.dark.border : COLORS.light.border}`
+                    background: vulnerability.epss.epssFloat > 0.7 ? `${COLORS.red}10` :
+                               vulnerability.epss.epssFloat > 0.3 ? `${COLORS.yellow}10` : `${COLORS.green}10`,
+                    border: `1px solid ${vulnerability.epss.epssFloat > 0.7 ? `${COLORS.red}30` :
+                                           vulnerability.epss.epssFloat > 0.3 ? `${COLORS.yellow}30` : `${COLORS.green}30`}`,
+                    borderRadius: '8px',
+                    padding: '20px',
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                      <Target size={20} color={getEPSSRiskLevel(vulnerability.epss.epssFloat).color} />
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '16px', marginBottom: '16px' }}>
                       <div>
-                        <div style={{ fontWeight: '600', marginBottom: '4px' }}>
-                          Exploitation Assessment
+                        <div style={{ fontSize: '0.9rem', fontWeight: '600', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText, marginBottom: '4px' }}>
+                          EPSS Score
                         </div>
-                        <p style={{ margin: 0, fontSize: '0.95rem', lineHeight: '1.5' }}>
-                          {vulnerability.epss.epssFloat > 0.7
-                            ? 'This vulnerability has a VERY HIGH probability of exploitation. Immediate patching is strongly recommended.'
-                            : vulnerability.epss.epssFloat > 0.5
-                              ? 'This vulnerability has a HIGH probability of exploitation. Prioritize patching within 24-48 hours.'
-                              : vulnerability.epss.epssFloat > 0.3
-                                ? 'This vulnerability has a MODERATE probability of exploitation. Plan patching within the next week.'
-                                : vulnerability.epss.epssFloat > 0.1
-                                  ? 'This vulnerability has a LOW probability of exploitation, but monitoring is recommended.'
-                                  : 'This vulnerability has a VERY LOW probability of exploitation based on current data.'}
-                        </p>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+                          {vulnerability.epss.epss || 'N/A'}
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: safeSettings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
+                          ({vulnerability.epss.epssPercentage}%)
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.9rem', fontWeight: '600', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText, marginBottom: '4px' }}>
+                          Percentile
+                        </div>
+                        <div style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>
+                          {vulnerability.epss.percentile ? parseFloat(vulnerability.epss.percentile).toFixed(3) : 'N/A'}
+                        </div>
+                        <div style={{ fontSize: '0.85rem', color: safeSettings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
+                          of all CVEs
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.9rem', fontWeight: '600', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText, marginBottom: '4px' }}>
+                          Risk Level
+                        </div>
+                        <div style={{ fontSize: '1rem', fontWeight: 'bold', color: getEPSSRiskLevel(vulnerability.epss.epssFloat).color }}>
+                          {getEPSSRiskLevel(vulnerability.epss.epssFloat).level}
+                        </div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.9rem', fontWeight: '600', color: safeSettings.darkMode ? COLORS.dark.secondaryText : COLORS.light.secondaryText, marginBottom: '4px' }}>
+                          Date
+                        </div>
+                        <div style={{ fontSize: '1rem' }}>
+                          {vulnerability.epss.date ? new Date(vulnerability.epss.date).toLocaleDateString() : 'N/A'}
+                        </div>
                       </div>
                     </div>
-                  </div>
-
-                  {vulnerability?.epss?.aiEnhanced && (
-                    <div style={{
-                      marginTop: '12px',
-                      padding: '8px 12px',
-                      background: `${COLORS.blue}15`,
-                      borderRadius: '6px',
-                      fontSize: '0.85rem',
-                      color: COLORS.blue,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}>
-                      <Brain size={14} />
-                      EPSS data enhanced with AI web search
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* CISA KEV Status */}
-              {vulnerability?.kev && (
-                <div style={{
-                  background: vulnerability.kev.listed ? `${COLORS.red}10` : `${COLORS.green}10`,
-                  border: `1px solid ${vulnerability.kev.listed ? `${COLORS.red}30` : `${COLORS.green}30`}`,
-                  borderRadius: '8px',
-                  padding: '20px',
-                  marginBottom: '24px'
-                }}>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '12px' }}>
-                    CISA Known Exploited Vulnerabilities (KEV)
-                  </h3>
-                  
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                    {vulnerability.kev.listed ? (
-                      <AlertTriangle size={24} color={COLORS.red} />
-                    ) : (
-                      <CheckCircle size={24} color={COLORS.green} />
-                    )}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ 
-                        fontSize: '1.1rem', 
-                        fontWeight: 'bold', 
-                        color: vulnerability.kev.listed ? COLORS.red : COLORS.green,
-                        marginBottom: '8px'
-                      }}>
-                        {vulnerability.kev.listed ? '🚨 ACTIVELY EXPLOITED' : '✅ Not in KEV Catalog'}
-                      </div>
-                      
-                      {vulnerability.kev.listed ? (
-                        <div style={{ fontSize: '0.95rem', lineHeight: '1.5' }}>
-                          <p style={{ margin: '0 0 12px 0' }}>
-                            This vulnerability is listed in the CISA Known Exploited Vulnerabilities catalog, 
-                            indicating active exploitation in the wild.
+                    <div style={{ padding: '12px 16px', background: safeSettings.darkMode ? COLORS.dark.surface : COLORS.light.surface, borderRadius: '6px', border: `1px solid ${safeSettings.darkMode ? COLORS.dark.border : COLORS.light.border}` }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                        <Target size={20} color={getEPSSRiskLevel(vulnerability.epss.epssFloat).color} />
+                        <div>
+                          <div style={{ fontWeight: '600', marginBottom: '4px' }}>
+                            Exploitation Assessment
+                          </div>
+                          <p style={{ margin: 0, fontSize: '0.95rem', lineHeight: '1.5' }}>
+                            {vulnerability.epss.epssFloat > 0.7 ? 'This vulnerability has a VERY HIGH probability of exploitation. Immediate patching is strongly recommended.' : vulnerability.epss.epssFloat > 0.5 ? 'This vulnerability has a HIGH probability of exploitation. Prioritize patching within 24-48 hours.' : vulnerability.epss.epssFloat > 0.3 ? 'This vulnerability has a MODERATE probability of exploitation. Plan patching within the next week.' : vulnerability.epss.epssFloat > 0.1 ? 'This vulnerability has a LOW probability of exploitation, but monitoring is recommended.' : 'This vulnerability has a VERY LOW probability of exploitation based on current data.'}
                           </p>
-                          
-                          {vulnerability.kev.shortDescription && (
-                            <div style={{ marginBottom: '12px' }}>
-                              <strong>Description:</strong> {vulnerability.kev.shortDescription}
-                            </div>
-                          )}
-                          
-                          {vulnerability.kev.requiredAction && (
-                            <div style={{ marginBottom: '12px' }}>
-                              <strong>Required Action:</strong> {vulnerability.kev.requiredAction}
-                            </div>
-                          )}
-                          
-                          {vulnerability.kev.dueDate && (
-                            <div style={{ marginBottom: '12px' }}>
-                              <strong>Due Date:</strong> {new Date(vulnerability.kev.dueDate).toLocaleDateString()}
-                            </div>
-                          )}
-                          
-                          {vulnerability.kev.dateAdded && (
-                            <div style={{ fontSize: '0.85rem', color: safeSettings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>
-                              Added to KEV catalog: {new Date(vulnerability.kev.dateAdded).toLocaleDateString()}
-                            </div>
-                          )}
                         </div>
-                      ) : (
-                        <p style={{ margin: 0, fontSize: '0.95rem' }}>
-                          This vulnerability is not currently listed in the CISA KEV catalog, 
-                          meaning there is no confirmed active exploitation reported by CISA.
-                        </p>
-                      )}
+                      </div>
+                    </div>
+                    {vulnerability?.epss?.aiEnhanced && (
+                      <div style={{ marginTop: '12px', padding: '8px 12px', background: `${COLORS.blue}15`, borderRadius: '6px', fontSize: '0.85rem', color: COLORS.blue, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Brain size={14} />
+                        EPSS data enhanced with AI web search
+                      </div>
+                    )}
+                  </div>
+                </CVESection>
+              )}
+
+              {vulnerability?.kev && (
+                <CVESection title="CISA Known Exploited Vulnerabilities (KEV)">
+                  <div style={{
+                    background: vulnerability.kev.listed ? `${COLORS.red}10` : `${COLORS.green}10`,
+                    border: `1px solid ${vulnerability.kev.listed ? `${COLORS.red}30` : `${COLORS.green}30`}`,
+                    borderRadius: '8px',
+                    padding: '20px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                      {vulnerability.kev.listed ? (<AlertTriangle size={24} color={COLORS.red} />) : (<CheckCircle size={24} color={COLORS.green} />)}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: vulnerability.kev.listed ? COLORS.red : COLORS.green, marginBottom: '8px' }}>
+                          {vulnerability.kev.listed ? '🚨 ACTIVELY EXPLOITED' : '✅ Not in KEV Catalog'}
+                        </div>
+                        {vulnerability.kev.listed ? (
+                          <div style={{ fontSize: '0.95rem', lineHeight: '1.5' }}>
+                            <p style={{ margin: '0 0 12px 0' }}>
+                              This vulnerability is listed in the CISA Known Exploited Vulnerabilities catalog,
+                              indicating active exploitation in the wild.
+                            </p>
+                            {vulnerability.kev.shortDescription && (<div style={{ marginBottom: '12px' }}><strong>Description:</strong> {vulnerability.kev.shortDescription}</div>)}
+                            {vulnerability.kev.requiredAction && (<div style={{ marginBottom: '12px' }}><strong>Required Action:</strong> {vulnerability.kev.requiredAction}</div>)}
+                            {vulnerability.kev.dueDate && (<div style={{ marginBottom: '12px' }}><strong>Due Date:</strong> {new Date(vulnerability.kev.dueDate).toLocaleDateString()}</div>)}
+                            {vulnerability.kev.dateAdded && (<div style={{ fontSize: '0.85rem', color: safeSettings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText }}>Added to KEV catalog: {new Date(vulnerability.kev.dateAdded).toLocaleDateString()}</div>)}
+                          </div>
+                        ) : (
+                          <p style={{ margin: 0, fontSize: '0.95rem' }}>
+                            This vulnerability is not currently listed in the CISA KEV catalog,
+                            meaning there is no confirmed active exploitation reported by CISA.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                </CVESection>
               )}
 
-              {/* CVSS vs EPSS Comparison Chart */}
               {vulnerability?.epss && (vulnerability?.cve?.cvssV3?.baseScore || vulnerability?.cve?.cvssV2?.baseScore) && (
-                <div style={{
-                  background: safeSettings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
-                  borderRadius: '8px',
-                  padding: '20px',
-                  marginBottom: '24px',
-                  border: `1px solid ${safeSettings.darkMode ? COLORS.dark.border : COLORS.light.border}`
-                }}>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '16px' }}>
-                    Risk Assessment Comparison
-                  </h3>
-                  <ScoreChart
-                    cvss={cvssScore}
-                    epss={vulnerability.epss.epssFloat * 100}
-                  />
-                </div>
+                <CVESection title="Risk Assessment Comparison">
+                  {/* The new RiskScore component in the sidebar replaces this chart. */}
+                </CVESection>
               )}
 
-              {/* References */}
               {vulnerability?.cve?.references && vulnerability.cve.references.length > 0 && (
-                <div style={{
-                  background: safeSettings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
-                  borderRadius: '8px',
-                  padding: '20px',
-                  marginBottom: '24px',
-                  border: `1px solid ${safeSettings.darkMode ? COLORS.dark.border : COLORS.light.border}`
-                }}>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '16px' }}>
-                    References ({vulnerability.cve.references.length})
-                  </h3>
+                <CVESection title={`References (${vulnerability.cve.references.length})`}>
                   <div style={{ display: 'grid', gap: '8px' }}>
                     {vulnerability.cve.references.slice(0, 5).map((ref, index) => (
-                      <div key={index} style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        padding: '8px 12px',
-                        background: safeSettings.darkMode ? COLORS.dark.background : COLORS.light.background,
-                        borderRadius: '4px',
-                        fontSize: '0.9rem'
-                      }}>
+                      <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: safeSettings.darkMode ? COLORS.dark.background : COLORS.light.background, borderRadius: '4px', fontSize: '0.9rem' }}>
                         <ExternalLink size={14} color={COLORS.blue} />
-                        <a 
-                          href={ref.url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          style={{ color: COLORS.blue, textDecoration: 'none', flex: 1, wordBreak: 'break-all' }}
-                        >
+                        <a href={ref.url} target="_blank" rel="noopener noreferrer" style={{ color: COLORS.blue, textDecoration: 'none', flex: 1, wordBreak: 'break-all' }}>
                           {ref.url}
                         </a>
-                        {ref.source && (
-                          <span style={{
-                            padding: '2px 6px',
-                            background: `${COLORS.blue}20`,
-                            color: COLORS.blue,
-                            borderRadius: '3px',
-                            fontSize: '0.75rem',
-                            fontWeight: '600'
-                          }}>
-                            {ref.source}
-                          </span>
-                        )}
+                        {ref.source && <span style={{ padding: '2px 6px', background: `${COLORS.blue}20`, color: COLORS.blue, borderRadius: '3px', fontSize: '0.75rem', fontWeight: '600' }}>{ref.source}</span>}
                       </div>
                     ))}
                     {vulnerability.cve.references.length > 5 && (
@@ -1518,39 +1279,12 @@ Focus on actionable information for security professionals.
                       </div>
                     )}
                   </div>
-                </div>
+                </CVESection>
               )}
 
-              {/* Generate AI Analysis Button */}
-              <div style={{ 
-                textAlign: 'center', 
-                marginTop: '32px', 
-                paddingTop: '24px', 
-                borderTop: `1px solid ${safeSettings.darkMode ? COLORS.dark.border : COLORS.light.border}` 
-              }}>
-                <button
-                  style={{
-                    ...styles.button,
-                    ...styles.buttonPrimary,
-                    opacity: aiLoading || !safeSettings.aiProvider ? 0.7 : 1,
-                    fontSize: '1rem',
-                    padding: '16px 32px'
-                  }}
-                  onClick={generateAnalysis}
-                  disabled={aiLoading || !safeSettings.aiProvider}
-                >
-                  {aiLoading ? (
-                    <>
-                      <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
-                      Generating AI Analysis...
-                    </>
-                  ) : (
-                    <>
-                      <Brain size={20} />
-                      <Database size={16} style={{ marginLeft: '4px' }} />
-                      Generate AI Analysis
-                    </>
-                  )}
+              <div style={{ textAlign: 'center', marginTop: '32px', paddingTop: '24px', borderTop: `1px solid ${safeSettings.darkMode ? COLORS.dark.border : COLORS.light.border}` }}>
+                <button style={{ ...styles.button, ...styles.buttonPrimary, opacity: aiLoading || !safeSettings.aiProvider ? 0.7 : 1, fontSize: '1rem', padding: '16px 32px' }} onClick={generateAnalysis} disabled={aiLoading || !safeSettings.aiProvider}>
+                  {aiLoading ? (<><Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} /> Generating AI Analysis...</>) : (<><Brain size={20} /> <Database size={16} style={{ marginLeft: '4px' }} /> Generate AI Analysis</>)}
                 </button>
                 {!safeSettings.aiProvider && (
                   <p style={{ fontSize: '0.9rem', color: safeSettings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText, marginTop: '12px' }}>
@@ -1564,81 +1298,23 @@ Focus on actionable information for security professionals.
           {activeTab === 'ai-sources' && <AISourcesTab vulnerability={vulnerability} />}
 
           {activeTab === 'brief' && (
-            <div>
+             <div>
               {aiAnalysis ? (
                 <div>
                   {aiAnalysis.fallbackReason && (
-                    <div style={{
-                      background: aiAnalysis.fallbackReason === 'GROUNDING_INFO_ONLY' 
-                        ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)` 
-                        : `rgba(${utils.hexToRgb(COLORS.red)}, 0.1)`,
-                      borderWidth: '1px',
-                      borderStyle: 'solid',
-                      borderColor: aiAnalysis.fallbackReason === 'GROUNDING_INFO_ONLY' 
-                        ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.3)` 
-                        : `rgba(${utils.hexToRgb(COLORS.red)}, 0.3)`,
-                      borderRadius: '8px',
-                      padding: '12px',
-                      marginBottom: '20px'
-                    }}>
+                    <div style={{ background: aiAnalysis.fallbackReason === 'GROUNDING_INFO_ONLY' ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.1)` : `rgba(${utils.hexToRgb(COLORS.red)}, 0.1)`, borderWidth: '1px', borderStyle: 'solid', borderColor: aiAnalysis.fallbackReason === 'GROUNDING_INFO_ONLY' ? `rgba(${utils.hexToRgb(COLORS.yellow)}, 0.3)` : `rgba(${utils.hexToRgb(COLORS.red)}, 0.3)`, borderRadius: '8px', padding: '12px', marginBottom: '20px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                         <AlertTriangle size={16} color={aiAnalysis.fallbackReason === 'GROUNDING_INFO_ONLY' ? COLORS.yellow : COLORS.red} />
                         <strong style={{ fontSize: '0.9rem' }}>
-                          {aiAnalysis.fallbackReason === 'GROUNDING_INFO_ONLY' 
-                            ? 'AI Search Performed - Enhanced Analysis'
-                            : `AI Analysis Limited - ${aiAnalysis.fallbackReason}`}
+                          {aiAnalysis.fallbackReason === 'GROUNDING_INFO_ONLY' ? 'AI Search Performed - Enhanced Analysis' : `AI Analysis Limited - ${aiAnalysis.fallbackReason}`}
                         </strong>
                       </div>
                       <p style={{ margin: 0, fontSize: '0.8rem' }}>
-                        {aiAnalysis.fallbackReason === 'GROUNDING_INFO_ONLY' 
-                          ? 'The AI performed web searches and generated analysis based on available data sources.'
-                          : 'AI analysis encountered limitations. Using enhanced fallback analysis.'}
+                        {aiAnalysis.fallbackReason === 'GROUNDING_INFO_ONLY' ? 'The AI performed web searches and generated analysis based on available data sources.' : 'AI analysis encountered limitations. Using enhanced fallback analysis.'}
                       </p>
                     </div>
                   )}
-                  
                   <TechnicalBrief brief={aiAnalysis.analysis || aiAnalysis} />
-                </div>
-              ) : vulnerability?.cve?.aiResponse ? (
-                <div>
-                  <div style={{
-                    background: `rgba(${utils.hexToRgb(COLORS.blue)}, 0.1)`,
-                    borderWidth: '1px',
-                    borderStyle: 'solid',
-                    borderColor: `rgba(${utils.hexToRgb(COLORS.blue)}, 0.3)`,
-                    borderRadius: '8px',
-                    padding: '12px',
-                    marginBottom: '20px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                      <Brain size={16} color={COLORS.blue} />
-                      <strong style={{ fontSize: '0.9rem' }}>
-                        AI-Enhanced CVE Data Available
-                      </strong>
-                    </div>
-                    <p style={{ margin: 0, fontSize: '0.8rem' }}>
-                      This vulnerability has AI-enhanced data from web search. Click "Generate AI Analysis" for a comprehensive technical brief.
-                    </p>
-                  </div>
-                  
-                  <div style={{
-                    background: safeSettings.darkMode ? COLORS.dark.surface : COLORS.light.surface,
-                    borderRadius: '8px',
-                    padding: '20px',
-                    border: `1px solid ${safeSettings.darkMode ? COLORS.dark.border : COLORS.light.border}`
-                  }}>
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: '600', marginBottom: '16px' }}>
-                      AI Search Results
-                    </h3>
-                    <div style={{
-                      whiteSpace: 'pre-wrap',
-                      fontSize: '0.95rem',
-                      lineHeight: '1.6',
-                      color: safeSettings.darkMode ? COLORS.dark.text : COLORS.light.text
-                    }}>
-                      {vulnerability.cve.aiResponse}
-                    </div>
-                  </div>
                 </div>
               ) : (
                 <div style={{ textAlign: 'center', padding: '48px 32px' }}>
@@ -1661,7 +1337,7 @@ Focus on actionable information for security professionals.
         position: 'sticky',
         top: '24px',
       }}>
-        <CVSSDisplay vulnerability={vulnerability} settings={settings} />
+        <RiskScore vulnerability={vulnerability} />
 
         <div style={{
           ...styles.card,

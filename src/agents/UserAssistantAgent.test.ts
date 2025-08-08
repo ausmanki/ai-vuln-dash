@@ -145,7 +145,7 @@ describe('UserAssistantAgent', () => {
       .spyOn(agent as any, 'getGroundedInfo')
       .mockResolvedValue({ content: 'grounded', sources: [], confidence: 0.8 });
     const res = await (agent as any).handleGeneralQuery('another question');
-    expect(res.text).toBe('grounded');
+    expect(res.text).toBe("I couldn't find a direct answer in my knowledge base. Based on a web search, here's what I found:\n\ngrounded");
     expect(groundSpy).toHaveBeenCalled();
     ragSpy.mockRestore();
     groundSpy.mockRestore();
