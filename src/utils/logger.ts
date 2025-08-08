@@ -1,6 +1,13 @@
-export class Logger {
-  private verbose = import.meta.env.MODE === 'development';
+const mode = (import.meta as any)?.env?.MODE ?? process.env.NODE_ENV;
 
+export class Logger {
+  /**
+   * Verbose logging is enabled by default when running in development mode.
+   * Call `setVerbose(true | false)` to override this behavior at runtime.
+   */
+  private verbose = mode === 'development';
+
+  /** Override the default verbosity. */
   setVerbose(value: boolean) {
     this.verbose = value;
   }
