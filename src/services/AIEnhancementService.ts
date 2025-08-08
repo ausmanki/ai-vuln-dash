@@ -2,6 +2,7 @@
 import { CONSTANTS } from '../utils/constants';
 
 import { logger } from '../utils/logger';
+import { fetchMicrosoftAdvisories, fetchCiscoAdvisories } from './vendors';
 interface GroundingMetadata {
   groundingChunks?: Array<{
     web?: {
@@ -95,6 +96,7 @@ export async function fetchPatchesAndAdvisories(
   cveData: any,
   settings: any,
   setLoadingSteps: any,
+  ragDatabase: any,
   fetchWithFallback: any,
   parsePatchAndAdvisoryResponse: any,
   getHeuristicPatchesAndAdvisories: any
@@ -102,9 +104,40 @@ export async function fetchPatchesAndAdvisories(
   const updateSteps = typeof setLoadingSteps === 'function' ? setLoadingSteps : () => {};
   updateSteps(prev => [...prev, `🔍 Searching for patches and advisories for ${cveId}...`]);
 
+  // First, check vendor advisory feeds
+  const vendorAdvisories = [
+    ...(await fetchMicrosoftAdvisories(cveId)),
+    ...(await fetchCiscoAdvisories(cveId))
+  ];
+
+  if (vendorAdvisories.length > 0) {
+    updateSteps(prev => [...prev, `✅ Found ${vendorAdvisories.length} vendor advisories`]);
+    if (ragDatabase && typeof ragDatabase.addDocument === 'function') {
+      for (const adv of vendorAdvisories) {
+        try {
+          await ragDatabase.addDocument(adv.description || adv.title, {
+            title: adv.title,
+            url: adv.url,
+            vendor: adv.vendor,
+            source: adv.vendor.toLowerCase(),
+            type: 'advisory',
+            cveId
+          });
+        } catch (err) {
+          logger.warn('Failed to store advisory in RAG DB', err);
+        }
+      }
+    }
+  }
+
   if (!settings.aiProvider) {
     updateSteps(prev => [...prev, `⚠️ AI provider not configured`]);
-    return getHeuristicPatchesAndAdvisories(cveId, cveData);
+    const heuristicData = getHeuristicPatchesAndAdvisories(cveId, cveData);
+    return {
+      patches: [...heuristicData.patches],
+      advisories: [...vendorAdvisories, ...heuristicData.advisories],
+      searchSummary: { ...heuristicData.searchSummary, vendorAdvisories: vendorAdvisories.length }
+    };
   }
 
   const useGemini = settings.aiProvider === 'gemini';
@@ -327,7 +360,7 @@ Please provide information about any patches, updates, or advisories you find fo
     
     // Merge patches and advisories
     const mergedPatches = [...(result.patches || []), ...(heuristicData.patches || [])];
-    const mergedAdvisories = [...(result.advisories || []), ...(heuristicData.advisories || [])];
+    const mergedAdvisories = [...vendorAdvisories, ...(result.advisories || []), ...(heuristicData.advisories || [])];
     
     updateSteps(prev => [...prev, `📋 Found ${mergedPatches.length} patches and ${mergedAdvisories.length} advisories`]);
     
@@ -336,18 +369,23 @@ Please provide information about any patches, updates, or advisories you find fo
       advisories: mergedAdvisories,
       searchSummary: {
         patchesFound: mergedPatches.length,
-        advisoriesFound: mergedAdvisories.length,
-        enhancedWithHeuristics: true,
-        aiSearchPerformed: true,
-        webSearchUsed: useGemini ? geminiSearchCapable : openAiSearchCapable,
-        confidence: result.confidence || 'MEDIUM'
-      }
-    };
+          advisoriesFound: mergedAdvisories.length,
+          enhancedWithHeuristics: true,
+          aiSearchPerformed: true,
+          webSearchUsed: useGemini ? geminiSearchCapable : openAiSearchCapable,
+          confidence: result.confidence || 'MEDIUM'
+        }
+      };
 
   } catch (error) {
     logger.error('Patch search error:', error);
     updateSteps(prev => [...prev, `⚠️ AI search failed: ${error.message}`]);
-    return getHeuristicPatchesAndAdvisories(cveId, cveData);
+    const heuristicData = getHeuristicPatchesAndAdvisories(cveId, cveData);
+    return {
+      patches: [...heuristicData.patches],
+      advisories: [...vendorAdvisories, ...heuristicData.advisories],
+      searchSummary: { ...heuristicData.searchSummary, vendorAdvisories: vendorAdvisories.length }
+    };
   }
 }
 
