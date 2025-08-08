@@ -174,7 +174,9 @@ export class UserAssistantAgent {
   };
 
   constructor(settings?: AgentSettings) {
-    this.settings = settings || {};
+    // Default to regex-based intent recognition to avoid loading heavy ML models
+    // unless explicitly requested by the caller.
+    this.settings = { intentRecognitionMode: 'regex', ...(settings || {}) };
     // Allow overriding the default cache TTL via settings
     this.cacheTTL = this.settings.cacheTTL ?? this.DEFAULT_CACHE_TTL;
     this.conversationContext = {
@@ -220,8 +222,15 @@ export class UserAssistantAgent {
 
   private async loadNLPClassifier() {
     if (this.nlpClassifier) return;
-    const { pipeline } = await import('@xenova/transformers');
-    this.nlpClassifier = await pipeline('zero-shot-classification', 'Xenova/nli-deberta-v3-xsmall');
+    try {
+      const { pipeline } = await import('@xenova/transformers');
+      this.nlpClassifier = await pipeline('zero-shot-classification', 'Xenova/nli-deberta-v3-xsmall');
+    } catch (err) {
+      console.error('Failed to load NLP classifier', err);
+      // Disable further ML attempts if loading fails.
+      this.settings.intentRecognitionMode = 'regex';
+      throw err;
+    }
   }
 
   private regexAnalyzeQuery(query: string): { intents: string[]; sentiment: 'neutral' | 'urgent' | 'confused'; confidence: number } {
@@ -262,7 +271,8 @@ export class UserAssistantAgent {
   }
 
   private async analyzeQuery(query: string): Promise<{ intents: string[]; sentiment: 'neutral' | 'urgent' | 'confused'; confidence: number }> {
-    if (this.settings.intentRecognitionMode === 'regex' || (typeof process !== 'undefined' && process.env.NODE_ENV === 'test')) {
+    // Use the lightweight regex analyser unless the caller explicitly opts in to ML mode.
+    if (this.settings.intentRecognitionMode !== 'ml' || (typeof process !== 'undefined' && process.env.NODE_ENV === 'test')) {
       return this.regexAnalyzeQuery(query);
     }
     try {
