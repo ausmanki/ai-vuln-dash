@@ -12,7 +12,11 @@ export class NaturalLanguageSearchAgent {
   }
 
   /**
-   * Performs a natural language search using the RAG database, with a fallback to web search.
+   * Performs a natural language search using the RAG database and blends the
+   * results with an AI-powered web search. If either source is unavailable or
+   * returns no data, the method gracefully returns whatever results are
+   * available.
+   *
    * @param query The user's natural language query.
    * @param settings The application settings, including AI provider and model info.
    * @returns A promise that resolves to an array of formatted search results.
@@ -25,31 +29,34 @@ export class NaturalLanguageSearchAgent {
       await ragDatabase.initialize();
     }
 
-    const searchResults = await ragDatabase.search(query);
+    // Run RAG search and AI web search in parallel (web search only if configured)
+    const ragPromise = ragDatabase.search(query);
+    const webPromise = settings.aiProvider
+      ? this.performWebSearch(query, settings).catch(error => {
+          logger.error('AI web search failed:', error);
+          return null; // Gracefully handle web search failures
+        })
+      : Promise.resolve(null);
 
-    if (searchResults.length > 0) {
-      logger.info(`RAG search found ${searchResults.length} relevant documents.`);
-      // Format the raw search results into a structure suitable for the UI
-      return searchResults.map(result => ({
-        cveId: result.metadata.cveId || null,
-        title: result.metadata.title || 'Untitled Document',
-        snippet: result.content.substring(0, 250) + (result.content.length > 250 ? '...' : ''),
-        source: result.metadata.source || 'Unknown Source',
-        similarity: result.similarity,
-      }));
+    const [ragResults, webResult] = await Promise.all([ragPromise, webPromise]);
+
+    const formattedRagResults = ragResults.map(result => ({
+      cveId: result.metadata.cveId || null,
+      title: result.metadata.title || 'Untitled Document',
+      snippet: result.content.substring(0, 250) + (result.content.length > 250 ? '...' : ''),
+      source: result.metadata.source || 'Unknown Source',
+      similarity: result.similarity,
+    }));
+
+    if (!formattedRagResults.length) {
+      logger.warn(`RAG search found no documents for "${query}".`);
     }
 
-    logger.warn(`RAG search found no documents for "${query}". Falling back to AI web search.`);
-
-    // Fallback to web search if RAG returns no results
-    try {
-      const webResult = await this.performWebSearch(query, settings);
-      return [webResult];
-    } catch (error) {
-      logger.error('AI web search fallback failed:', error);
-      // Return empty array if web search also fails
-      return [];
+    if (webResult) {
+      formattedRagResults.push(webResult);
     }
+
+    return formattedRagResults;
   }
 
   /**

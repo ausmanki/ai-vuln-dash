@@ -95,8 +95,21 @@ const SearchComponent = () => {
         setSearchResults(results);
 
         if (results.length > 0) {
-          const usedAI = results[0].source?.startsWith('AI');
-          if (usedAI) {
+          const hasAI = results.some(r => r.source?.startsWith('AI'));
+          const hasRAG = results.some(r => !r.source?.startsWith('AI'));
+
+          if (hasAI && hasRAG) {
+            setLoadingSteps(prev => [
+              ...prev,
+              '🧠 Combined RAG and AI web search results.',
+              '✅ Search complete!'
+            ]);
+            addNotification({
+              type: 'success',
+              title: 'Search Complete',
+              message: `Found ${results.length} results from RAG and web search.`
+            });
+          } else if (hasAI) {
             setLoadingSteps(prev => [
               ...prev,
               '🌐 No RAG results found. Used AI web search.',
