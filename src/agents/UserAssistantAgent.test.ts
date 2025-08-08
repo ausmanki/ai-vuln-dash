@@ -32,7 +32,8 @@ describe('UserAssistantAgent', () => {
   });
 
   it('handleQuery delegates to handleCVEQuery when CVE present', async () => {
-    const agent = new UserAssistantAgent();
+    const agent = new UserAssistantAgent({ aiProvider: 'test' });
+    vi.spyOn(agent as any, 'summarizeConversation').mockResolvedValue('');
     const spy = vi
       .spyOn(agent as any, 'handleCVEQuery')
       .mockResolvedValue({ text: 'ok', sender: 'bot', id: '1' });
@@ -41,9 +42,10 @@ describe('UserAssistantAgent', () => {
     spy.mockRestore();
   });
 
-  it('setContextualCVE updates current CVE and recent list', () => {
-    const agent = new UserAssistantAgent();
-    const res = agent.setContextualCVE('CVE-2024-1111');
+  it('setContextualCVE updates current CVE and recent list', async () => {
+    const agent = new UserAssistantAgent({ aiProvider: 'test' });
+    vi.spyOn(agent as any, 'summarizeConversation').mockResolvedValue('');
+    const res = await agent.setContextualCVE('CVE-2024-1111');
     expect(res?.text).toContain('CVE-2024-1111');
     expect((agent as any).currentCveIdForSession).toBe('CVE-2024-1111');
     expect((agent as any).conversationContext.recentCVEs[0]).toBe('CVE-2024-1111');
@@ -141,7 +143,8 @@ describe('UserAssistantAgent', () => {
   });
 
   it('handleGeneralQuery uses RAG results when available', async () => {
-    const agent = new UserAssistantAgent();
+    const agent = new UserAssistantAgent({ aiProvider: 'test' });
+    vi.spyOn(agent as any, 'summarizeConversation').mockResolvedValue('');
     const original = ragDatabase.initialized;
     ragDatabase.initialized = true;
     const ragSpy = vi
@@ -195,5 +198,39 @@ describe('UserAssistantAgent', () => {
 
     ragSpy.mockRestore();
     fetchSpy.mockRestore();
+  });
+
+  it('storeConversation updates conversation summary', async () => {
+    const agent = new UserAssistantAgent();
+    const summarySpy = vi
+      .spyOn(agent as any, 'summarizeConversation')
+      .mockResolvedValue('This is a test summary.');
+
+    await (agent as any).storeConversation('test query', 'test response');
+
+    expect(summarySpy).toHaveBeenCalled();
+    expect((agent as any).conversationContext.summary).toBe('This is a test summary.');
+
+    summarySpy.mockRestore();
+  });
+
+  it('handleQuery prepends conversation summary to queries', async () => {
+    const agent = new UserAssistantAgent({ aiProvider: 'test' });
+    // Set a summary in the context
+    (agent as any).conversationContext.summary = 'The user is interested in CVE-2024-1234.';
+
+    const ragSpy = vi.spyOn(ragDatabase, 'search').mockResolvedValue([]);
+    const groundSpy = vi
+      .spyOn(agent as any, 'getGroundedInfo')
+      .mockResolvedValue({ content: 'grounded answer', sources: [], confidence: 0.8 });
+
+    // We need to ensure the query doesn't match a CVE, so it falls through to the general query handler
+    await agent.handleQuery('Is there a patch for it?');
+
+    expect(groundSpy).toHaveBeenCalledWith(expect.stringContaining('Conversation context: The user is interested in CVE-2024-1234.'));
+    expect(groundSpy).toHaveBeenCalledWith(expect.stringContaining('User query: Is there a patch for it?'));
+
+    ragSpy.mockRestore();
+    groundSpy.mockRestore();
   });
 });
