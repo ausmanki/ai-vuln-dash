@@ -14,6 +14,7 @@ interface Message {
   sender: 'user' | 'bot' | 'system';
   data?: any; // Optional structured data from bot
   error?: boolean;
+  sources?: string[];
 }
 
 interface ChatInterfaceProps {
@@ -94,6 +95,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId, bulkAnalysi
         sender: 'bot',
         data: botResponse.data,
         error: !!botResponse.error,
+        sources: botResponse.sources,
       };
       setChatHistory(prev => [...prev, responseMessage]);
     } catch (error: any) {
@@ -173,6 +175,26 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId, bulkAnalysi
                 )}
               </div>
             </div>
+            {msg.sender === 'bot' && msg.sources && msg.sources.length > 0 && (
+              <div
+                style={{
+                  fontSize: '0.8rem',
+                  color:
+                    (settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText) || '#888',
+                  marginLeft: '32px',
+                  marginTop: '4px'
+                }}
+              >
+                Sources:
+                <ul style={{ margin: '4px 0 0 16px', padding: 0 }}>
+                  {msg.sources.map((src, idx) => (
+                    <li key={idx} style={{ marginBottom: '2px' }}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{src}</ReactMarkdown>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {msg.sender === 'bot' && msg.data && (
               <>
                 <div

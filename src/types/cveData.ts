@@ -468,6 +468,7 @@ export interface ChatResponse<T = any> {
   sender?: 'user' | 'bot' | 'system';
   confidence?: number;
   followUps?: string[];
+  sources?: string[];
 }
 
 export interface BulkAnalysisResult {
