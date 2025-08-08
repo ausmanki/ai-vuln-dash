@@ -69,7 +69,7 @@ const SearchResults = () => {
             </p>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
               <span style={{ fontSize: '0.875rem', color: COLORS.gray[500] }}>
-                Source: {result.source} | Similarity: <strong>{(result.similarity * 100).toFixed(1)}%</strong>
+                Source: {result.source} | Similarity: <strong>{result.similarity != null ? `${(result.similarity * 100).toFixed(1)}%` : 'N/A'}</strong>
               </span>
               {result.cveId && (
                 <button
