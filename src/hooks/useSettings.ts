@@ -8,6 +8,7 @@ export const useSettings = () => {
     openAiModel: 'gpt-4.1',
     aiProvider: null as 'openai' | 'gemini' | null,
     enableRAG: true,
+    alertFrequencyMinutes: 60,
     verboseLogs: import.meta.env.MODE === 'development',
     environmentProfile: {
       os: '',

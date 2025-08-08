@@ -463,6 +463,7 @@ export interface AgentSettings {
   aiProvider?: 'gemini' | 'openai';
   cacheTTL?: number; // TTL for caching in milliseconds
   intentRecognitionMode?: 'regex' | 'ml';
+  alertFrequencyMinutes?: number; // How often to poll for updates
   environmentProfile?: EnvironmentProfile;
   [key: string]: any; // Allow other settings
 }
