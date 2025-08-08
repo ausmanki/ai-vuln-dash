@@ -18,8 +18,7 @@ export function setGlobalAISettings(settings: any) {
 }
 
 // URLs for the CISA Known Exploited Vulnerabilities catalog
-const CISA_KEV_URL =
-  'https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json';
+const CISA_KEV_PROXY_URL = '/api/cisa-kev';
 const CISA_KEV_FALLBACK_URL =
   'https://raw.githubusercontent.com/cisagov/kev-data/develop/known_exploited_vulnerabilities.json';
 
@@ -284,13 +283,13 @@ async function parseAIWebSearchResponse(aiResponse: string, originalUrl: string,
 // ENHANCED CISA KEV parser
 async function fetchCisaKevCatalogData(): Promise<any> {
   try {
-    const response = await fetch(CISA_KEV_URL);
+    const response = await fetch(CISA_KEV_PROXY_URL);
     if (!response.ok) {
       throw new Error(`Failed to fetch CISA KEV catalog: ${response.status}`);
     }
     return await response.json();
   } catch (error) {
-    logger.warn('Primary CISA KEV fetch failed, using GitHub mirror', error);
+    logger.warn('Primary CISA KEV fetch via proxy failed, using GitHub mirror', error);
     const response = await fetch(CISA_KEV_FALLBACK_URL);
     if (!response.ok) {
       throw new Error(
