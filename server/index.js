@@ -1,6 +1,7 @@
 import express from 'express';
 import fetch from 'node-fetch';
 import { getApiKeys, getClientConfig } from './config/apiKeys.js';
+import cisaKevProxy from './cisaKevProxy.js';
 
 const { openAiApiKey, googleApiKey } = getApiKeys();
 console.log('API Keys Status:');
@@ -23,6 +24,8 @@ app.use((req, res, next) => {
 
 const OPENAI_BASE = 'https://api.openai.com/v1';
 const GEMINI_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+
+app.use(cisaKevProxy);
 
 app.post('/api/openai', async (req, res) => {
   console.log('OpenAI request received');
