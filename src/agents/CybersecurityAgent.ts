@@ -423,7 +423,7 @@ export class CybersecurityAgent {
 
   private async performWebSearch(query: string): Promise<any> {
     try {
-      if (!this.settings.openAiApiKey && !this.settings.geminiApiKey) {
+      if (!this.settings.aiProvider) {
         return { summary: 'Web search unavailable: no AI key configured' };
       }
 
@@ -431,8 +431,8 @@ export class CybersecurityAgent {
       const searchPrompt = query;
       let generatedText = '';
 
-      // Prefer OpenAI if available, as it might handle complex prompts better
-      if (this.settings.openAiApiKey) {
+      // Use OpenAI if it is the configured provider
+      if (this.settings.aiProvider === 'openai') {
         try {
           const openaiRes = await fetch('/api/openai?endpoint=chat/completions', {
             method: 'POST',
@@ -440,45 +440,51 @@ export class CybersecurityAgent {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-              model: 'gpt-4.1', // Using a powerful model for synthesis
+              model: this.settings.openAiModel || 'gpt-4.1',
               messages: [{ role: 'user', content: searchPrompt }],
               max_tokens: 4096,
-              temperature: 0.2, // Lower temperature for more factual responses
+              temperature: 0.2,
             })
           });
           if (openaiRes.ok) {
             const openData = await openaiRes.json();
             generatedText = openData.choices?.[0]?.message?.content || '';
+          } else {
+            console.error('OpenAI web search failed:', openaiRes.statusText);
           }
         } catch (e) {
           console.error('OpenAI web search failed', e);
         }
       }
 
-      // Fallback to Gemini
-      if (!generatedText && this.settings.geminiApiKey) {
-        const response = await fetch(`/api/gemini?model=gemini-2.5-flash`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: searchPrompt }] }],
-            tools: [
-              {
-                "google_search": {}
+      // Use Gemini if it is the configured provider
+      if (this.settings.aiProvider === 'gemini') {
+        try {
+          const response = await fetch(`/api/gemini?model=${this.settings.geminiModel || 'gemini-2.5-flash'}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: searchPrompt }] }],
+              tools: [
+                {
+                  "google_search": {}
+                }
+              ],
+              generationConfig: {
+                temperature: 0.2,
+                maxOutputTokens: 4096,
               }
-            ],
-            generationConfig: {
-              temperature: 0.2,
-              maxOutputTokens: 4096,
-            }
-          })
-        });
+            })
+          });
 
-        if (response.ok) {
-          const data = await response.json();
-          generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-        } else {
-          console.error('Gemini web search failed', response.status);
+          if (response.ok) {
+            const data = await response.json();
+            generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          } else {
+            console.error('Gemini web search failed', response.statusText);
+          }
+        } catch (e) {
+          console.error('Gemini web search failed', e);
         }
       }
 
@@ -486,7 +492,7 @@ export class CybersecurityAgent {
         summary: generatedText
       };
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Web search failed:', error);
       return { summary: `Web search failed: ${error.message}` };
     }
