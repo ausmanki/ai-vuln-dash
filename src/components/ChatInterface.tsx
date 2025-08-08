@@ -88,7 +88,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId, bulkAnalysi
 
   useEffect(() => {
     if (agent && 'setContextualCVE' in agent && agent.setContextualCVE && initialCveId) {
-      agent.setContextualCVE(initialCveId).then(systemMessage => {
+      Promise.resolve(agent.setContextualCVE(initialCveId)).then(systemMessage => {
         if (systemMessage) {
           // Check if the last message is already this system message to avoid duplicates if prop doesn't change but effect re-runs
           setChatHistory(prev => {
