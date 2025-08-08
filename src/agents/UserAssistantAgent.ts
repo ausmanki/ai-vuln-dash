@@ -1048,10 +1048,27 @@ export class UserAssistantAgent {
         responseText += `• Monitor for updates as dispute status may evolve\n`;
       }
 
+      const sources = new Set<string>();
+      sources.add(`https://nvd.nist.gov/vuln/detail/${cveId}`);
+      if (webIntel?.advisories) {
+        webIntel.advisories.forEach((adv: any) => {
+          if (adv.url) sources.add(adv.url);
+        });
+      }
+      if (webIntel?.patches) {
+        webIntel.patches.forEach((patch: any) => {
+          if (patch.url) sources.add(patch.url);
+        });
+      }
+      if (disputeAnalysis?.sources) {
+        disputeAnalysis.sources.forEach((s: string) => sources.add(s));
+      }
+
       return {
         text: responseText,
         sender: 'bot',
         id: Date.now().toString(),
+        sources: Array.from(sources),
         data: {
           legitimacyStatus,
           confidence,
@@ -1752,17 +1769,37 @@ export class UserAssistantAgent {
       
       // Process results with improved logic
       const processedResults = this.processSearchResults(comprehensiveSearch, cveId);
-      
+
       // Generate response sections
       response += this.generatePatchSection(processedResults.patches, cveId);
       response += this.generateAdvisorySection(processedResults.advisories, cveId);
       response += this.generateVendorSection(processedResults.vendors, cveId);
       response += this.generateRecommendationsSection(processedResults, cveId);
-      
+
+      const sources = new Set<string>();
+      sources.add(`https://nvd.nist.gov/vuln/detail/${cveId}`);
+      processedResults.patches.forEach((p: any) => {
+        if (p.url) sources.add(p.url);
+      });
+      processedResults.advisories.forEach((a: any) => {
+        if (a.url) sources.add(a.url);
+      });
+      if (processedResults.patches.length === 0) {
+        sources.add(`https://www.catalog.update.microsoft.com/Search.aspx?q=${cveId}`);
+        sources.add(`https://access.redhat.com/security/cve/${cveId}`);
+        sources.add(`https://ubuntu.com/security/notices?q=${cveId}`);
+        sources.add(`https://security-tracker.debian.org/tracker/${cveId}`);
+      }
+      if (processedResults.advisories.length === 0) {
+        sources.add('https://www.cisa.gov/known-exploited-vulnerabilities-catalog');
+        sources.add(`https://cve.mitre.org/cgi-bin/cvename.cgi?name=${cveId}`);
+      }
+
       return {
         text: response,
         sender: 'bot',
         id: Date.now().toString(),
+        sources: Array.from(sources),
         data: {
           cveId,
           searchResults: processedResults,

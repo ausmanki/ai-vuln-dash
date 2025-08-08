@@ -14,6 +14,7 @@ interface Message {
   sender: 'user' | 'bot' | 'system';
   data?: any; // Optional structured data from bot
   error?: boolean;
+  sources?: string[]; // Source URLs for bot responses
 }
 
 interface ChatInterfaceProps {
@@ -120,6 +121,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId, bulkAnalysi
         sender: 'bot',
         data: botResponse.data,
         error: !!botResponse.error,
+        sources: botResponse.sources,
       };
       setChatHistory(prev => [...prev, responseMessage]);
     } catch (error: any) {
@@ -273,40 +275,71 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId, bulkAnalysi
                 )}
               </div>
             </div>
-            {msg.sender === 'bot' && msg.data && (
+            {msg.sender === 'bot' && (
               <>
-                <div
-                  style={{
-                    fontSize: '0.8rem',
-                    color:
-                      (settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText) || '#888',
-                    marginLeft: '32px',
-                    marginTop: '4px'
-                  }}
-                >
-                  {typeof msg.data.legitimacyScore === 'number' && (
-                    <span>Legitimacy Score: {msg.data.legitimacyScore}/100 </span>
-                  )}
-                  {msg.data.confidence && (
-                    <span style={{ marginLeft: '8px' }}>
-                      {typeof msg.data.confidence === 'object' ? (
-                        <>
-                          Confidence: {msg.data.confidence.overall || 'Unknown'}
-                          {msg.data.confidence.flags && msg.data.confidence.flags.length > 0 && (
-                            <span style={{ marginLeft: '8px', color: COLORS.yellow }}>
-                              ⚠️ {msg.data.confidence.flags.length} flag(s)
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        `Confidence: ${msg.data.confidence}`
+                {msg.data && (
+                  <>
+                    <div
+                      style={{
+                        fontSize: '0.8rem',
+                        color:
+                          (settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText) || '#888',
+                        marginLeft: '32px',
+                        marginTop: '4px'
+                      }}
+                    >
+                      {typeof msg.data.legitimacyScore === 'number' && (
+                        <span>Legitimacy Score: {msg.data.legitimacyScore}/100 </span>
                       )}
-                    </span>
-                  )}
-                </div>
-                {msg.data.confidence?.flags && msg.data.confidence.flags.length > 0 && (
-                  <div style={{ fontSize: '0.8rem', color: COLORS.yellow, marginLeft: '32px' }}>
-                    Inconsistencies detected: {msg.data.confidence.flags.join(', ')}
+                      {msg.data.confidence && (
+                        <span style={{ marginLeft: '8px' }}>
+                          {typeof msg.data.confidence === 'object' ? (
+                            <>
+                              Confidence: {msg.data.confidence.overall || 'Unknown'}
+                              {msg.data.confidence.flags && msg.data.confidence.flags.length > 0 && (
+                                <span style={{ marginLeft: '8px', color: COLORS.yellow }}>
+                                  ⚠️ {msg.data.confidence.flags.length} flag(s)
+                                </span>
+                              )}
+                            </>
+                          ) : (
+                            `Confidence: ${msg.data.confidence}`
+                          )}
+                        </span>
+                      )}
+                    </div>
+                    {msg.data.confidence?.flags && msg.data.confidence.flags.length > 0 && (
+                      <div style={{ fontSize: '0.8rem', color: COLORS.yellow, marginLeft: '32px' }}>
+                        Inconsistencies detected: {msg.data.confidence.flags.join(', ')}
+                      </div>
+                    )}
+                  </>
+                )}
+                {msg.sources && msg.sources.length > 0 && (
+                  <div
+                    style={{
+                      fontSize: '0.8rem',
+                      color:
+                        (settings.darkMode ? COLORS.dark.tertiaryText : COLORS.light.tertiaryText) || '#888',
+                      marginLeft: '32px',
+                      marginTop: '4px'
+                    }}
+                  >
+                    Sources:
+                    <ul style={{ paddingLeft: '16px', margin: '4px 0' }}>
+                      {msg.sources.map((src, idx) => (
+                        <li key={idx}>
+                          <a
+                            href={src}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ color: COLORS.blue }}
+                          >
+                            {src}
+                          </a>
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 )}
               </>
