@@ -456,6 +456,7 @@ export interface AgentSettings {
   openAiModel?: string;
   aiProvider?: 'gemini' | 'openai';
   cacheTTL?: number; // TTL for caching in milliseconds
+  intentRecognitionMode?: 'regex' | 'ml';
   [key: string]: any; // Allow other settings
 }
 
