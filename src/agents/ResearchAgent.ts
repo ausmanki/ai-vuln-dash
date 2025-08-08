@@ -659,7 +659,6 @@ export class SmartResearchAgent {
         cve,
         enhancedSettings,
         this.setLoadingSteps,
-        ragDatabase,
         fetchWithFallback,
         parsePatchAndAdvisoryResponse,
         getHeuristicPatchesAndAdvisories

@@ -38,14 +38,6 @@ export interface GroundedSearchResult {
   content: string;
   sources: string[];
   confidence: number;
-  responses?: {
-    gemini?: string;
-    openai?: string;
-  };
-  errors?: {
-    gemini?: string;
-    openai?: string;
-  };
 }
 
 export interface AIGroundingConfig {
@@ -65,56 +57,33 @@ export class AIGroundingEngine {
   ) {}
 
   async search(query: string): Promise<GroundedSearchResult> {
-    const result: GroundedSearchResult = {
-      content: '',
-      sources: [],
-      confidence: 0,
-      responses: {},
-      errors: {}
-    };
+    const result: GroundedSearchResult = { content: '', sources: [], confidence: 0 };
 
     if (!this.config.enableWebGrounding) {
       return result;
     }
 
-    const extractSources = (groundingMetadata: any) => {
-      if (!groundingMetadata?.groundingSupports) return;
-      const chunks = groundingMetadata.groundingChunks || [];
-      for (const support of groundingMetadata.groundingSupports) {
-        for (const idx of support.groundingChunkIndices || []) {
-          const uri = chunks[idx]?.web?.uri;
-          if (uri && !result.sources.includes(uri)) {
-            result.sources.push(uri);
-          }
-        }
-      }
-    };
-
-    let geminiText = '';
-    let openaiText = '';
-
     // Gemini search
     if (this.keys.gemini) {
       try {
-        const res = await fetch(`/api/gemini?model=gemini-2.5-flash`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: query }] }],
-            generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }
-          })
-        });
+        const res = await fetch(
+          `/api/gemini?model=gemini-2.5-flash`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: query }] }],
+              generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }
+            })
+          }
+        );
         if (res.ok) {
           const data = await res.json();
-          geminiText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          result.responses!.gemini = geminiText;
-          result.content += geminiText;
-          extractSources(data.candidates?.[0]?.groundingMetadata);
-        } else {
-          result.errors!.gemini = `HTTP ${res.status}`;
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          result.content += text;
+          result.confidence = Math.max(result.confidence, 0.6);
         }
-      } catch (e: any) {
-        result.errors!.gemini = e?.message || 'Gemini grounding failed';
+      } catch (e) {
         console.error('Gemini grounding failed', e);
       }
     }
@@ -136,73 +105,16 @@ export class AIGroundingEngine {
         });
         if (res.ok) {
           const data = await res.json();
-          openaiText = data.choices?.[0]?.message?.content || '';
-          result.responses!.openai = openaiText;
-          result.content += `\n${openaiText}`;
-          const meta =
-            data.choices?.[0]?.message?.groundingMetadata ||
-            data.choices?.[0]?.message?.grounding_metadata;
-          extractSources(meta);
-        } else {
-          result.errors!.openai = `HTTP ${res.status}`;
+          const text = data.choices?.[0]?.message?.content || '';
+          result.content += `\n${text}`;
+          result.confidence = Math.max(result.confidence, 0.8);
         }
-      } catch (e: any) {
-        result.errors!.openai = e?.message || 'OpenAI grounding failed';
+      } catch (e) {
         console.error('OpenAI grounding failed', e);
       }
     }
 
-    // Determine confidence by comparing outputs when both are available
-    if (geminiText && openaiText) {
-      const similarity = await this.compareResponses(geminiText, openaiText);
-      result.confidence = similarity;
-    } else if (openaiText) {
-      result.confidence = 0.8; // default confidence when only OpenAI responds
-    } else if (geminiText) {
-      result.confidence = 0.6; // default confidence when only Gemini responds
-    }
-
     return result;
-  }
-
-  private async compareResponses(a: string, b: string): Promise<number> {
-    if (!this.keys.openai) return 0;
-    try {
-      const res = await fetch('/api/openai?endpoint=embeddings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'text-embedding-3-small',
-          input: [a, b]
-        })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const embA = data.data?.[0]?.embedding;
-        const embB = data.data?.[1]?.embedding;
-        if (embA && embB) {
-          return this.cosineSimilarity(embA, embB);
-        }
-      }
-    } catch (e) {
-      console.error('Embedding comparison failed', e);
-    }
-    return 0;
-  }
-
-  private cosineSimilarity(a: number[], b: number[]): number {
-    let dot = 0;
-    let normA = 0;
-    let normB = 0;
-    for (let i = 0; i < a.length; i++) {
-      dot += a[i] * b[i];
-      normA += a[i] * a[i];
-      normB += b[i] * b[i];
-    }
-    const denom = Math.sqrt(normA) * Math.sqrt(normB);
-    if (denom === 0) return 0;
-    const cos = dot / denom;
-    return (cos + 1) / 2; // normalize to 0-1 range
   }
 
   async learn(result: GroundedSearchResult): Promise<void> {
@@ -228,7 +140,6 @@ export class CybersecurityAgent {
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
   private readonly DEFAULT_CACHE_TTL = 300000; // 5 minutes
   private cacheTTL: number;
-  private groundingCacheTTL: number;
   private groundingEngine?: AIGroundingEngine;
   private groundingConfig?: AIGroundingConfig;
   private bulkAnalysisResults: BulkAnalysisResult[] | null = null;
@@ -236,7 +147,6 @@ export class CybersecurityAgent {
   constructor(settings?: AgentSettings) {
     this.settings = settings || {};
     this.cacheTTL = this.settings.cacheTTL ?? this.DEFAULT_CACHE_TTL;
-    this.groundingCacheTTL = this.settings.groundingCacheTTL ?? this.DEFAULT_CACHE_TTL;
 
     if (this.settings.aiProvider) {
       this.groundingConfig = { enableWebGrounding: true, autoLearn: true };
@@ -245,16 +155,6 @@ export class CybersecurityAgent {
         openai: this.settings.openAiApiKey,
       });
     }
-  }
-
-  private getGroundingModel(): string {
-    if (this.settings.aiProvider === 'openai') {
-      return this.settings.openAiModel || 'gpt-4.1';
-    }
-    if (this.settings.aiProvider === 'gemini') {
-      return this.settings.geminiModel || 'gemini-2.5-flash';
-    }
-    return 'unknown';
   }
 
   private isCybersecurityRelated(query: string): boolean {
@@ -307,7 +207,7 @@ export class CybersecurityAgent {
     return keywords.some(k => normalized.includes(k));
   }
 
-  public async handleQuery(query: string, refreshCache = false): Promise<ChatResponse> {
+  public async handleQuery(query: string): Promise<ChatResponse> {
     try {
       // Extract CVE ID from query
       const cveMatches = Array.from(query.matchAll(CVE_REGEX));
@@ -319,7 +219,7 @@ export class CybersecurityAgent {
       }
 
       if (operationalCveId) {
-        const res = await this.handleCVEQuery(query, operationalCveId, refreshCache);
+        const res = await this.handleCVEQuery(query, operationalCveId);
         try {
           const verification = await this.verifyResponse(
             operationalCveId,
@@ -332,72 +232,56 @@ export class CybersecurityAgent {
         return res;
       }
 
-      let response: ChatResponse | undefined;
-
       if (!this.isCybersecurityRelated(query)) {
-        response = {
+        return {
           text: `I'm designed to assist with cybersecurity topics. Please ask a security-related question.`,
           sender: 'bot',
           id: Date.now().toString(),
         };
-      } else {
-        // First attempt to answer using the local RAG database
-        try {
-          const k = 5;
-          const ragResults = await ragDatabase.search(query, k);
-          const topMatch = ragResults[0];
-          const confidenceThreshold = 0.75;
-          if (topMatch && topMatch.similarity >= confidenceThreshold) {
-            response = {
-              text: topMatch.content,
-              sender: 'bot',
-              id: Date.now().toString(),
-              confidence: topMatch.similarity,
-            };
-          }
-        } catch (e) {
-          console.error('RAG search failed', e);
-        }
+      }
 
-        if (!response) {
-          try {
-            const webResult = await APIService.fetchGeneralAnswer(
-              query,
-              this.settings || {}
-            );
-            if (webResult?.answer) {
-              response = {
-                text: webResult.answer,
-                sender: 'bot',
-                id: Date.now().toString(),
-              };
-            }
-          } catch (e) {
-            console.error('Web search failed', e);
-          }
+      // First attempt to answer using the local RAG database
+      try {
+        const k = 5;
+        const ragResults = await ragDatabase.search(query, k);
+        const topMatch = ragResults[0];
+        const confidenceThreshold = 0.75;
+        if (topMatch && topMatch.similarity >= confidenceThreshold) {
+          return {
+            text: topMatch.content,
+            sender: 'bot',
+            id: Date.now().toString(),
+            confidence: topMatch.similarity,
+          };
         }
+      } catch (e) {
+        console.error('RAG search failed', e);
+      }
 
-        if (!response) {
-          let text = `I understand you're asking about cybersecurity. `;
-          text += `To provide you with the most helpful information, could you please specify your question?`;
-          response = {
-            text,
+      try {
+        const webResult = await APIService.fetchGeneralAnswer(
+          query,
+          this.settings || {}
+        );
+        if (webResult?.answer) {
+          return {
+            text: webResult.answer,
             sender: 'bot',
             id: Date.now().toString(),
           };
         }
+      } catch (e) {
+        console.error('Web search failed', e);
       }
 
-      const grounded = await this.getGroundedInfo(query, refreshCache);
-      if (grounded.sources.length > 0) {
-        response.sources = grounded.sources.map((url, i) => `[Source ${i + 1}](${url})`);
-      }
+      let response = `I understand you're asking about cybersecurity. `;
+      response += `To provide you with the most helpful information, could you please specify your question?`;
 
-      if (grounded.confidence !== undefined) {
-        response.confidence = grounded.confidence;
-      }
-
-      return response;
+      return {
+        text: response,
+        sender: 'bot',
+        id: Date.now().toString(),
+      };
     } catch (error: any) {
       console.error('Error in handleQuery:', error);
       return {
@@ -409,11 +293,7 @@ export class CybersecurityAgent {
     }
   }
 
-  private async handleCVEQuery(
-    query: string,
-    cveId: string,
-    refreshCache = false
-  ): Promise<ChatResponse> {
+  private async handleCVEQuery(query: string, cveId: string): Promise<ChatResponse> {
     try {
       // Future CVE warning
       const yearMatch = cveId.match(/CVE-(\d{4})-/);
@@ -430,15 +310,7 @@ export class CybersecurityAgent {
       }
 
       // All CVE queries now go through the comprehensive report generator
-      const result = await this.generateComprehensiveCVEReport(query, cveId);
-      const grounded = await this.getGroundedInfo(`${cveId} ${query}`, refreshCache);
-      if (grounded.sources.length > 0) {
-        result.sources = grounded.sources.map((url, i) => `[Source ${i + 1}](${url})`);
-      }
-      if (grounded.confidence !== undefined) {
-        result.confidence = grounded.confidence;
-      }
-      return result;
+      return await this.generateComprehensiveCVEReport(query, cveId);
 
     } catch (error: any) {
       console.error('CVE Query Error:', error);
@@ -451,31 +323,14 @@ export class CybersecurityAgent {
     }
   }
 
-  private async getGroundedInfo(
-    query: string,
-    refreshCache = false
-  ): Promise<GroundedSearchResult> {
+  private async getGroundedInfo(query: string): Promise<GroundedSearchResult> {
     if (!this.groundingEngine) {
       return { content: '', sources: [], confidence: 0 };
     }
-
-    const model = this.getGroundingModel();
-    const cacheKey = `ground:${model}:${query}`;
-
-    if (refreshCache) {
-      this.cache.delete(cacheKey);
-    } else {
-      const cached = this.cache.get(cacheKey);
-      if (cached && Date.now() - cached.timestamp < this.groundingCacheTTL) {
-        return cached.data;
-      }
-    }
-
     const result = await this.groundingEngine.search(query);
     if (this.groundingConfig?.autoLearn) {
       await this.groundingEngine.learn(result);
     }
-    this.cache.set(cacheKey, { data: result, timestamp: Date.now() });
     return result;
   }
 
