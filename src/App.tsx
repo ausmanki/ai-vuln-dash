@@ -32,7 +32,6 @@ const App = () => {
   const [loading, setLoading] = useState(false);
   const [loadingSteps, setLoadingSteps] = useState([]);
   const [showSettings, setShowSettings] = useState(false);
-  const [showChat, setShowChat] = useState(false); // Added state for chat visibility
   const [showBulkUploadView, setShowBulkUploadView] = useState(false); // State for bulk upload UI
   
   // State for bulk analysis
@@ -214,7 +213,6 @@ const App = () => {
               <button
                 onClick={() => {
                   setShowBulkUploadView(prev => !prev);
-                  if (showChat) setShowChat(false); // Close chat if open
                 }}
                 style={{ ...styles.button, ...styles.buttonSecondary }}
                 title="Bulk CVE Analysis"
@@ -226,74 +224,36 @@ const App = () => {
           </div>
         </header>
 
-        <main>
-          <SearchComponent />
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 500px', height: 'calc(100vh - 120px)', borderTop: styles.border }}>
+          <main style={{ overflowY: 'auto' }}>
+            <SearchComponent />
+            <div style={{ maxWidth: '1536px', margin: '0 auto', padding: '24px 32px' }}>
+              {loading && <LoadingComponent />}
+              {!loading && vulnerabilities.length === 0 && <EmptyState />}
+              {!loading && vulnerabilities.length > 0 && (
+                <CVEDetailView vulnerability={vulnerabilities[0]} />
+              )}
+            </div>
+          </main>
 
-          <div style={{ maxWidth: '1536px', margin: '0 auto', padding: '24px 32px' }}>
-            {loading && <LoadingComponent />}
-
-            {!loading && vulnerabilities.length === 0 && <EmptyState />}
-
-            {!loading && vulnerabilities.length > 0 && (
-              <CVEDetailView vulnerability={vulnerabilities[0]} />
-            )}
+          <div style={{
+              height: '100%',
+              borderLeft: styles.border,
+              background: styles.card.background,
+              display: 'flex',
+              flexDirection: 'column'
+            }}>
+             <ChatInterface
+              initialCveId={vulnerabilities[0]?.cve?.id || null}
+              bulkAnalysisResults={bulkAnalysisResults}
+            />
           </div>
-          {/* ChatInterface will be rendered conditionally elsewhere */}
-        </main>
+        </div>
 
         <SettingsModal
           isOpen={showSettings}
           onClose={() => setShowSettings(false)}
         />
-
-        {/* Chat Toggle Button */}
-        <button
-          onClick={() => setShowChat(prev => !prev)}
-          style={{ // Ensure this button itself is styled by styles.button if possible or has consistent styling
-            position: 'fixed',
-            bottom: '32px',
-            right: '32px',
-            background: `linear-gradient(135deg, ${COLORS.blue} 0%, #1d4ed8 100%)`,
-            color: 'white',
-            border: 'none',
-            borderRadius: '50%',
-            width: '64px',
-            height: '64px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: `0 4px 12px rgba(${utils.hexToRgb(COLORS.blue)}, 0.4)`,
-            cursor: 'pointer',
-            zIndex: 1000, // Ensure it's above other content
-          }}
-          aria-label={showChat ? "Close Chat" : "Open Chat"}
-        >
-          {showChat ? <X size={32} /> : <MessageSquare size={32} />}
-        </button>
-
-        {/* Conditionally Render ChatInterface as a side panel */}
-        {showChat && (
-          <div
-            style={{
-              position: 'fixed',
-              top: 0,
-              right: 0,
-              height: '100vh',
-              width: '420px',
-              maxWidth: '100%',
-              zIndex: 999, // Below the toggle button so it's still clickable
-              boxShadow: `0 0 24px rgba(${utils.hexToRgb(COLORS.dark.shadow)}, 0.3)`,
-              borderLeft: `1px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}`,
-              overflow: 'hidden',
-              background: styles.card.background,
-            }}
-          >
-            <ChatInterface
-              initialCveId={vulnerabilities[0]?.cve?.id || null}
-              bulkAnalysisResults={bulkAnalysisResults}
-            />
-          </div>
-        )}
 
         {/* Conditionally Render BulkUploadComponent */}
         {showBulkUploadView && (
