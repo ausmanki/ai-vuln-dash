@@ -33,6 +33,9 @@ export const COLORS = {
   green: '#22c55e',
   red: '#ef4444',
   yellow: '#f59e0b',
+  gray: {
+    500: '#64748b'
+  },
   dark: {
     background: '#0f172a',
     surface: '#1e293b',
