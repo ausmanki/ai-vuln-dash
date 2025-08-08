@@ -124,6 +124,7 @@ export class AIGroundingEngine {
 interface ConversationContext {
   currentTopic?: string;
   lastIntent?: string;
+  summary?: string;
   recentCVEs: string[];
   recentIntents: string[];
   flags: string[];
@@ -225,10 +226,36 @@ export class UserAssistantAgent {
   }
 
   // Remember conversation history for context resolution
-  private storeConversation(query: string, response: string): void {
+  private async storeConversation(query: string, response: string): Promise<void> {
     this.conversationHistory.unshift({ query, response });
     if (this.conversationHistory.length > 10) {
       this.conversationHistory.pop();
+    }
+    this.conversationContext.summary = await this.summarizeConversation();
+  }
+
+  private async summarizeConversation(): Promise<string> {
+    if (this.conversationHistory.length === 0) {
+      return '';
+    }
+
+    const historyText = this.conversationHistory
+      .map(turn => `User: ${turn.query}\nAssistant: ${turn.response}`)
+      .reverse() // Reverse to have the latest turn at the end
+      .join('\n\n');
+
+    const prompt = `Summarize the key entities (like CVE IDs, product names), user intents, and important context from the following conversation. The user is a cybersecurity analyst. The summary should be concise and in the third person. For example: 'The user is asking about CVE-2024-1234 and is interested in patches for Ubuntu systems.'\n\nConversation:\n${historyText}`;
+
+    try {
+      const result: any = await fetchGeneralAnswer(
+        prompt,
+        this.settings,
+        (input: any, init?: any) => fetch(input, init)
+      );
+      return result.answer || '';
+    } catch (error) {
+      console.error('Conversation summarization failed:', error);
+      return ''; // Return empty string on failure
     }
   }
 
@@ -348,7 +375,7 @@ export class UserAssistantAgent {
       response.confidence = analysis.confidence;
       response.followUps = followUps;
 
-      this.storeConversation(query, response.text);
+      await this.storeConversation(query, response.text);
       return response;
       
     } catch (error: any) {
@@ -365,6 +392,9 @@ export class UserAssistantAgent {
   private async handleCVEQuery(query: string, cveId: string): Promise<ChatResponse> {
     try {
       const lowerQuery = query.toLowerCase();
+      const contextualQuery = this.conversationContext.summary
+        ? `Conversation context: ${this.conversationContext.summary}\n\nUser query: ${query}`
+        : query;
 
       // Future CVE warning
       const yearMatch = cveId.match(/CVE-(\d{4})-/);
@@ -382,7 +412,7 @@ export class UserAssistantAgent {
 
       // Use grounded info for specific intents
       if (this.groundingEngine && (lowerQuery.includes('exploit') || lowerQuery.includes('patch') || lowerQuery.includes('validate') || lowerQuery.includes('risk'))) {
-        const grounded = await this.getGroundedInfo(`${cveId} ${query}`);
+        const grounded = await this.getGroundedInfo(`${cveId} ${contextualQuery}`);
         if (grounded.content && grounded.confidence >= (this.groundingConfig?.confidenceThreshold ?? 0)) {
           return { text: grounded.content, sender: 'bot', id: Date.now().toString(), confidence: grounded.confidence };
         }
@@ -417,19 +447,22 @@ export class UserAssistantAgent {
 
   private async handleGeneralQuery(query: string): Promise<ChatResponse> {
     const k = 5;
+    const contextualQuery = this.conversationContext.summary
+      ? `Conversation context: ${this.conversationContext.summary}\n\nUser query: ${query}`
+      : query;
     try {
       if (ragDatabase && !ragDatabase.initialized) {
         await ragDatabase.initialize();
       }
       if (ragDatabase?.initialized) {
-        const ragResults = await ragDatabase.search(query, k);
+        const ragResults = await ragDatabase.search(contextualQuery, k);
         const highConfidence = ragResults.filter(r => r.similarity > 0.2);
         if (highConfidence.length > 0) {
           const ragText = highConfidence
             .map(doc => `${doc.metadata?.title ? `${doc.metadata.title}: ` : ''}${doc.content}`)
             .join('\n\n');
           const finalText = this.applyTechnicalTone(this.varyResponse(`Here is information from my knowledge base:\n\n${ragText}`));
-          this.storeConversation(query, finalText);
+          await this.storeConversation(query, finalText);
           return {
             text: finalText,
             sender: 'bot',
@@ -443,10 +476,10 @@ export class UserAssistantAgent {
     }
 
     if (this.groundingEngine) {
-      const grounded = await this.getGroundedInfo(query);
+      const grounded = await this.getGroundedInfo(contextualQuery);
       if (grounded.content) {
         const responseText = `I couldn't find a direct answer in my knowledge base. Based on a web search, here's what I found:\n\n${grounded.content}`;
-        this.storeConversation(query, responseText);
+        await this.storeConversation(query, responseText);
         return { text: responseText, sender: 'bot', id: Date.now().toString(), confidence: grounded.confidence };
       }
     }
@@ -463,7 +496,7 @@ export class UserAssistantAgent {
     }
 
     const finalText = this.applyTechnicalTone(this.varyResponse(response));
-    this.storeConversation(query, finalText);
+    await this.storeConversation(query, finalText);
     return {
       text: finalText,
       sender: 'bot',
@@ -2994,7 +3027,7 @@ export class UserAssistantAgent {
   }
 
   // Public interface methods
-  public setContextualCVE(cveId: string): ChatResponse | null {
+  public async setContextualCVE(cveId: string): Promise<ChatResponse | null> {
     if (cveId && CVE_REGEX.test(cveId) && cveId !== this.currentCveIdForSession) {
       this.currentCveIdForSession = cveId.toUpperCase();
       this.conversationContext.recentCVEs.unshift(this.currentCveIdForSession);
@@ -3005,7 +3038,7 @@ export class UserAssistantAgent {
       }
 
       const text = `Perfect! I'm now focused on ${this.currentCveIdForSession}. What would you like to know about it?`;
-      this.storeConversation(`context:${cveId}`, text);
+      await this.storeConversation(`context:${cveId}`, text);
       return {
         text,
         sender: 'system',

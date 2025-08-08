@@ -52,17 +52,19 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId, bulkAnalysi
   }, [chatHistory]);
 
   useEffect(() => {
-    if (agent && initialCveId) {
-      const systemMessage = agent.setContextualCVE(initialCveId);
-      if (systemMessage) {
-        // Check if the last message is already this system message to avoid duplicates if prop doesn't change but effect re-runs
-        setChatHistory(prev => {
-          if (prev.length > 0 && prev[prev.length -1].text === systemMessage.text && prev[prev.length-1].sender === 'system') {
-            return prev;
-          }
-          return [...prev, systemMessage];
-        });
-      }
+    if (agent && 'setContextualCVE' in agent && agent.setContextualCVE && initialCveId) {
+      agent.setContextualCVE(initialCveId).then(systemMessage => {
+        if (systemMessage) {
+          // Check if the last message is already this system message to avoid duplicates if prop doesn't change but effect re-runs
+          setChatHistory(prev => {
+            const lastMessage = prev[prev.length - 1];
+            if (lastMessage && lastMessage.text === systemMessage.text && lastMessage.sender === 'system') {
+              return prev;
+            }
+            return [...prev, systemMessage];
+          });
+        }
+      });
     }
     // Intentionally not adding chatHistory to dependencies to avoid loop with setChatHistory
     // This effect should primarily react to initialCveId or agent availability.
