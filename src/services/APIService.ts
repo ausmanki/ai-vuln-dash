@@ -58,7 +58,7 @@ export class APIService {
 
   // AI enhancement methods are moved to AIEnhancementService
   static async fetchPatchesAndAdvisories(cveId, cveData, settings, setLoadingSteps) {
-    return fetchWithCache(`patches-${cveId}`, () => fetchPatchesAndAdvisoriesInternal(cveId, cveData, settings, setLoadingSteps, fetchWithFallback, parsePatchAndAdvisoryResponse, getHeuristicPatchesAndAdvisories));
+    return fetchWithCache(`patches-${cveId}`, () => fetchPatchesAndAdvisoriesInternal(cveId, cveData, settings, setLoadingSteps, ragDatabase, fetchWithFallback, parsePatchAndAdvisoryResponse, getHeuristicPatchesAndAdvisories));
   }
 
   static async fetchAIThreatIntelligence(cveId, cveData, epssData, settings, setLoadingSteps) {
