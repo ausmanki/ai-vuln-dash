@@ -22,7 +22,7 @@ interface ChatInterfaceProps {
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId, bulkAnalysisResults = [] }) => {
-  const { settings, addNotification } = useContext(AppContext);
+  const { settings, setSettings, addNotification } = useContext(AppContext);
   const styles = createStyles(settings.darkMode); // Assuming createStyles is memoized or lightweight
 
   const [agent, setAgent] = useState<UserAssistantAgent | CybersecurityAgent | null>(null);
@@ -30,8 +30,32 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId, bulkAnalysi
   const [inputMessage, setInputMessage] = useState<string>('');
   const [chatHistory, setChatHistory] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [showEnvSettings, setShowEnvSettings] = useState(false);
+  const [envOs, setEnvOs] = useState<string>(settings.environmentProfile?.os || '');
+  const [envSoftware, setEnvSoftware] = useState<string>(
+    settings.environmentProfile?.softwareVersions
+      ? Object.entries(settings.environmentProfile.softwareVersions)
+          .map(([n, v]) => `${n}: ${v}`)
+          .join('\n')
+      : ''
+  );
+  const [envAssets, setEnvAssets] = useState<string>(
+    settings.environmentProfile?.criticalAssets?.join(', ') || ''
+  );
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setEnvOs(settings.environmentProfile?.os || '');
+    setEnvSoftware(
+      settings.environmentProfile?.softwareVersions
+        ? Object.entries(settings.environmentProfile.softwareVersions)
+            .map(([n, v]) => `${n}: ${v}`)
+            .join('\n')
+        : ''
+    );
+    setEnvAssets(settings.environmentProfile?.criticalAssets?.join(', ') || '');
+  }, [settings.environmentProfile]);
 
   useEffect(() => {
     // Initialize agent when settings are available
@@ -111,6 +135,25 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId, bulkAnalysi
     }
   }, [inputMessage, agent, addNotification]); // currentCveId removed from dependencies
 
+  const handleSaveEnv = useCallback(() => {
+    const softwareVersions = envSoftware.split('\n').reduce((acc, line) => {
+      const [name, version] = line.split(':').map(s => s.trim());
+      if (name) acc[name] = version || '';
+      return acc;
+    }, {} as Record<string, string>);
+    const criticalAssets = envAssets.split(',').map(s => s.trim()).filter(Boolean);
+    setSettings(prev => ({
+      ...prev,
+      environmentProfile: { os: envOs, softwareVersions, criticalAssets }
+    }));
+    addNotification?.({
+      type: 'success',
+      title: 'Environment Settings Saved',
+      message: 'Environment profile updated'
+    });
+    setShowEnvSettings(false);
+  }, [envOs, envSoftware, envAssets, setSettings, addNotification]);
+
   return (
     <div style={{
         display: 'flex',
@@ -130,12 +173,67 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({ initialCveId, bulkAnalysi
             <option value="userAssistant">CVE Assistant</option>
             <option value="cybersecurity">Cybersecurity Agent</option>
           </select>
+          <button
+            onClick={() => setShowEnvSettings(prev => !prev)}
+            style={{ ...styles.button, ...styles.buttonSecondary, padding: '0.5rem' }}
+          >
+            Environment
+          </button>
         </div>
         {/* Removed CVE ID input section; context is handled by agent via natural language queries */}
-        <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.9rem', color: styles.subtitle.color }}>
-          Ask me about a CVE (e.g., "Tell me about CVE-2023-1234")
-        </div>
+      <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.9rem', color: styles.subtitle.color }}>
+        Ask me about a CVE (e.g., "Tell me about CVE-2023-1234")
       </div>
+    </div>
+
+      {showEnvSettings && (
+        <div style={{ padding: '16px', borderBottom: styles.border, display: 'grid', gap: '12px' }}>
+          <div>
+            <label style={{ display: 'block', marginBottom: '4px' }}>Operating System</label>
+            <input
+              type="text"
+              value={envOs}
+              onChange={(e) => setEnvOs(e.target.value)}
+              style={styles.input}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '4px' }}>
+              Software Versions (name: version per line)
+            </label>
+            <textarea
+              value={envSoftware}
+              onChange={(e) => setEnvSoftware(e.target.value)}
+              style={{ ...styles.input, minHeight: '60px' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', marginBottom: '4px' }}>
+              Critical Assets (comma-separated)
+            </label>
+            <input
+              type="text"
+              value={envAssets}
+              onChange={(e) => setEnvAssets(e.target.value)}
+              style={styles.input}
+            />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px' }}>
+            <button
+              style={{ ...styles.button, ...styles.buttonSecondary }}
+              onClick={() => setShowEnvSettings(false)}
+            >
+              Cancel
+            </button>
+            <button
+              style={{ ...styles.button, ...styles.buttonPrimary }}
+              onClick={handleSaveEnv}
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      )}
 
       <div ref={chatContainerRef} style={{ flexGrow: 1, padding: '16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
         {chatHistory.map((msg) => (
