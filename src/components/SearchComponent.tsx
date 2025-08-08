@@ -93,12 +93,36 @@ const SearchComponent = () => {
       try {
         const results = await APIService.performNaturalLanguageSearch(query, settings);
         setSearchResults(results);
-        setLoadingSteps(prev => [...prev, '✅ Search complete!']);
-        addNotification({
-          type: 'success',
-          title: 'Search Complete',
-          message: `Found ${results.length} results.`
-        });
+
+        if (results.length > 0) {
+          const usedAI = results[0].source?.startsWith('AI');
+          if (usedAI) {
+            setLoadingSteps(prev => [
+              ...prev,
+              '🌐 No RAG results found. Used AI web search.',
+              '✅ Search complete!'
+            ]);
+            addNotification({
+              type: 'info',
+              title: 'AI Search Used',
+              message: 'No RAG data available. Response provided via AI web search.'
+            });
+          } else {
+            setLoadingSteps(prev => [...prev, '✅ Search complete!']);
+            addNotification({
+              type: 'success',
+              title: 'Search Complete',
+              message: `Found ${results.length} results.`
+            });
+          }
+        } else {
+          setLoadingSteps(prev => [...prev, 'ℹ️ No results found.']);
+          addNotification({
+            type: 'warning',
+            title: 'No Results',
+            message: 'No relevant documents were found.'
+          });
+        }
       } catch (error: any) {
         console.error('Natural language search failed:', error);
         setLoadingSteps(prev => [...prev, `❌ Error: ${error.message}`]);
