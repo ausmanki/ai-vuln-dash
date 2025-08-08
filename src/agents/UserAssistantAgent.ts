@@ -194,8 +194,16 @@ export class UserAssistantAgent {
     }
   }
 
-  // Basic query analysis for multi-intent understanding and sentiment
-  private analyzeQuery(query: string): { intents: string[]; sentiment: 'neutral' | 'urgent' | 'confused'; confidence: number } {
+  // ======== Query understanding using NLP models ========
+  private nlpClassifier: any | null = null;
+
+  private async loadNLPClassifier() {
+    if (this.nlpClassifier) return;
+    const { pipeline } = await import('@xenova/transformers');
+    this.nlpClassifier = await pipeline('zero-shot-classification', 'Xenova/nli-deberta-v3-xsmall');
+  }
+
+  private regexAnalyzeQuery(query: string): { intents: string[]; sentiment: 'neutral' | 'urgent' | 'confused'; confidence: number } {
     const lower = query.toLowerCase();
     const intents: string[] = [];
     let confidence = 0.5;
@@ -203,12 +211,45 @@ export class UserAssistantAgent {
     if (/(exploit|poc)/.test(lower)) { intents.push('exploit_info'); confidence += 0.1; }
     if (/(risk|assessment)/.test(lower)) { intents.push('risk_assessment'); confidence += 0.1; }
     if (/(validate|verify|legitimate)/.test(lower)) { intents.push('validation'); confidence += 0.1; }
-
     let sentiment: 'neutral' | 'urgent' | 'confused' = 'neutral';
     if (/(urgent|asap|immediately|!)/.test(lower)) sentiment = 'urgent';
     if (/(\?|help|how do i)/.test(lower)) sentiment = 'confused';
-
     return { intents, sentiment, confidence: Math.min(confidence, 1) };
+  }
+
+  private async mlAnalyzeQuery(query: string): Promise<{ intents: string[]; sentiment: 'neutral' | 'urgent' | 'confused'; confidence: number }> {
+    await this.loadNLPClassifier();
+    const classifier = this.nlpClassifier!;
+
+    const intentLabels = ['patch_info', 'exploit_info', 'risk_assessment', 'validation'];
+    const intentRes = await classifier(query, intentLabels);
+    const intents: string[] = [];
+    let confidence = 0.5;
+    intentRes.labels.forEach((label: string, idx: number) => {
+      const score = intentRes.scores[idx];
+      if (score > 0.3) {
+        intents.push(label);
+        confidence = Math.max(confidence, score);
+      }
+    });
+
+    const sentimentRes = await classifier(query, ['neutral', 'urgent', 'confused']);
+    const sentiment = sentimentRes.labels[0] as 'neutral' | 'urgent' | 'confused';
+    confidence = Math.max(confidence, sentimentRes.scores[0]);
+
+    return { intents, sentiment, confidence };
+  }
+
+  private async analyzeQuery(query: string): Promise<{ intents: string[]; sentiment: 'neutral' | 'urgent' | 'confused'; confidence: number }> {
+    if (this.settings.intentRecognitionMode === 'regex' || (typeof process !== 'undefined' && process.env.NODE_ENV === 'test')) {
+      return this.regexAnalyzeQuery(query);
+    }
+    try {
+      return await this.mlAnalyzeQuery(query);
+    } catch (err) {
+      console.error('ML analysis failed, falling back to regex:', err);
+      return this.regexAnalyzeQuery(query);
+    }
   }
 
   private updateConversationContext(intents: string[]): void {
@@ -283,6 +324,20 @@ export class UserAssistantAgent {
     return varied;
   }
 
+  private craftPreamble(intents: string[], sentiment: 'neutral' | 'urgent' | 'confused'): string {
+    const intentMap: Record<string, string> = {
+      patch_info: "You're looking for patch information.",
+      exploit_info: "You're interested in exploit details.",
+      risk_assessment: "You're seeking a risk assessment.",
+      validation: "You'd like to validate this vulnerability.",
+    };
+    const pieces = intents.map(i => intentMap[i]).filter(Boolean);
+    let preamble = pieces.join(' ');
+    if (sentiment === 'urgent') preamble = `I sense this is urgent. ${preamble}`.trim();
+    else if (sentiment === 'confused') preamble = `I sense some confusion. ${preamble}`.trim();
+    return preamble.trim();
+  }
+
   private generateFollowUps(intents: string[], cveId?: string): string[] {
     const suggestions: string[] = [];
     if (cveId) {
@@ -318,7 +373,7 @@ export class UserAssistantAgent {
         return this.generateBulkComponentImpactSummary();
       }
 
-      const analysis = this.analyzeQuery(query);
+      const analysis = await this.analyzeQuery(query);
       this.updateConversationContext(analysis.intents);
 
       // Extract CVE ID from query
@@ -354,6 +409,10 @@ export class UserAssistantAgent {
         response = await this.handleGeneralQuery(query);
       }
 
+      const preamble = this.craftPreamble(analysis.intents, analysis.sentiment);
+      if (preamble) {
+        response.text = `${preamble}\n\n${response.text}`;
+      }
       if (analysis.sentiment === 'urgent') {
         response.text = `🚨 ${response.text}`;
       } else if (analysis.sentiment === 'confused') {
