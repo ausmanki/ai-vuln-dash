@@ -24,6 +24,11 @@ import { CONSTANTS } from '../utils/constants';
 import { CVE_REGEX } from '../utils/cveRegex';
 import { ragDatabase } from '../db/EnhancedVectorDatabase';
 import { fetchGeneralAnswer } from '../services/AIEnhancementService';
+import {
+  loadConversationMemorySync,
+  saveConversationMemory,
+  summarizeHistory,
+} from '../contexts/ConversationMemory';
 
 // Utility to map CVSS score to severity label
 export const getCVSSSeverity = (score: number): string => {
@@ -155,6 +160,7 @@ export class UserAssistantAgent {
   private conversationContext: ConversationContext;
   private userPreferences: UserPreferences;
   private conversationHistory: { query: string; response: string }[] = [];
+  private readonly HISTORY_THRESHOLD = 50;
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
   private readonly DEFAULT_CACHE_TTL = 300000; // 5 minutes
   private cacheTTL: number;
@@ -188,10 +194,25 @@ export class UserAssistantAgent {
     };
     this.conversationHistory = [];
 
+    if (typeof process === 'undefined' || process.env.NODE_ENV !== 'test') {
+      const stored = loadConversationMemorySync();
+      if (stored) {
+        this.conversationContext = { ...stored.context, ...this.conversationContext };
+        this.conversationHistory = stored.history || [];
+      }
+    }
+
     if (this.settings.aiProvider) {
       this.groundingConfig = this.settings.groundingConfig;
       this.groundingEngine = new AIGroundingEngine(this.groundingConfig || {});
     }
+  }
+
+  private async persistConversation(): Promise<void> {
+    await saveConversationMemory({
+      context: this.conversationContext,
+      history: this.conversationHistory,
+    });
   }
 
   // ======== Query understanding using NLP models ========
@@ -268,11 +289,18 @@ export class UserAssistantAgent {
 
   // Remember conversation history for context resolution
   private async storeConversation(query: string, response: string): Promise<void> {
-    this.conversationHistory.unshift({ query, response });
-    if (this.conversationHistory.length > 10) {
-      this.conversationHistory.pop();
+    this.conversationHistory.push({ query, response });
+    let aggregated = this.conversationContext.summary || '';
+    if (this.conversationHistory.length > this.HISTORY_THRESHOLD) {
+      const excess = this.conversationHistory.splice(0, this.conversationHistory.length - this.HISTORY_THRESHOLD);
+      const oldSummary = await summarizeHistory(excess, this.settings);
+      aggregated = aggregated ? `${aggregated}\n${oldSummary}` : oldSummary;
     }
-    this.conversationContext.summary = await this.summarizeConversation();
+    const recentSummary = await this.summarizeConversation();
+    this.conversationContext.summary = aggregated
+      ? `${aggregated}\n${recentSummary}`
+      : recentSummary;
+    await this.persistConversation();
   }
 
   private async summarizeConversation(): Promise<string> {
@@ -282,7 +310,6 @@ export class UserAssistantAgent {
 
     const historyText = this.conversationHistory
       .map(turn => `User: ${turn.query}\nAssistant: ${turn.response}`)
-      .reverse() // Reverse to have the latest turn at the end
       .join('\n\n');
 
     const prompt = `Summarize the key entities (like CVE IDs, product names), user intents, and important context from the following conversation. The user is a cybersecurity analyst. The summary should be concise and in the third person. For example: 'The user is asking about CVE-2024-1234 and is interested in patches for Ubuntu systems.'\n\nConversation:\n${historyText}`;
