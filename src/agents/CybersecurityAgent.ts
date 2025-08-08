@@ -228,6 +228,7 @@ export class CybersecurityAgent {
   private cache: Map<string, { data: any; timestamp: number }> = new Map();
   private readonly DEFAULT_CACHE_TTL = 300000; // 5 minutes
   private cacheTTL: number;
+  private groundingCacheTTL: number;
   private groundingEngine?: AIGroundingEngine;
   private groundingConfig?: AIGroundingConfig;
   private bulkAnalysisResults: BulkAnalysisResult[] | null = null;
@@ -235,6 +236,7 @@ export class CybersecurityAgent {
   constructor(settings?: AgentSettings) {
     this.settings = settings || {};
     this.cacheTTL = this.settings.cacheTTL ?? this.DEFAULT_CACHE_TTL;
+    this.groundingCacheTTL = this.settings.groundingCacheTTL ?? this.DEFAULT_CACHE_TTL;
 
     if (this.settings.aiProvider) {
       this.groundingConfig = { enableWebGrounding: true, autoLearn: true };
@@ -243,6 +245,16 @@ export class CybersecurityAgent {
         openai: this.settings.openAiApiKey,
       });
     }
+  }
+
+  private getGroundingModel(): string {
+    if (this.settings.aiProvider === 'openai') {
+      return this.settings.openAiModel || 'gpt-4.1';
+    }
+    if (this.settings.aiProvider === 'gemini') {
+      return this.settings.geminiModel || 'gemini-2.5-flash';
+    }
+    return 'unknown';
   }
 
   private isCybersecurityRelated(query: string): boolean {
@@ -295,7 +307,7 @@ export class CybersecurityAgent {
     return keywords.some(k => normalized.includes(k));
   }
 
-  public async handleQuery(query: string): Promise<ChatResponse> {
+  public async handleQuery(query: string, refreshCache = false): Promise<ChatResponse> {
     try {
       // Extract CVE ID from query
       const cveMatches = Array.from(query.matchAll(CVE_REGEX));
@@ -307,7 +319,7 @@ export class CybersecurityAgent {
       }
 
       if (operationalCveId) {
-        const res = await this.handleCVEQuery(query, operationalCveId);
+        const res = await this.handleCVEQuery(query, operationalCveId, refreshCache);
         try {
           const verification = await this.verifyResponse(
             operationalCveId,
@@ -376,7 +388,7 @@ export class CybersecurityAgent {
         }
       }
 
-      const grounded = await this.getGroundedInfo(query);
+      const grounded = await this.getGroundedInfo(query, refreshCache);
       if (grounded.sources.length > 0) {
         response.sources = grounded.sources.map((url, i) => `[Source ${i + 1}](${url})`);
       }
@@ -397,7 +409,11 @@ export class CybersecurityAgent {
     }
   }
 
-  private async handleCVEQuery(query: string, cveId: string): Promise<ChatResponse> {
+  private async handleCVEQuery(
+    query: string,
+    cveId: string,
+    refreshCache = false
+  ): Promise<ChatResponse> {
     try {
       // Future CVE warning
       const yearMatch = cveId.match(/CVE-(\d{4})-/);
@@ -415,7 +431,7 @@ export class CybersecurityAgent {
 
       // All CVE queries now go through the comprehensive report generator
       const result = await this.generateComprehensiveCVEReport(query, cveId);
-      const grounded = await this.getGroundedInfo(`${cveId} ${query}`);
+      const grounded = await this.getGroundedInfo(`${cveId} ${query}`, refreshCache);
       if (grounded.sources.length > 0) {
         result.sources = grounded.sources.map((url, i) => `[Source ${i + 1}](${url})`);
       }
@@ -435,14 +451,31 @@ export class CybersecurityAgent {
     }
   }
 
-  private async getGroundedInfo(query: string): Promise<GroundedSearchResult> {
+  private async getGroundedInfo(
+    query: string,
+    refreshCache = false
+  ): Promise<GroundedSearchResult> {
     if (!this.groundingEngine) {
       return { content: '', sources: [], confidence: 0 };
     }
+
+    const model = this.getGroundingModel();
+    const cacheKey = `ground:${model}:${query}`;
+
+    if (refreshCache) {
+      this.cache.delete(cacheKey);
+    } else {
+      const cached = this.cache.get(cacheKey);
+      if (cached && Date.now() - cached.timestamp < this.groundingCacheTTL) {
+        return cached.data;
+      }
+    }
+
     const result = await this.groundingEngine.search(query);
     if (this.groundingConfig?.autoLearn) {
       await this.groundingEngine.learn(result);
     }
+    this.cache.set(cacheKey, { data: result, timestamp: Date.now() });
     return result;
   }
 

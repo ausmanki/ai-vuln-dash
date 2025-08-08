@@ -97,6 +97,23 @@ describe('CybersecurityAgent', () => {
     expect(learnSpy).toHaveBeenCalledWith(groundedResult);
   });
 
+  it('caches grounding search results and allows manual refresh', async () => {
+    const agent = new CybersecurityAgent({
+      aiProvider: 'openai',
+      openAiModel: 'gpt-test',
+      groundingCacheTTL: 1000,
+    });
+    const searchSpy = vi.fn().mockResolvedValue(groundedResult);
+    (agent as any).groundingEngine = { search: searchSpy, learn: vi.fn() };
+
+    await (agent as any).getGroundedInfo('cache-query');
+    await (agent as any).getGroundedInfo('cache-query');
+    expect(searchSpy).toHaveBeenCalledTimes(1);
+
+    await (agent as any).getGroundedInfo('cache-query', true);
+    expect(searchSpy).toHaveBeenCalledTimes(2);
+  });
+
   it('verifies CVE responses against known sources', async () => {
     const agent = new CybersecurityAgent();
     const ragSpy = vi.spyOn(ragDatabase, 'search').mockResolvedValue([]);
