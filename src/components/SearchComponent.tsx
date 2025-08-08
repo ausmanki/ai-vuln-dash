@@ -91,13 +91,13 @@ const SearchComponent = () => {
       setSearchResults([]); // Clear previous results
 
       try {
-        const results = await APIService.performNaturalLanguageSearch(query);
+        const results = await APIService.performNaturalLanguageSearch(query, settings);
         setSearchResults(results);
-        setLoadingSteps(prev => [...prev, '✅ RAG search complete!']);
+        setLoadingSteps(prev => [...prev, '✅ Search complete!']);
         addNotification({
           type: 'success',
-          title: 'RAG Search Complete',
-          message: `Found ${results.length} relevant documents.`
+          title: 'Search Complete',
+          message: `Found ${results.length} results.`
         });
       } catch (error: any) {
         console.error('Natural language search failed:', error);

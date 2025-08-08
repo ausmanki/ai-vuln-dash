@@ -15,6 +15,7 @@ async function fetchWithCache(key, fetcher) {
 import { ragDatabase } from '../db/EnhancedVectorDatabase';
 import { ResearchAgent } from '../agents/ResearchAgent';
 import { NaturalLanguageSearchAgent } from '../agents/NaturalLanguageSearchAgent';
+import { AgentSettings } from '../types/cveData';
 import { ValidationService } from './ValidationService';
 import { ConfidenceScorer } from './ConfidenceScorer';
 import {
@@ -92,10 +93,10 @@ export class APIService {
     }
   }
 
-  static async performNaturalLanguageSearch(query: string) {
+  static async performNaturalLanguageSearch(query: string, settings: AgentSettings) {
     try {
       const agent = new NaturalLanguageSearchAgent();
-      const results = await agent.search(query);
+      const results = await agent.search(query, settings);
       return results;
     } catch (error) {
       logger.error(`APIService: Error performing natural language search for query "${query}":`, error);
