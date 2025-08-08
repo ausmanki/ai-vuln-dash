@@ -3,7 +3,7 @@ import { CybersecurityAgent } from '../agents/CybersecurityAgent';
 import { ragDatabase } from '../db/EnhancedVectorDatabase';
 import { APIService } from '../services/APIService';
 
-const groundedResult = { content: 'grounded', sources: [], confidence: 0.9 };
+const groundedResult = { content: 'grounded', sources: [], confidence: 0.9 } as any;
 
 describe('CybersecurityAgent', () => {
   it('classifies queries for cybersecurity relevance', () => {
@@ -116,6 +116,25 @@ describe('CybersecurityAgent', () => {
     handleSpy.mockRestore();
     verifySpy.mockRestore();
     ragSpy.mockRestore();
+  });
+
+  it('returns grounding confidence in chat response', async () => {
+    const agent = new CybersecurityAgent();
+    const searchSpy = vi.fn().mockResolvedValue(groundedResult);
+    (agent as any).groundingEngine = { search: searchSpy };
+    (agent as any).groundingConfig = {};
+
+    const ragSpy = vi.spyOn(ragDatabase, 'search').mockResolvedValue([]);
+    const webSpy = vi
+      .spyOn(APIService, 'fetchGeneralAnswer')
+      .mockResolvedValue({ answer: 'web result' });
+
+    const res = await agent.handleQuery('explain vulnerability trends');
+
+    expect(res.confidence).toBe(0.9);
+
+    ragSpy.mockRestore();
+    webSpy.mockRestore();
   });
 
   it('includes google_search tool in Gemini API call', async () => {

@@ -38,6 +38,14 @@ export interface GroundedSearchResult {
   content: string;
   sources: string[];
   confidence: number;
+  responses?: {
+    gemini?: string;
+    openai?: string;
+  };
+  errors?: {
+    gemini?: string;
+    openai?: string;
+  };
 }
 
 export interface AIGroundingConfig {
@@ -57,7 +65,13 @@ export class AIGroundingEngine {
   ) {}
 
   async search(query: string): Promise<GroundedSearchResult> {
-    const result: GroundedSearchResult = { content: '', sources: [], confidence: 0 };
+    const result: GroundedSearchResult = {
+      content: '',
+      sources: [],
+      confidence: 0,
+      responses: {},
+      errors: {}
+    };
 
     if (!this.config.enableWebGrounding) {
       return result;
@@ -76,28 +90,31 @@ export class AIGroundingEngine {
       }
     };
 
+    let geminiText = '';
+    let openaiText = '';
+
     // Gemini search
     if (this.keys.gemini) {
       try {
-        const res = await fetch(
-          `/api/gemini?model=gemini-2.5-flash`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: query }] }],
-              generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }
-            })
-          }
-        );
+        const res = await fetch(`/api/gemini?model=gemini-2.5-flash`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: query }] }],
+            generationConfig: { temperature: 0.1, maxOutputTokens: 8192 }
+          })
+        });
         if (res.ok) {
           const data = await res.json();
-          const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-          result.content += text;
-          result.confidence = Math.max(result.confidence, 0.6);
+          geminiText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+          result.responses!.gemini = geminiText;
+          result.content += geminiText;
           extractSources(data.candidates?.[0]?.groundingMetadata);
+        } else {
+          result.errors!.gemini = `HTTP ${res.status}`;
         }
-      } catch (e) {
+      } catch (e: any) {
+        result.errors!.gemini = e?.message || 'Gemini grounding failed';
         console.error('Gemini grounding failed', e);
       }
     }
@@ -119,20 +136,73 @@ export class AIGroundingEngine {
         });
         if (res.ok) {
           const data = await res.json();
-          const text = data.choices?.[0]?.message?.content || '';
-          result.content += `\n${text}`;
-          result.confidence = Math.max(result.confidence, 0.8);
+          openaiText = data.choices?.[0]?.message?.content || '';
+          result.responses!.openai = openaiText;
+          result.content += `\n${openaiText}`;
           const meta =
             data.choices?.[0]?.message?.groundingMetadata ||
             data.choices?.[0]?.message?.grounding_metadata;
           extractSources(meta);
+        } else {
+          result.errors!.openai = `HTTP ${res.status}`;
         }
-      } catch (e) {
+      } catch (e: any) {
+        result.errors!.openai = e?.message || 'OpenAI grounding failed';
         console.error('OpenAI grounding failed', e);
       }
     }
 
+    // Determine confidence by comparing outputs when both are available
+    if (geminiText && openaiText) {
+      const similarity = await this.compareResponses(geminiText, openaiText);
+      result.confidence = similarity;
+    } else if (openaiText) {
+      result.confidence = 0.8; // default confidence when only OpenAI responds
+    } else if (geminiText) {
+      result.confidence = 0.6; // default confidence when only Gemini responds
+    }
+
     return result;
+  }
+
+  private async compareResponses(a: string, b: string): Promise<number> {
+    if (!this.keys.openai) return 0;
+    try {
+      const res = await fetch('/api/openai?endpoint=embeddings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'text-embedding-3-small',
+          input: [a, b]
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const embA = data.data?.[0]?.embedding;
+        const embB = data.data?.[1]?.embedding;
+        if (embA && embB) {
+          return this.cosineSimilarity(embA, embB);
+        }
+      }
+    } catch (e) {
+      console.error('Embedding comparison failed', e);
+    }
+    return 0;
+  }
+
+  private cosineSimilarity(a: number[], b: number[]): number {
+    let dot = 0;
+    let normA = 0;
+    let normB = 0;
+    for (let i = 0; i < a.length; i++) {
+      dot += a[i] * b[i];
+      normA += a[i] * a[i];
+      normB += b[i] * b[i];
+    }
+    const denom = Math.sqrt(normA) * Math.sqrt(normB);
+    if (denom === 0) return 0;
+    const cos = dot / denom;
+    return (cos + 1) / 2; // normalize to 0-1 range
   }
 
   async learn(result: GroundedSearchResult): Promise<void> {
@@ -311,6 +381,10 @@ export class CybersecurityAgent {
         response.sources = grounded.sources.map((url, i) => `[Source ${i + 1}](${url})`);
       }
 
+      if (grounded.confidence !== undefined) {
+        response.confidence = grounded.confidence;
+      }
+
       return response;
     } catch (error: any) {
       console.error('Error in handleQuery:', error);
@@ -344,6 +418,9 @@ export class CybersecurityAgent {
       const grounded = await this.getGroundedInfo(`${cveId} ${query}`);
       if (grounded.sources.length > 0) {
         result.sources = grounded.sources.map((url, i) => `[Source ${i + 1}](${url})`);
+      }
+      if (grounded.confidence !== undefined) {
+        result.confidence = grounded.confidence;
       }
       return result;
 
