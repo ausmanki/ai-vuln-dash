@@ -1,5 +1,6 @@
-import fetch from 'node-fetch';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+
+const fetch = typeof self === 'undefined' ? require('node-fetch') : self.fetch;
 
 export type LLMConnector = (prompt: string) => Promise<string>;
 
@@ -38,7 +39,7 @@ interface UserAgentOptions {
   geminiConnector?: LLMConnector;
 }
 
-export class UserAssistantAgent {
+class UserAssistantAgent {
   constructor(private options: UserAgentOptions) {}
 
   async run(prompt: string): Promise<Record<string, string>> {
