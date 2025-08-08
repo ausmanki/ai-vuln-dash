@@ -15,6 +15,20 @@ if (!geminiKey && !openaiKey) {
 const useOpenAI = !!openaiKey
 const useGemini = !useOpenAI && !!geminiKey
 
+function displayResultsTable(data) {
+  const results = data?.web_search_results || data?.results
+  if (!Array.isArray(results) || results.length === 0) return
+
+  const rows = results.map(item => ({
+    Title: item.title || '',
+    URL: item.url || '',
+    Snippet: item.snippet || item.description || ''
+  }))
+
+  console.log('\nSearch results:')
+  console.table(rows)
+}
+
 async function run() {
   try {
     if (useOpenAI) {
@@ -56,6 +70,8 @@ async function run() {
         data.choices?.[0]?.message?.content
       console.log(text || '')
 
+      displayResultsTable(data)
+
       if (Array.isArray(data.annotations)) {
         const urls = data.annotations
           .filter(a => a.url)
@@ -88,6 +104,8 @@ async function run() {
       const data = await response.json()
       const text = data.candidates?.[0]?.content?.parts?.[0]?.text
       console.log(text || JSON.stringify(data, null, 2))
+
+      displayResultsTable(data)
     }
   } catch (err) {
     console.error('Request failed:', err.message)
