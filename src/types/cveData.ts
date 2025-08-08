@@ -450,6 +450,12 @@ export interface AISummaryData {
 }
 
 
+export interface EnvironmentProfile {
+  os: string;
+  softwareVersions: Record<string, string>;
+  criticalAssets: string[];
+}
+
 export interface AgentSettings {
   nvdApiKey?: string;
   geminiModel?: string;
@@ -457,8 +463,10 @@ export interface AgentSettings {
   aiProvider?: 'gemini' | 'openai';
   cacheTTL?: number; // TTL for caching in milliseconds
   intentRecognitionMode?: 'regex' | 'ml';
+  environmentProfile?: EnvironmentProfile;
   [key: string]: any; // Allow other settings
 }
+
 
 export interface ChatResponse<T = any> {
   text: string;

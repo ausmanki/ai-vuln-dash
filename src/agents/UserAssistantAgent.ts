@@ -510,7 +510,29 @@ export class UserAssistantAgent {
       } else if (lowerQuery.includes('epss') || lowerQuery.includes('exploit') && lowerQuery.includes('score')) {
         return await this.getEPSSScore(cveId);
       } else if (lowerQuery.includes('patch') || lowerQuery.includes('fix') || lowerQuery.includes('update')) {
-        return await this.getPatchAndAdvisoryInfo(cveId);
+        const response = await this.getPatchAndAdvisoryInfo(cveId);
+        const env = this.settings.environmentProfile;
+        if (response?.text && env) {
+          const notes: string[] = [];
+          if (env.os) {
+            notes.push(`Operating System: ${env.os}`);
+          }
+          if (env.softwareVersions) {
+            const textLower = response.text.toLowerCase();
+            for (const [name, version] of Object.entries(env.softwareVersions)) {
+              if (textLower.includes(name.toLowerCase())) {
+                notes.push(`Environment uses ${name} ${version}; verify patch applicability.`);
+              }
+            }
+          }
+          if (env.criticalAssets && env.criticalAssets.length > 0) {
+            notes.push(`Critical assets: ${env.criticalAssets.join(', ')}`);
+          }
+          if (notes.length > 0) {
+            response.text += `\n\n🛠️ **Environment Guidance**\n${notes.map(n => `• ${n}`).join('\n')}`;
+          }
+        }
+        return response;
       } else if (lowerQuery.includes('exploit') || lowerQuery.includes('poc')) {
         return await this.getExploitInfo(cveId);
       } else if (lowerQuery.includes('risk') || lowerQuery.includes('assessment')) {
