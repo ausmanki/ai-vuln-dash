@@ -13,6 +13,7 @@ import SettingsModal from './components/SettingsModal';
 import SearchComponent from './components/SearchComponent';
 import LoadingComponent from './components/LoadingComponent';
 import CVEDetailView from './components/CVEDetailView';
+import CVEDetailViewSkeleton from './components/CVEDetailViewSkeleton';
 import EmptyState from './components/EmptyState';
 import SearchResults from './components/SearchResults';
 import ChatInterface from './components/ChatInterface';
@@ -235,11 +236,16 @@ const App = () => {
           <SearchComponent />
 
           <div style={{ maxWidth: '1536px', margin: '0 auto', padding: '24px 32px' }}>
-            {loading && <LoadingComponent />}
-            {!loading && searchResults.length > 0 && <SearchResults />}
-            {!loading && searchResults.length === 0 && vulnerabilities.length === 0 && <EmptyState />}
-            {!loading && searchResults.length === 0 && vulnerabilities.length > 0 && (
-              <CVEDetailView vulnerability={vulnerabilities[0]} />
+            {loading ? (
+              searchResults.length === 0 ? <CVEDetailViewSkeleton /> : <LoadingComponent />
+            ) : (
+              <>
+                {searchResults.length > 0 && <SearchResults />}
+                {searchResults.length === 0 && vulnerabilities.length === 0 && <EmptyState />}
+                {searchResults.length === 0 && vulnerabilities.length > 0 && (
+                  <CVEDetailView vulnerability={vulnerabilities[0]} />
+                )}
+              </>
             )}
           </div>
           {/* ChatInterface will be rendered conditionally elsewhere */}
