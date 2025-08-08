@@ -37,6 +37,10 @@ rl.on('line', async line => {
   try {
     const res = await agent.handleQuery(input);
     console.log(res.text);
+    if (res.sources && res.sources.length > 0) {
+      console.log('\nSources:');
+      res.sources.forEach((s, i) => console.log(`${i + 1}. ${s}`));
+    }
   } catch (err: any) {
     console.error('Error:', err.message);
   }

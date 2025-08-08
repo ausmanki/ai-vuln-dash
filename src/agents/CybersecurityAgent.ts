@@ -63,6 +63,19 @@ export class AIGroundingEngine {
       return result;
     }
 
+    const extractSources = (groundingMetadata: any) => {
+      if (!groundingMetadata?.groundingSupports) return;
+      const chunks = groundingMetadata.groundingChunks || [];
+      for (const support of groundingMetadata.groundingSupports) {
+        for (const idx of support.groundingChunkIndices || []) {
+          const uri = chunks[idx]?.web?.uri;
+          if (uri && !result.sources.includes(uri)) {
+            result.sources.push(uri);
+          }
+        }
+      }
+    };
+
     // Gemini search
     if (this.keys.gemini) {
       try {
@@ -82,6 +95,7 @@ export class AIGroundingEngine {
           const text = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
           result.content += text;
           result.confidence = Math.max(result.confidence, 0.6);
+          extractSources(data.candidates?.[0]?.groundingMetadata);
         }
       } catch (e) {
         console.error('Gemini grounding failed', e);
@@ -108,6 +122,10 @@ export class AIGroundingEngine {
           const text = data.choices?.[0]?.message?.content || '';
           result.content += `\n${text}`;
           result.confidence = Math.max(result.confidence, 0.8);
+          const meta =
+            data.choices?.[0]?.message?.groundingMetadata ||
+            data.choices?.[0]?.message?.grounding_metadata;
+          extractSources(meta);
         }
       } catch (e) {
         console.error('OpenAI grounding failed', e);
@@ -232,56 +250,68 @@ export class CybersecurityAgent {
         return res;
       }
 
+      let response: ChatResponse | undefined;
+
       if (!this.isCybersecurityRelated(query)) {
-        return {
+        response = {
           text: `I'm designed to assist with cybersecurity topics. Please ask a security-related question.`,
           sender: 'bot',
           id: Date.now().toString(),
         };
-      }
+      } else {
+        // First attempt to answer using the local RAG database
+        try {
+          const k = 5;
+          const ragResults = await ragDatabase.search(query, k);
+          const topMatch = ragResults[0];
+          const confidenceThreshold = 0.75;
+          if (topMatch && topMatch.similarity >= confidenceThreshold) {
+            response = {
+              text: topMatch.content,
+              sender: 'bot',
+              id: Date.now().toString(),
+              confidence: topMatch.similarity,
+            };
+          }
+        } catch (e) {
+          console.error('RAG search failed', e);
+        }
 
-      // First attempt to answer using the local RAG database
-      try {
-        const k = 5;
-        const ragResults = await ragDatabase.search(query, k);
-        const topMatch = ragResults[0];
-        const confidenceThreshold = 0.75;
-        if (topMatch && topMatch.similarity >= confidenceThreshold) {
-          return {
-            text: topMatch.content,
+        if (!response) {
+          try {
+            const webResult = await APIService.fetchGeneralAnswer(
+              query,
+              this.settings || {}
+            );
+            if (webResult?.answer) {
+              response = {
+                text: webResult.answer,
+                sender: 'bot',
+                id: Date.now().toString(),
+              };
+            }
+          } catch (e) {
+            console.error('Web search failed', e);
+          }
+        }
+
+        if (!response) {
+          let text = `I understand you're asking about cybersecurity. `;
+          text += `To provide you with the most helpful information, could you please specify your question?`;
+          response = {
+            text,
             sender: 'bot',
             id: Date.now().toString(),
-            confidence: topMatch.similarity,
           };
         }
-      } catch (e) {
-        console.error('RAG search failed', e);
       }
 
-      try {
-        const webResult = await APIService.fetchGeneralAnswer(
-          query,
-          this.settings || {}
-        );
-        if (webResult?.answer) {
-          return {
-            text: webResult.answer,
-            sender: 'bot',
-            id: Date.now().toString(),
-          };
-        }
-      } catch (e) {
-        console.error('Web search failed', e);
+      const grounded = await this.getGroundedInfo(query);
+      if (grounded.sources.length > 0) {
+        response.sources = grounded.sources.map((url, i) => `[Source ${i + 1}](${url})`);
       }
 
-      let response = `I understand you're asking about cybersecurity. `;
-      response += `To provide you with the most helpful information, could you please specify your question?`;
-
-      return {
-        text: response,
-        sender: 'bot',
-        id: Date.now().toString(),
-      };
+      return response;
     } catch (error: any) {
       console.error('Error in handleQuery:', error);
       return {
@@ -310,7 +340,12 @@ export class CybersecurityAgent {
       }
 
       // All CVE queries now go through the comprehensive report generator
-      return await this.generateComprehensiveCVEReport(query, cveId);
+      const result = await this.generateComprehensiveCVEReport(query, cveId);
+      const grounded = await this.getGroundedInfo(`${cveId} ${query}`);
+      if (grounded.sources.length > 0) {
+        result.sources = grounded.sources.map((url, i) => `[Source ${i + 1}](${url})`);
+      }
+      return result;
 
     } catch (error: any) {
       console.error('CVE Query Error:', error);
