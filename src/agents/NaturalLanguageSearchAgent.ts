@@ -5,6 +5,7 @@ import { AgentSettings } from '../types/cveData';
 import { fetchGeneralAnswer } from '../services/AIEnhancementService';
 import { fetchWithFallback } from '../services/UtilityService';
 import { logger } from '../utils/logger';
+import { CVE_REGEX } from '../utils/cveRegex';
 
 export class NaturalLanguageSearchAgent {
   constructor() {
@@ -67,12 +68,22 @@ export class NaturalLanguageSearchAgent {
 
     const result = await fetchGeneralAnswer(query, settings, fetchWithFallback);
 
+    // Reset regex state
+    CVE_REGEX.lastIndex = 0;
+    const match = CVE_REGEX.exec(result.answer);
+    const detectedCveId = match ? match[0].toUpperCase() : undefined;
+
+    if (detectedCveId) {
+      logger.info(`Detected CVE ID in web search result: ${detectedCveId}`);
+    }
+
     return {
       cveId: null,
       title: `AI Web Search Results for "${query}"`,
       snippet: result.answer,
       source: `AI (${settings.aiProvider})`,
       similarity: null, // No similarity score for web search results
+      detectedCveId,
     };
   }
 }

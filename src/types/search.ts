@@ -8,5 +8,6 @@ export interface SearchResult {
   title: string;
   snippet: string;
   source: string;
-  similarity: number;
+  similarity: number | null;
+  detectedCveId?: string;
 }

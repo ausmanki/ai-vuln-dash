@@ -69,26 +69,52 @@ const SearchResults = () => {
             </p>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '20px' }}>
               <span style={{ fontSize: '0.875rem', color: COLORS.gray[500] }}>
-                Source: {result.source} | Similarity: <strong>{(result.similarity * 100).toFixed(1)}%</strong>
+                Source: {result.source}
+                {result.similarity !== null && (
+                  <>
+                    {' '}| Similarity: <strong>{(result.similarity * 100).toFixed(1)}%</strong>
+                  </>
+                )}
               </span>
-              {result.cveId && (
-                <button
-                  onClick={() => handleResultClick(result.cveId)}
-                  style={{
-                    padding: '10px 20px',
-                    fontSize: '0.9rem',
-                    fontWeight: '600',
-                    color: '#fff',
-                    background: `linear-gradient(135deg, ${COLORS.blue} 0%, #1d4ed8 100%)`,
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease-in-out'
-                  }}
-                >
-                  View CVE Details
-                </button>
-              )}
+              <div>
+                {result.cveId && (
+                  <button
+                    onClick={() => handleResultClick(result.cveId)}
+                    style={{
+                      padding: '10px 20px',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      color: '#fff',
+                      background: `linear-gradient(135deg, ${COLORS.blue} 0%, #1d4ed8 100%)`,
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease-in-out'
+                    }}
+                  >
+                    View CVE Details
+                  </button>
+                )}
+                {result.detectedCveId && (
+                  <button
+                    onClick={() => handleResultClick(result.detectedCveId)}
+                    style={{
+                      padding: '10px 20px',
+                      fontSize: '0.9rem',
+                      fontWeight: '600',
+                      color: '#fff',
+                      background: `linear-gradient(135deg, ${COLORS.green} 0%, #15803d 100%)`,
+                      border: 'none',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease-in-out',
+                      marginLeft: '10px'
+                    }}
+                  >
+                    View Details for {result.detectedCveId}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         ))}
