@@ -477,6 +477,7 @@ export interface ChatResponse<T = any> {
   sender?: 'user' | 'bot' | 'system';
   confidence?: number;
   followUps?: string[];
+  sources?: string[]; // Source URLs for citations
 }
 
 export interface BulkAnalysisResult {
