@@ -8,9 +8,9 @@ import { bom as createSBOM } from '@cyclonedx/bom';
 import { exec } from 'child_process';
 import { getApiKeys, getClientConfig } from './config/apiKeys.js';
 import cisaKevProxy from './cisaKevProxy.js';
-import { TaintRuleGenerationService } from '../src/services/TaintRuleGenerationService';
-import { CorrelationService } from '../src/services/CorrelationService';
-import { ExplanationService } from '../src/services/ExplanationService';
+import { TaintRuleGenerationService } from '../src/services/TaintRuleGenerationService.js';
+import { CorrelationService } from '../src/services/CorrelationService.js';
+import { ExplanationService } from '../src/services/ExplanationService.js';
 
 const { openAiApiKey, googleApiKey } = getApiKeys();
 console.log('API Keys Status:');
