@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "server": "node --loader ts-node/esm server/index.ts",
+    "server": "node --import 'data:text/javascript,import {register} from \"node:module\";import {pathToFileURL} from \"node:url\";register(\"ts-node/esm\", pathToFileURL(\"./\"));' server/index.ts",
     "start": "concurrently \"npm run server\" \"npm run dev\"",
     "curate": "ts-node scripts/curation-cycle.ts",
     "cybersecurity-cli": "ts-node scripts/cybersecurity-agent-cli.ts"
@@ -29,6 +29,7 @@
     "react-markdown": "^9.0.1",
     "recharts": "^2.15.3",
     "remark-gfm": "^4.0.0",
+    "ts-node": "^10.9.2",
     "unzipper": "^0.12.3",
     "xlsx": "^0.18.5"
   },
@@ -50,7 +51,6 @@
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
     "jsdom": "^26.1.0",
-    "ts-node": "^10.9.2",
     "typescript": "^5.8.3",
     "vite": "^6.3.5",
     "vitest": "^3.2.4"
