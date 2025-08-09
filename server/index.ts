@@ -28,9 +28,12 @@ let createSBOM: any = null;
 // Since we're in an async context at top level, we can use dynamic import
 try {
     const cycloneDxModule = await import('@cyclonedx/bom');
+    // Check what's actually exported
+    console.log('CycloneDX exports:', Object.keys(cycloneDxModule));
+    
     // Try different possible exports
-    createSBOM = cycloneDxModule.makeBom ||
-                 cycloneDxModule.createBom ||
+    createSBOM = cycloneDxModule.makeBom || 
+                 cycloneDxModule.createBom || 
                  cycloneDxModule.default?.makeBom ||
                  cycloneDxModule.default;
     
@@ -187,63 +190,23 @@ app.post('/api/explain-finding', async (req, res) => {
     }
 });
 
-const projectRootFiles = [
-    'package.json',
-    'requirements.txt',
-    'pom.xml',
-    'build.gradle',
-    'Gemfile',
-    'go.mod'
-];
-
-function findProjectRoot(basePath: string): string {
-    for (const rootFile of projectRootFiles) {
-        if (fs.existsSync(path.join(basePath, rootFile))) {
-            return basePath;
-        }
-    }
-
-    const contents = fs.readdirSync(basePath);
-    for (const item of contents) {
-        const itemPath = path.join(basePath, item);
-        try {
-            if (fs.statSync(itemPath).isDirectory()) {
-                for (const rootFile of projectRootFiles) {
-                    if (fs.existsSync(path.join(itemPath, rootFile))) {
-                        console.log(`Project root found in subdirectory: ${itemPath}`);
-                        return itemPath;
-                    }
+async function generateSBOM(projectPath: string) {
+    // Always use our implementation for reliability
+    const packageJsonPath = path.join(projectPath, 'package.json');
+    
+    if (!fs.existsSync(packageJsonPath)) {
+        // Try to find package.json in subdirectories
+        const files = fs.readdirSync(projectPath);
+        for (const file of files) {
+            const subPath = path.join(projectPath, file);
+            if (fs.statSync(subPath).isDirectory()) {
+                const subPackageJson = path.join(subPath, 'package.json');
+                if (fs.existsSync(subPackageJson)) {
+                    return generateSBOM(subPath);
                 }
             }
-        } catch (err) {
-            console.warn(`Could not stat ${itemPath}, skipping:`, err);
         }
-    }
-
-    console.warn(`Could not find a project root file in ${basePath} or its subdirectories. Using ${basePath} as root.`);
-    return basePath;
-}
-
-function detectLanguage(projectPath: string): string {
-    if (fs.existsSync(path.join(projectPath, 'package.json'))) return 'javascript';
-    if (fs.existsSync(path.join(projectPath, 'requirements.txt'))) return 'python';
-    if (fs.existsSync(path.join(projectPath, 'pom.xml'))) return 'java';
-    if (fs.existsSync(path.join(projectPath, 'build.gradle'))) return 'java';
-    if (fs.existsSync(path.join(projectPath, 'Gemfile'))) return 'ruby';
-    if (fs.existsSync(path.join(projectPath, 'go.mod'))) return 'go';
-    return 'unknown';
-}
-
-async function generateSBOM(projectPath: string) {
-    const language = detectLanguage(projectPath);
-    if (language !== 'javascript') {
-        console.log(`SBOM generation is not supported for ${language} projects yet.`);
-        return null;
-    }
-
-    const packageJsonPath = path.join(projectPath, 'package.json');
-    if (!fs.existsSync(packageJsonPath)) {
-        console.warn('No package.json found in project path:', projectPath);
+        console.warn('No package.json found in project');
         return null;
     }
 
@@ -254,6 +217,7 @@ async function generateSBOM(projectPath: string) {
             ...packageJson.devDependencies 
         };
         
+        // Try to get version information from lock file
         const packageLockPath = path.join(projectPath, 'package-lock.json');
         let resolvedVersions: any = {};
         
@@ -261,6 +225,7 @@ async function generateSBOM(projectPath: string) {
             try {
                 const lockData = JSON.parse(fs.readFileSync(packageLockPath, 'utf-8'));
                 if (lockData.packages) {
+                    // npm v7+ format
                     Object.entries(lockData.packages).forEach(([key, value]: [string, any]) => {
                         if (key && key.startsWith('node_modules/')) {
                             const pkgName = key.replace('node_modules/', '');
@@ -268,6 +233,7 @@ async function generateSBOM(projectPath: string) {
                         }
                     });
                 } else if (lockData.dependencies) {
+                    // npm v6 format
                     Object.entries(lockData.dependencies).forEach(([key, value]: [string, any]) => {
                         resolvedVersions[key] = value.version;
                     });
@@ -277,6 +243,7 @@ async function generateSBOM(projectPath: string) {
             }
         }
         
+        // Create CycloneDX format SBOM
         const sbom = {
             bomFormat: 'CycloneDX',
             specVersion: '1.4',
@@ -350,47 +317,23 @@ async function scanForSinks(projectPath: string) {
 }
 
 async function runSemgrep(projectPath: string): Promise<any[]> {
-    const language = detectLanguage(projectPath);
-    let config = '';
-
-    switch (language) {
-        case 'javascript':
-            config = 'p/javascript';
-            break;
-        case 'python':
-            config = 'p/python';
-            break;
-        case 'java':
-            config = 'p/java';
-            break;
-        case 'go':
-            config = 'p/go';
-            break;
-        case 'ruby':
-            config = 'p/ruby';
-            break;
-        default:
-            console.warn(`Unknown project language in ${projectPath}. Using default semgrep rules.`);
-            config = 'p/default';
-            break;
-    }
-
-    console.log(`Detected project language: ${language}, using Semgrep config: ${config}`);
-
     return new Promise((resolve, reject) => {
-        const command = `semgrep scan --json --config "${config}" "${projectPath}"`;
+        const command = `semgrep scan --json --config "r/javascript.lang.security.audit.taint-analysis.taint-flow" "${projectPath}"`;
         exec(command, { maxBuffer: 1024 * 1024 * 10 }, (error, stdout, stderr) => {
+            // Semgrep returns exit code 1 when it finds issues, which is not an error
             if (error && error.code !== 1 && error.code !== 0) {
                 console.error(`Semgrep execution error: ${stderr}`);
+                // Check if semgrep is installed
                 if (stderr.includes('command not found') || stderr.includes('is not recognized')) {
                     console.error('Semgrep is not installed. Please install it with: pip install semgrep');
-                    resolve([]);
+                    resolve([]); // Return empty results instead of rejecting
                     return;
                 }
-                resolve([]);
+                resolve([]); // Return empty results for other errors
                 return;
             }
             
+            // Handle empty output
             if (!stdout || stdout.trim() === '') {
                 console.log('Semgrep returned empty output');
                 resolve([]);
@@ -404,7 +347,7 @@ async function runSemgrep(projectPath: string): Promise<any[]> {
                 console.error(`Error parsing Semgrep output: ${parseError.message}`);
                 console.error('Semgrep stdout:', stdout);
                 console.error('Semgrep stderr:', stderr);
-                resolve([]);
+                resolve([]); // Return empty results instead of rejecting
             }
         });
     });
@@ -422,6 +365,7 @@ app.post('/api/upload', upload.single('project'), async (req, res) => {
         size: req.file.size
     });
 
+    // Validate file size
     if (req.file.size === 0) {
         try {
             fs.unlinkSync(req.file.path);
@@ -432,18 +376,23 @@ app.post('/api/upload', upload.single('project'), async (req, res) => {
     const unzippedPath = `server/unzipped/${req.file.filename}`;
     
     try {
+        // Ensure directory exists
         fs.mkdirSync(unzippedPath, { recursive: true });
 
+        // First, let's check if the file is actually a ZIP
         const fileBuffer = fs.readFileSync(req.file.path);
         const zipSignature = fileBuffer.slice(0, 4).toString('hex');
         
+        // ZIP files should start with PK (504b)
         if (!zipSignature.startsWith('504b')) {
             throw new Error(`File is not a valid ZIP archive (signature: ${zipSignature}). Please upload a .zip file.`);
         }
 
+        // Try multiple extraction methods
         let extractionSuccessful = false;
         let extractionError: any = null;
 
+        // Method 1: Try AdmZip
         try {
             const zip = new AdmZip(req.file.path);
             const zipEntries = zip.getEntries();
@@ -461,6 +410,7 @@ app.post('/api/upload', upload.single('project'), async (req, res) => {
             extractionError = admZipError;
         }
 
+        // Method 2: If AdmZip fails, try using system unzip command (if available)
         if (!extractionSuccessful && process.platform !== 'win32') {
             try {
                 await execAsync(`unzip -o "${req.file.path}" -d "${unzippedPath}"`);
@@ -471,6 +421,7 @@ app.post('/api/upload', upload.single('project'), async (req, res) => {
             }
         }
 
+        // Method 3: If on Windows, try using PowerShell
         if (!extractionSuccessful && process.platform === 'win32') {
             try {
                 const psCommand = `Expand-Archive -Path "${req.file.path}" -DestinationPath "${unzippedPath}" -Force`;
@@ -486,12 +437,14 @@ app.post('/api/upload', upload.single('project'), async (req, res) => {
             throw new Error(`Failed to extract ZIP file: ${extractionError?.message || 'All extraction methods failed'}`);
         }
 
+        // Cleanup the uploaded zip file
         try {
             fs.unlinkSync(req.file.path);
         } catch (err) {
             console.error("Error deleting zip file:", err);
         }
 
+        // Check if extraction produced any files
         const extractedFiles = fs.readdirSync(unzippedPath);
         if (extractedFiles.length === 0) {
             throw new Error('ZIP extraction produced no files');
@@ -499,8 +452,7 @@ app.post('/api/upload', upload.single('project'), async (req, res) => {
 
         console.log(`Extracted ${extractedFiles.length} items:`, extractedFiles.slice(0, 5).join(', '));
 
-        const projectRoot = findProjectRoot(unzippedPath);
-
+        // Process the unzipped files
         let sbom = null;
         let sinks = [];
         let semgrepResults = [];
@@ -508,9 +460,9 @@ app.post('/api/upload', upload.single('project'), async (req, res) => {
         const warnings: string[] = [];
 
         try {
-            sbom = await generateSBOM(projectRoot);
+            sbom = await generateSBOM(unzippedPath);
             if (!sbom) {
-                warnings.push('SBOM generation failed or is not supported for this project type.');
+                warnings.push('SBOM generation failed - no package.json found');
             }
         } catch (err: any) {
             console.error('SBOM generation error:', err.message);
@@ -518,7 +470,7 @@ app.post('/api/upload', upload.single('project'), async (req, res) => {
         }
 
         try {
-            sinks = await scanForSinks(projectRoot);
+            sinks = await scanForSinks(unzippedPath);
             console.log(`Found ${sinks.length} potential security sinks`);
         } catch (err: any) {
             console.error('Sink scanning error:', err.message);
@@ -526,7 +478,7 @@ app.post('/api/upload', upload.single('project'), async (req, res) => {
         }
 
         try {
-            semgrepResults = await runSemgrep(projectRoot);
+            semgrepResults = await runSemgrep(unzippedPath);
             if (semgrepResults.length === 0) {
                 warnings.push('Semgrep found no issues or is not installed');
             } else {
@@ -554,14 +506,15 @@ app.post('/api/upload', upload.single('project'), async (req, res) => {
             sinks: sinks,
             semgrep: semgrepResults,
             correlation: correlationResults,
-.            warnings: warnings
+            warnings: warnings
         });
 
     } catch (err: any) {
         console.error("Error processing upload:", err);
         
+        // Clean up on error
         try {
-            if (req.file && fs.existsSync(req.file.path)) {
+            if (fs.existsSync(req.file.path)) {
                 fs.unlinkSync(req.file.path);
             }
             if (fs.existsSync(unzippedPath)) {
@@ -574,11 +527,11 @@ app.post('/api/upload', upload.single('project'), async (req, res) => {
         res.status(500).json({ 
             error: 'Error processing uploaded file',
             details: err.message,
-            fileInfo: req.file ? {
+            fileInfo: {
                 originalName: req.file.originalname,
                 size: req.file.size,
                 mimetype: req.file.mimetype
-            } : {}
+            }
         });
     }
 });
@@ -594,6 +547,7 @@ async function findAvailablePort(startPort: number): Promise<number> {
         });
         
         server.on('error', () => {
+            // Port is in use, try the next one
             resolve(findAvailablePort(startPort + 1));
         });
     });
@@ -602,30 +556,41 @@ async function findAvailablePort(startPort: number): Promise<number> {
 // Add error handling to prevent crashes
 process.on('unhandledRejection', (reason: any) => {
     console.error('Unhandled Promise Rejection:', reason);
+    // Don't exit the process, just log the error
 });
 
 process.on('uncaughtException', (error: Error) => {
     console.error('Uncaught Exception:', error);
     if (error.message && error.message.includes('EADDRINUSE')) {
         console.error('Port is already in use. The server will find another port...');
+        // Don't exit for port errors
     } else {
+        // For other uncaught exceptions, exit after logging
         process.exit(1);
     }
 });
 
 // Start the server with automatic port detection
-const preferredPort = parseInt(process.env.PORT || '3001');
-const actualPort = await findAvailablePort(preferredPort);
+async function startServer() {
+    const preferredPort = parseInt(process.env.PORT || '3001');
+    const actualPort = await findAvailablePort(preferredPort);
 
-if (actualPort !== preferredPort) {
-    console.log(`⚠️  Port ${preferredPort} was in use, using port ${actualPort} instead`);
+    if (actualPort !== preferredPort) {
+        console.log(`⚠️  Port ${preferredPort} was in use, using port ${actualPort} instead`);
+    }
+
+    const server = app.listen(actualPort, () => {
+        console.log(`\n🚀 Backend server listening on port ${actualPort}`);
+        console.log(`🔗 API available at http://localhost:${actualPort}`);
+        console.log('\nEnvironment check:');
+        console.log('- NODE_ENV:', process.env.NODE_ENV || 'development');
+        console.log('- Working directory:', process.cwd());
+        console.log('\n📝 Note: Update your frontend proxy configuration to use port', actualPort);
+    });
 }
 
-const server = app.listen(actualPort, () => {
-    console.log(`\n🚀 Backend server listening on port ${actualPort}`);
-    console.log(`🔗 API available at http://localhost:${actualPort}`);
-    console.log('\nEnvironment check:');
-    console.log('- NODE_ENV:', process.env.NODE_ENV || 'development');
-    console.log('- Working directory:', process.cwd());
-    console.log('\n📝 Note: Update your frontend proxy configuration to use port', actualPort);
+// Start the server
+startServer().catch(err => {
+    console.error('Failed to start server:', err);
+    process.exit(1);
 });
