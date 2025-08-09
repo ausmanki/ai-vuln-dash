@@ -259,33 +259,54 @@ app.post('/api/upload', upload.single('project'), (req, res) => {
     const unzippedPath = `server/unzipped/${req.file.filename}`;
     fs.mkdirSync(unzippedPath, { recursive: true });
 
-    fs.createReadStream(req.file.path)
-        .pipe(unzipper.Extract({ path: unzippedPath }))
-        .on('close', async () => {
-            // Cleanup the uploaded zip file
+    let errorOccurred = false;
+
+    const stream = fs.createReadStream(req.file.path)
+        .pipe(unzipper.Extract({ path: unzippedPath }));
+
+    stream.on('close', async () => {
+        if (errorOccurred) {
+            // Cleanup the uploaded zip file and the created directory
             fs.unlink(req.file.path, (err) => {
-                if (err) console.error("Error deleting zip file:", err);
+                if (err) console.error("Error deleting failed zip file:", err);
             });
-            console.log(`Project unzipped to ${unzippedPath}`);
-
-            const sbom = await generateSBOM(unzippedPath);
-            const sinks = await scanForSinks(unzippedPath);
-            const semgrepResults = await runSemgrep(unzippedPath);
-            const correlationResults = await CorrelationService.correlate(sbom, semgrepResults);
-
-            res.status(200).json({
-                message: 'Project uploaded and unzipped successfully.',
-                projectPath: unzippedPath,
-                sbom: sbom,
-                sinks: sinks,
-                semgrep: semgrepResults,
-                correlation: correlationResults
+            fs.rm(unzippedPath, { recursive: true, force: true }, (err) => {
+                if (err) console.error("Error deleting directory for failed upload:", err);
             });
-        })
-        .on('error', (err) => {
-            console.error("Error unzipping file:", err);
-            res.status(500).send('Error unzipping file.');
+            return;
+        }
+
+        // Cleanup the uploaded zip file
+        fs.unlink(req.file.path, (err) => {
+            if (err) console.error("Error deleting zip file:", err);
         });
+        console.log(`Project unzipped to ${unzippedPath}`);
+
+        const sbom = await generateSBOM(unzippedPath);
+        const sinks = await scanForSinks(unzippedPath);
+        const semgrepResults = await runSemgrep(unzippedPath);
+        const correlationResults = await CorrelationService.correlate(sbom, semgrepResults);
+
+        res.status(200).json({
+            message: 'Project uploaded and unzipped successfully.',
+            projectPath: unzippedPath,
+            sbom: sbom,
+            sinks: sinks,
+            semgrep: semgrepResults,
+            correlation: correlationResults
+        });
+    });
+
+    stream.on('error', (err) => {
+        errorOccurred = true;
+        console.error("Error unzipping file:", err);
+        if (!res.headersSent) {
+            res.status(500).json({
+                error: 'Error unzipping file.',
+                details: err.message
+            });
+        }
+    });
 });
 
 
