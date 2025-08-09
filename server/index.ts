@@ -28,12 +28,9 @@ let createSBOM: any = null;
 // Since we're in an async context at top level, we can use dynamic import
 try {
     const cycloneDxModule = await import('@cyclonedx/bom');
-    // Check what's actually exported
-    console.log('CycloneDX exports:', Object.keys(cycloneDxModule));
-    
     // Try different possible exports
-    createSBOM = cycloneDxModule.makeBom || 
-                 cycloneDxModule.createBom || 
+    createSBOM = cycloneDxModule.makeBom ||
+                 cycloneDxModule.createBom ||
                  cycloneDxModule.default?.makeBom ||
                  cycloneDxModule.default;
     
