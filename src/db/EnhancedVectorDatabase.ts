@@ -176,6 +176,10 @@ export class EnhancedVectorDatabase {
     return doc.id;
   }
 
+  getDocuments() {
+    return this.documents;
+  }
+
   async search(query: string, k = 8) {
     if (this.documents.length === 0) {
       console.warn('⚠️ RAG database is empty - initializing with default knowledge base');
