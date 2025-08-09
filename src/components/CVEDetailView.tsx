@@ -1145,6 +1145,29 @@ Focus on actionable information for security professionals.
                 </div>
               </CVESection>
 
+              {vulnerability?.cve?.weaknesses && vulnerability.cve.weaknesses.length > 0 && (
+                <CVESection title={`Weaknesses (${vulnerability.cve.weaknesses.length})`}>
+                  <div style={{ display: 'grid', gap: '8px' }}>
+                    {vulnerability.cve.weaknesses.map((weakness, index) => (
+                      <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '8px 12px', background: safeSettings.darkMode ? COLORS.dark.background : COLORS.light.background, borderRadius: '4px', fontSize: '0.9rem' }}>
+                        <ExternalLink size={14} color={COLORS.blue} />
+                        <a
+                          href={`https://cwe.mitre.org/data/definitions/${weakness.description[0].value.split('-')[1]}.html`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: COLORS.blue, textDecoration: 'none', flex: 1, wordBreak: 'break-all' }}
+                        >
+                          {weakness.description[0].value}
+                        </a>
+                        <span style={{ padding: '2px 6px', background: `${COLORS.blue}20`, color: COLORS.blue, borderRadius: '3px', fontSize: '0.75rem', fontWeight: '600' }}>
+                          {weakness.source.toUpperCase()}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </CVESection>
+              )}
+
               {vulnerability?.epss && (
                 <CVESection title="Exploitation Probability (EPSS)">
                   <div style={{

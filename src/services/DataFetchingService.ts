@@ -695,5 +695,25 @@ export async function fetchCISAKEVData(cveId: string, setLoadingSteps: any, ragD
   }
 }
 
+export async function fetchOSVData(cveId: string): Promise<any> {
+    logger.debug(`Fetching OSV data for ${cveId}`);
+    const url = `https://api.osv.dev/v1/vulns/${cveId}`;
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            if (response.status === 404) {
+                logger.warn(`OSV data not found for ${cveId}`);
+                return null;
+            }
+            throw new Error(`OSV API error: ${response.status}`);
+        }
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        logger.error(`❌ OSV fetch failed for ${cveId}:`, error);
+        return null;
+    }
+}
+
 // COMPATIBILITY: Export alias for backward compatibility
 export const searchCISAKEVWithAI = searchCISAKEVForCVE;

@@ -385,10 +385,39 @@ export interface CVEValidationData {
 }
 
 
+export interface OSVAffectedPackage {
+  ecosystem: string;
+  name: string;
+}
+
+export interface OSVAffected {
+  package: OSVAffectedPackage;
+  versions: string[];
+  ecosystem_specific?: any;
+  database_specific?: any;
+}
+
+export interface OSVData {
+    id: string;
+    modified: string;
+    published: string;
+    withdrawn?: string;
+    aliases?: string[];
+    related?: string[];
+    summary?: string;
+    details?: string;
+    severity?: any[];
+    affected: OSVAffected[];
+    references: any[];
+    credits?: any[];
+    database_specific?: any;
+}
+
 export interface EnhancedVulnerabilityData {
   cve: BaseCVEInfo | null;
   epss?: EPSSData | null;
   kev?: CisaKevDetails | null;
+  osv?: OSVData | null;
   exploits?: ExploitDiscoveryData | null;
   vendorAdvisories?: VendorAdvisoryData | null;
   cveValidation?: CVEValidationData | null; // Updated to new structure
