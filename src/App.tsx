@@ -18,7 +18,7 @@ import EmptyState from './components/EmptyState';
 import SearchResults from './components/SearchResults';
 import ChatInterface from './components/ChatInterface';
 import BulkUploadComponent from './components/BulkUploadComponent'; // Added
-import RAGAnalysisView from './components/RAGAnalysisView';
+import TaintAnalysisPage from './components/TaintAnalysisPage';
 import CodeAnalysisPage from './components/CodeAnalysisPage';
 import ErrorBoundary from './components/ErrorBoundary'; // Added ErrorBoundary
 import Footer from './components/Footer';
@@ -40,7 +40,7 @@ const App = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showChat, setShowChat] = useState(false); // Added state for chat visibility
   const [showBulkUploadView, setShowBulkUploadView] = useState(false); // State for bulk upload UI
-  const [showRAGView, setShowRAGView] = useState(false);
+  const [showTaintAnalysisView, setShowTaintAnalysisView] = useState(false);
   const [showCodeAnalysisView, setShowCodeAnalysisView] = useState(false);
   
   // State for bulk analysis
@@ -271,12 +271,12 @@ const App = () => {
                 Bulk Analyze
               </button>
               <button
-                onClick={() => setShowRAGView(true)}
+                onClick={() => setShowTaintAnalysisView(true)}
                 style={{ ...styles.button, ...styles.buttonSecondary }}
-                title="RAG Analysis"
+                title="Taint Analysis"
               >
-                <Database size={18} />
-                RAG
+                <Search size={18} />
+                Taint Analysis
               </button>
               <button
                 onClick={() => setShowCodeAnalysisView(true)}
@@ -374,10 +374,10 @@ const App = () => {
           />
         )}
 
-        {showRAGView && (
-          <RAGAnalysisView
+        {showTaintAnalysisView && (
+          <TaintAnalysisPage
             vulnerability={vulnerabilities.length > 0 ? vulnerabilities[0] : null}
-            onClose={() => setShowRAGView(false)}
+            onClose={() => setShowTaintAnalysisView(false)}
           />
         )}
 
