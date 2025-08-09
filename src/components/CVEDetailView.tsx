@@ -5,8 +5,9 @@ import { utils } from '../utils/helpers';
 import { createStyles } from '../utils/styles';
 import { COLORS, CONSTANTS } from '../utils/constants';
 import { Brain, Database, Globe, Info, Loader2, Copy, RefreshCw, Package, CheckCircle, XCircle, AlertTriangle, Target, ChevronRight, FileText, ExternalLink, Search, Clock } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import TechnicalBrief from './TechnicalBrief';
-import AISourcesTab from './AISourcesTab';
 import RiskScore from './RiskScore';
 import { vendorPortalMap } from '../utils/vendorPortals';
 import CVEInfoBlock from './CVEInfoBlock';
@@ -1056,7 +1057,7 @@ Focus on actionable information for security professionals.
           gap: '4px',
           flexWrap: 'wrap'
         }}>
-          {['overview', 'ai-sources', 'brief'].map((tab) => (
+          {['overview', 'brief'].map((tab) => (
             <button
               key={tab}
               style={{
@@ -1080,11 +1081,8 @@ Focus on actionable information for security professionals.
               onClick={() => setActiveTab(tab)}
             >
               {tab === 'overview' && <Info size={16} />}
-              {tab === 'ai-sources' && <Globe size={16} />}
               {tab === 'brief' && <FileText size={16} />}
-              {tab === 'ai-sources'
-                ? 'AI Taint Analysis'
-                : tab === 'brief'
+              {tab === 'brief'
                 ? 'Tech Brief'
                 : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
@@ -1118,9 +1116,11 @@ Focus on actionable information for security professionals.
                       <Copy size={14} />
                     </button>
                   </div>
-                  <p style={{ fontSize: '1rem', lineHeight: '1.6', color: safeSettings.darkMode ? COLORS.dark.text : COLORS.light.text, margin: 0 }}>
-                    {formatDescription(vulnerability?.cve?.description, vulnerability)}
-                  </p>
+                  <div style={{ fontSize: '1rem', lineHeight: '1.6', color: safeSettings.darkMode ? COLORS.dark.text : COLORS.light.text, margin: 0 }}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                      {formatDescription(vulnerability?.cve?.description, vulnerability)}
+                    </ReactMarkdown>
+                  </div>
                 </div>
               </CVESection>
 
@@ -1294,8 +1294,6 @@ Focus on actionable information for security professionals.
               </div>
             </div>
           )}
-
-          {activeTab === 'ai-sources' && <AISourcesTab vulnerability={vulnerability} />}
 
           {activeTab === 'brief' && (
              <div>

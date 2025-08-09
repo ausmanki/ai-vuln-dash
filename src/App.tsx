@@ -18,6 +18,7 @@ import EmptyState from './components/EmptyState';
 import SearchResults from './components/SearchResults';
 import ChatInterface from './components/ChatInterface';
 import BulkUploadComponent from './components/BulkUploadComponent'; // Added
+import RAGAnalysisView from './components/RAGAnalysisView';
 import ErrorBoundary from './components/ErrorBoundary'; // Added ErrorBoundary
 import Footer from './components/Footer';
 // import { AppContext } from './contexts/AppContext'; // Will be imported from AppContext.ts
@@ -38,6 +39,7 @@ const App = () => {
   const [showSettings, setShowSettings] = useState(false);
   const [showChat, setShowChat] = useState(false); // Added state for chat visibility
   const [showBulkUploadView, setShowBulkUploadView] = useState(false); // State for bulk upload UI
+  const [showRAGView, setShowRAGView] = useState(false);
   
   // State for bulk analysis
   const [bulkAnalysisResults, setBulkAnalysisResults] = useState<BulkAnalysisResult[]>([]);
@@ -266,6 +268,14 @@ const App = () => {
                 <UploadCloud size={18} />
                 Bulk Analyze
               </button>
+              <button
+                onClick={() => setShowRAGView(true)}
+                style={{ ...styles.button, ...styles.buttonSecondary }}
+                title="RAG Analysis"
+              >
+                <Database size={18} />
+                RAG
+              </button>
             </div>
           </div>
         </header>
@@ -351,6 +361,13 @@ const App = () => {
             bulkAnalysisResults={bulkAnalysisResults}
             isBulkLoading={isBulkLoading}
             bulkProgress={bulkProgress}
+          />
+        )}
+
+        {showRAGView && (
+          <RAGAnalysisView
+            vulnerability={vulnerabilities.length > 0 ? vulnerabilities[0] : null}
+            onClose={() => setShowRAGView(false)}
           />
         )}
 
