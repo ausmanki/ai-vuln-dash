@@ -1,8 +1,10 @@
 import React, { useMemo, useContext, useState, useCallback } from 'react';
 import { AppContext } from '../contexts/AppContext';
 import { createStyles } from '../utils/styles';
-import { X, Code, UploadCloud, File as FileIcon, Loader2 } from 'lucide-react';
+import { X, Code, UploadCloud, File as FileIcon, Loader2, Brain } from 'lucide-react';
 import { COLORS } from '../utils/constants';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface CodeAnalysisPageProps {
   onClose: () => void;
@@ -16,6 +18,10 @@ const CodeAnalysisPage: React.FC<CodeAnalysisPageProps> = ({ onClose }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [sbom, setSbom] = useState<any | null>(null);
   const [sinks, setSinks] = useState<any[] | null>(null);
+  const [semgrepResults, setSemgrepResults] = useState<any[] | null>(null);
+  const [correlationResults, setCorrelationResults] = useState<any[] | null>(null);
+  const [explanation, setExplanation] = useState<string | null>(null);
+  const [isExplaining, setIsExplaining] = useState<number | null>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -24,6 +30,9 @@ const CodeAnalysisPage: React.FC<CodeAnalysisPageProps> = ({ onClose }) => {
         setFile(selectedFile);
         setSbom(null);
         setSinks(null);
+        setSemgrepResults(null);
+        setCorrelationResults(null);
+        setExplanation(null);
       } else {
         addNotification?.({ type: 'error', title: 'Invalid File Type', message: 'Please upload a .zip file.' });
       }
@@ -39,6 +48,9 @@ const CodeAnalysisPage: React.FC<CodeAnalysisPageProps> = ({ onClose }) => {
     setIsUploading(true);
     setSbom(null);
     setSinks(null);
+    setSemgrepResults(null);
+    setCorrelationResults(null);
+    setExplanation(null);
     const formData = new FormData();
     formData.append('project', file);
 
@@ -56,11 +68,36 @@ const CodeAnalysisPage: React.FC<CodeAnalysisPageProps> = ({ onClose }) => {
       addNotification?.({ type: 'success', title: 'Analysis Complete', message: `${file.name} has been analyzed.` });
       setSbom(result.sbom);
       setSinks(result.sinks);
+      setSemgrepResults(result.semgrep);
+      setCorrelationResults(result.correlation);
 
     } catch (error) {
       addNotification?.({ type: 'error', title: 'Upload Failed', message: 'An error occurred during upload.' });
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const handleExplain = async (finding: any, index: number) => {
+    setIsExplaining(index);
+    setExplanation(null);
+    try {
+        const response = await fetch('/api/explain-finding', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ finding }),
+        });
+        if (!response.ok) {
+            throw new Error('Failed to get explanation');
+        }
+        const result = await response.json();
+        setExplanation(result.explanation);
+    } catch (error) {
+        addNotification?.({ type: 'error', title: 'Explanation Failed', message: 'Could not get AI explanation.' });
+    } finally {
+        setIsExplaining(null);
     }
   };
 
@@ -220,6 +257,53 @@ const CodeAnalysisPage: React.FC<CodeAnalysisPageProps> = ({ onClose }) => {
             </div>
           )}
 
+          {correlationResults && correlationResults.length > 0 && (
+            <div style={{ width: '100%', maxWidth: '1000px', marginTop: '24px' }}>
+                <h3 style={{ ...styles.subtitle, textAlign: 'center', marginBottom: '16px', color: COLORS.red }}>
+                    Exploitable CVEs Found!
+                </h3>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                        <tr style={{ borderBottom: `2px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}` }}>
+                            <th style={{ padding: '12px', textAlign: 'left' }}>CVE</th>
+                            <th style={{ padding: '12px', textAlign: 'left' }}>Component</th>
+                            <th style={{ padding: '12px', textAlign: 'left' }}>Sink File</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {correlationResults.map((result, index) => (
+                            <tr key={index} style={{ borderBottom: `1px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}` }}>
+                                <td style={{ padding: '12px' }}>{result.cve}</td>
+                                <td style={{ padding: '12px', fontFamily: 'monospace' }}>{result.component.name}@{result.component.version}</td>
+                                <td style={{ padding: '12px', fontFamily: 'monospace' }}>{result.sinks[0].path}</td>
+                                <td style={{ padding: '12px' }}>
+                                    <button
+                                        onClick={() => handleExplain(result, index)}
+                                        disabled={isExplaining === index}
+                                        style={{...styles.button, ...styles.buttonSecondary, padding: '6px 12px'}}
+                                    >
+                                        {isExplaining === index ? <Loader2 size={16} style={{animation: 'spin 1s linear infinite'}} /> : <Brain size={16} />}
+                                        Explain
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+          )}
+
+          {explanation && (
+            <div style={{ width: '100%', maxWidth: '1000px', marginTop: '24px', padding: '24px', background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface, borderRadius: '8px', border: `1px solid ${COLORS.blue}` }}>
+                <h3 style={{ ...styles.subtitle, textAlign: 'center', marginBottom: '16px', color: COLORS.blue }}>
+                    AI-Powered Explanation
+                </h3>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{explanation}</ReactMarkdown>
+                <button onClick={() => setExplanation(null)} style={{...styles.button, ...styles.buttonSecondary, marginTop: '16px'}}>Close</button>
+            </div>
+          )}
+
+
           {sinks && sinks.length > 0 && (
             <div style={{ width: '100%', maxWidth: '1000px', marginTop: '24px' }}>
                 <h3 style={{ ...styles.subtitle, textAlign: 'center', marginBottom: '16px' }}>
@@ -241,6 +325,32 @@ const CodeAnalysisPage: React.FC<CodeAnalysisPageProps> = ({ onClose }) => {
                                 <td style={{ padding: '12px' }}>{sink.description}</td>
                                 <td style={{ padding: '12px', fontFamily: 'monospace' }}>{sink.file}</td>
                                 <td style={{ padding: '12px', fontFamily: 'monospace', color: COLORS.red }}>{sink.pattern}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
+          )}
+
+          {semgrepResults && semgrepResults.length > 0 && (
+            <div style={{ width: '100%', maxWidth: '1000px', marginTop: '24px' }}>
+                <h3 style={{ ...styles.subtitle, textAlign: 'center', marginBottom: '16px' }}>
+                    Semgrep Taint Analysis Results
+                </h3>
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                    <thead>
+                        <tr style={{ borderBottom: `2px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}` }}>
+                            <th style={{ padding: '12px', textAlign: 'left' }}>Rule ID</th>
+                            <th style={{ padding: '12px', textAlign: 'left' }}>File</th>
+                            <th style={{ padding: '12px', textAlign: 'left' }}>Message</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {semgrepResults.map((result, index) => (
+                            <tr key={index} style={{ borderBottom: `1px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}` }}>
+                                <td style={{ padding: '12px' }}>{result.check_id}</td>
+                                <td style={{ padding: '12px', fontFamily: 'monospace' }}>{result.path}</td>
+                                <td style={{ padding: '12px' }}>{result.extra.message}</td>
                             </tr>
                         ))}
                     </tbody>
