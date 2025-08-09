@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "server": "ts-node server/index.ts",
+    "server": "ts-node --esm server/index.ts",
     "start": "concurrently \"npm run server\" \"npm run dev\"",
     "curate": "ts-node scripts/curation-cycle.ts",
     "cybersecurity-cli": "ts-node scripts/cybersecurity-agent-cli.ts"
