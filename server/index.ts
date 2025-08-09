@@ -187,23 +187,38 @@ app.post('/api/explain-finding', async (req, res) => {
     }
 });
 
+function findProjectRoot(basePath: string): string {
+    if (fs.existsSync(path.join(basePath, 'package.json'))) {
+        return basePath;
+    }
+
+    const contents = fs.readdirSync(basePath);
+    for (const item of contents) {
+        const itemPath = path.join(basePath, item);
+        try {
+            if (fs.statSync(itemPath).isDirectory()) {
+                if (fs.existsSync(path.join(itemPath, 'package.json'))) {
+                    console.log(`Project root found in subdirectory: ${itemPath}`);
+                    return itemPath;
+                }
+            }
+        } catch (err) {
+            console.warn(`Could not stat ${itemPath}, skipping:`, err);
+        }
+    }
+
+    // If no package.json found in immediate subdirectories, return original path
+    console.warn(`Could not find project root with package.json in ${basePath} or its subdirectories. Using ${basePath} as root.`);
+    return basePath;
+}
+
 async function generateSBOM(projectPath: string) {
     // Always use our implementation for reliability
     const packageJsonPath = path.join(projectPath, 'package.json');
     
     if (!fs.existsSync(packageJsonPath)) {
-        // Try to find package.json in subdirectories
-        const files = fs.readdirSync(projectPath);
-        for (const file of files) {
-            const subPath = path.join(projectPath, file);
-            if (fs.statSync(subPath).isDirectory()) {
-                const subPackageJson = path.join(subPath, 'package.json');
-                if (fs.existsSync(subPackageJson)) {
-                    return generateSBOM(subPath);
-                }
-            }
-        }
-        console.warn('No package.json found in project');
+        // The logic to find package.json in subdirectories is now in findProjectRoot
+        console.warn('No package.json found in project path:', projectPath);
         return null;
     }
 
@@ -450,6 +465,9 @@ app.post('/api/upload', upload.single('project'), async (req, res) => {
         console.log(`Extracted ${extractedFiles.length} items:`, extractedFiles.slice(0, 5).join(', '));
 
         // Process the unzipped files
+        const projectRoot = findProjectRoot(unzippedPath);
+        console.log(`Final project root for analysis: ${projectRoot}`);
+
         let sbom = null;
         let sinks = [];
         let semgrepResults = [];
@@ -457,7 +475,7 @@ app.post('/api/upload', upload.single('project'), async (req, res) => {
         const warnings: string[] = [];
 
         try {
-            sbom = await generateSBOM(unzippedPath);
+            sbom = await generateSBOM(projectRoot);
             if (!sbom) {
                 warnings.push('SBOM generation failed - no package.json found');
             }
@@ -467,7 +485,7 @@ app.post('/api/upload', upload.single('project'), async (req, res) => {
         }
 
         try {
-            sinks = await scanForSinks(unzippedPath);
+            sinks = await scanForSinks(projectRoot);
             console.log(`Found ${sinks.length} potential security sinks`);
         } catch (err: any) {
             console.error('Sink scanning error:', err.message);
@@ -475,7 +493,7 @@ app.post('/api/upload', upload.single('project'), async (req, res) => {
         }
 
         try {
-            semgrepResults = await runSemgrep(unzippedPath);
+            semgrepResults = await runSemgrep(projectRoot);
             if (semgrepResults.length === 0) {
                 warnings.push('Semgrep found no issues or is not installed');
             } else {
