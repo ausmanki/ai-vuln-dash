@@ -43,6 +43,7 @@ import {
   fetchCVEData,
   fetchEPSSData,
   fetchCISAKEVData,
+  fetchOSVData,
   AIApiRateLimitError,
 } from '../services/DataFetchingService';
 import {
@@ -605,17 +606,19 @@ export class SmartResearchAgent {
       };
 
       // Fetch primary data with parallel optimization
-      let cve, epss, cisaKev;
+      let cve, epss, cisaKev, osv;
       try {
-        const [cveResult, epssResult, cisaKevResult] = await Promise.allSettled([
+        const [cveResult, epssResult, cisaKevResult, osvResult] = await Promise.allSettled([
           fetchCVEData(cveId, apiKeys.nvd, this.setLoadingSteps, ragDatabase, aiSettingsForFetch),
           fetchEPSSData(cveId, this.setLoadingSteps, ragDatabase, aiSettingsForFetch),
-          fetchCISAKEVData(cveId, this.setLoadingSteps, ragDatabase, null, aiSettingsForFetch)
+          fetchCISAKEVData(cveId, this.setLoadingSteps, ragDatabase, null, aiSettingsForFetch),
+          fetchOSVData(cveId)
         ]);
 
         cve = cveResult.status === 'fulfilled' ? cveResult.value : null;
         epss = epssResult.status === 'fulfilled' ? epssResult.value : null;
         cisaKev = cisaKevResult.status === 'fulfilled' ? cisaKevResult.value : null;
+        osv = osvResult.status === 'fulfilled' ? osvResult.value : null;
 
         if (cveResult.status === 'rejected' && cveResult.reason instanceof AIApiRateLimitError) {
           this.updateSteps(`🚨 AI rate limit hit, falling back to direct NVD fetch for ${cveId}...`);
@@ -757,6 +760,7 @@ export class SmartResearchAgent {
       const enhancedVulnerability = {
         cve,
         epss,
+        osv,
         cisaKev: cisaKev || { listed: false, lastChecked: new Date().toISOString() },
         kev: { ...aiThreatIntel.cisaKev, validated: validation.cisaKev?.verified || false },
         exploits: { ...aiThreatIntel.exploitDiscovery, validated: validation.exploits?.verified || false },
