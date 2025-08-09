@@ -12,6 +12,7 @@ import RiskScore from './RiskScore';
 import { vendorPortalMap } from '../utils/vendorPortals';
 import CVEInfoBlock from './CVEInfoBlock';
 import CVESection from './CVESection';
+import TaintAnalysisTab from './TaintAnalysisTab';
 
 const CVEDetailView = ({ vulnerability }) => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -1057,7 +1058,7 @@ Focus on actionable information for security professionals.
           gap: '4px',
           flexWrap: 'wrap'
         }}>
-          {['overview', 'brief'].map((tab) => (
+          {['overview', 'taint-analysis', 'brief'].map((tab) => (
             <button
               key={tab}
               style={{
@@ -1081,9 +1082,12 @@ Focus on actionable information for security professionals.
               onClick={() => setActiveTab(tab)}
             >
               {tab === 'overview' && <Info size={16} />}
+              {tab === 'taint-analysis' && <Search size={16} />}
               {tab === 'brief' && <FileText size={16} />}
               {tab === 'brief'
                 ? 'Tech Brief'
+                : tab === 'taint-analysis'
+                ? 'Taint Analysis'
                 : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
           ))}
@@ -1347,6 +1351,10 @@ Focus on actionable information for security professionals.
                 </div>
               )}
             </div>
+          )}
+
+          {activeTab === 'taint-analysis' && (
+            <TaintAnalysisTab vulnerability={vulnerability} />
           )}
         </div>
       </div>
