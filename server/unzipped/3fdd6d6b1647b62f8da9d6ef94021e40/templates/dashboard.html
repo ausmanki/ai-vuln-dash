@@ -1,0 +1,35 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>ArmorCode Dashboard</title>
+    <link href="/static/style.css" rel="stylesheet">
+</head>
+<body>
+    <h1>🛡️ ArmorCode Dashboard</h1>
+    <div>
+        <p><strong>Total Findings:</strong> {{ summary.total }}</p>
+        <p><strong>Deduplicated:</strong> {{ summary.deduped }}</p>
+        <p><strong>Unique CVEs:</strong> {{ summary.unique_cves }}</p>
+
+        <h3>Top CVEs</h3>
+        <ul>
+        {% for cve, count in summary.top_cves %}
+            <li>{{ cve }}: {{ count }}</li>
+        {% endfor %}
+        </ul>
+
+        <h2>CVE → Component Breakdown</h2>
+        {% for cve, components in grouped.items() %}
+            <details>
+                <summary>{{ cve }} ({{ sum(components[c]|length for c in components) }} findings)</summary>
+                <ul>
+                {% for compver, items in components.items() %}
+                    <li>{{ compver }} — {{ items|length }} finding(s)</li>
+                {% endfor %}
+                </ul>
+            </details>
+        {% endfor %}
+    </div>
+</body>
+</html>

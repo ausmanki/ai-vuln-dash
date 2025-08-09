@@ -1,7 +1,13 @@
 import { CONSTANTS } from '../utils/constants';
-import patchPrompts from '../../docs/Patch_Discovery_RAG_System_Prompts.md?raw';
+// Import the prompts - this will work in both Vite and Node.js
+import patchPrompts from './patchPrompts';
 
 export class EnhancedVectorDatabase {
+  private documents: any[];
+  private initialized: boolean;
+  private useGemini: boolean;
+  private storagePath: string;
+
   constructor() {
     this.documents = [];
     this.initialized = false;
@@ -19,11 +25,11 @@ export class EnhancedVectorDatabase {
     }
   }
 
-  async createEmbedding(text) {
+  async createEmbedding(text: string): Promise<number[]> {
     if (this.useGemini) {
       try {
         return await this.createGeminiEmbedding(text);
-      } catch (error) {
+      } catch (error: any) {
         console.warn('Gemini embedding failed, falling back to local embeddings:', error.message);
         this.useGemini = false;
       }
@@ -31,7 +37,7 @@ export class EnhancedVectorDatabase {
     return this.createLocalEmbedding(text);
   }
 
-  async createGeminiEmbedding(text) {
+  async createGeminiEmbedding(text: string): Promise<number[]> {
     const url = '/api/gemini?model=gemini-embedding-exp-03-07&action=embedContent';
     const requestBody = {
       model: "models/gemini-embedding-exp-03-07",
@@ -67,14 +73,14 @@ export class EnhancedVectorDatabase {
     }
   }
 
-  createLocalEmbedding(text) {
+  createLocalEmbedding(text: string): number[] {
     const words = text.toLowerCase().split(/\W+/).filter(w => w.length > 2);
-    const tf = {};
+    const tf: { [key: string]: number } = {};
     words.forEach(word => {
       tf[word] = (tf[word] || 0) + 1;
     });
 
-    const idf = {};
+    const idf: { [key: string]: number } = {};
     const D = this.documents.length;
     const securityTerms = [
       'vulnerability', 'exploit', 'cvss', 'epss', 'cisa', 'kev', 'critical', 'high', 'medium', 'low',
@@ -96,7 +102,7 @@ export class EnhancedVectorDatabase {
     return magnitude > 0 ? vector.map(val => val / magnitude) : vector;
   }
 
-  cosineSimilarity(vec1, vec2) {
+  cosineSimilarity(vec1: number[], vec2: number[]): number {
     if (vec1.length !== vec2.length) {
       const maxLength = Math.max(vec1.length, vec2.length);
       const paddedVec1 = [...vec1, ...new Array(maxLength - vec1.length).fill(0)];
@@ -146,7 +152,7 @@ export class EnhancedVectorDatabase {
         this.initialized = this.documents.length > 0;
         console.log(`📂 Loaded ${this.documents.length} RAG documents from ${filePath}`);
       }
-    } catch (error) {
+    } catch (error: any) {
       if (error.code !== 'ENOENT') {
         console.error('Failed to load RAG documents:', error);
       } else {
@@ -155,7 +161,7 @@ export class EnhancedVectorDatabase {
     }
   }
 
-  async addDocument(content, metadata = {}) {
+  async addDocument(content: string, metadata: any = {}) {
     const embedding = await this.createEmbedding(content);
     const doc = {
       id: Date.now() + Math.random(),
@@ -170,7 +176,7 @@ export class EnhancedVectorDatabase {
     return doc.id;
   }
 
-  async search(query, k = 8) {
+  async search(query: string, k = 8) {
     if (this.documents.length === 0) {
       console.warn('⚠️ RAG database is empty - initializing with default knowledge base');
       await this.initialize();
@@ -287,7 +293,7 @@ export class EnhancedVectorDatabase {
               const newEmbedding = await this.createGeminiEmbedding(doc.content);
               doc.embedding = newEmbedding;
               doc.embeddingType = 'gemini';
-            } catch (error) {
+            } catch (error: any) {
               console.warn(`Failed to re-embed document:`, error.message);
             }
           }));

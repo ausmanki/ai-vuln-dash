@@ -4,13 +4,34 @@ import multer from 'multer';
 import fs from 'fs';
 import path from 'path';
 import unzipper from 'unzipper';
-import { bom as createSBOM } from '@cyclonedx/bom';
 import { exec } from 'child_process';
-import { getApiKeys, getClientConfig } from './config/apiKeys.js';
-import cisaKevProxy from './cisaKevProxy.js';
-import { TaintRuleGenerationService } from '../src/services/TaintRuleGenerationService.js';
-import { CorrelationService } from '../src/services/CorrelationService.js';
-import { ExplanationService } from '../src/services/ExplanationService.js';
+import { promisify } from 'util';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
+
+// Fix for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Import local modules without .js extension
+import { getApiKeys, getClientConfig } from './config/apiKeys';
+import cisaKevProxy from './cisaKevProxy';
+import { TaintRuleGenerationService } from '../src/services/TaintRuleGenerationService';
+import { CorrelationService } from '../src/services/CorrelationService';
+import { ExplanationService } from '../src/services/ExplanationService';
+
+// Handle @cyclonedx/bom import - try different approaches
+let createSBOM: any;
+try {
+    // Try named import
+    const pkg = await import('@cyclonedx/bom');
+    createSBOM = pkg.makeBom || pkg.createBom || pkg.bom || pkg.default;
+} catch (err) {
+    console.warn('Could not import @cyclonedx/bom, SBOM generation will be disabled');
+    createSBOM = null;
+}
+
+const execAsync = promisify(exec);
 
 const { openAiApiKey, googleApiKey } = getApiKeys();
 console.log('API Keys Status:');
@@ -67,7 +88,7 @@ app.post('/api/openai', async (req, res) => {
     }
 
     res.status(resp.status).type('application/json').send(text);
-  } catch (err) {
+  } catch (err: any) {
     console.error('OpenAI API error:', err);
     res.status(500).json({ error: err.message });
   }
@@ -98,7 +119,7 @@ app.post('/api/gemini', async (req, res) => {
     console.log('Gemini response status:', resp.status);
 
     res.status(resp.status).type('application/json').send(text);
-  } catch (err) {
+  } catch (err: any) {
     console.error('Gemini API error:', err);
     res.status(500).json({ error: err.message });
   }
@@ -141,7 +162,12 @@ app.post('/api/explain-finding', async (req, res) => {
     }
 });
 
-async function generateSBOM(projectPath) {
+async function generateSBOM(projectPath: string) {
+    if (!createSBOM) {
+        console.warn('SBOM generation is disabled (missing @cyclonedx/bom)');
+        return null;
+    }
+
     const lockFiles = [
         'package-lock.json',
         'yarn.lock',
@@ -162,8 +188,8 @@ async function generateSBOM(projectPath) {
             console.log(`Found ${lockFile}, generating SBOM...`);
             try {
                 const sbom = await createSBOM(lockFilePath);
-                return sbom.toJSON();
-            } catch (err) {
+                return sbom.toJSON ? sbom.toJSON() : sbom;
+            } catch (err: any) {
                 console.error(`Error generating SBOM for ${lockFile}:`, err);
                 return null;
             }
@@ -174,12 +200,12 @@ async function generateSBOM(projectPath) {
     return null;
 }
 
-async function scanForSinks(projectPath) {
+async function scanForSinks(projectPath: string) {
     const sinks = [
         { cwe: 'CWE-78', pattern: /child_process\.exec\s*\(/, description: 'OS Command Injection' }
     ];
 
-    const findings = [];
+    const findings: any[] = [];
     const files = await fs.promises.readdir(projectPath, { recursive: true, withFileTypes: true });
 
     for (const file of files) {
@@ -205,7 +231,7 @@ async function scanForSinks(projectPath) {
     return findings;
 }
 
-async function runSemgrep(projectPath) {
+async function runSemgrep(projectPath: string) {
     return new Promise((resolve, reject) => {
         const command = `semgrep scan --json --config "r/javascript.lang.security.audit.taint-analysis.taint-flow" "${projectPath}"`;
         exec(command, (error, stdout, stderr) => {
@@ -217,7 +243,7 @@ async function runSemgrep(projectPath) {
             try {
                 const results = JSON.parse(stdout);
                 resolve(results.results || []);
-            } catch (parseError) {
+            } catch (parseError: any) {
                 console.error(`Error parsing Semgrep output: ${parseError.message}`);
                 reject('Error parsing Semgrep output.');
             }
