@@ -5,8 +5,12 @@ import fs from 'fs';
 import path from 'path';
 import unzipper from 'unzipper';
 import { bom as createSBOM } from '@cyclonedx/bom';
+import { exec } from 'child_process';
 import { getApiKeys, getClientConfig } from './config/apiKeys.js';
 import cisaKevProxy from './cisaKevProxy.js';
+import { TaintRuleGenerationService } from '../src/services/TaintRuleGenerationService.js';
+import { CorrelationService } from '../src/services/CorrelationService.js';
+import { ExplanationService } from '../src/services/ExplanationService.js';
 
 const { openAiApiKey, googleApiKey } = getApiKeys();
 console.log('API Keys Status:');
@@ -104,8 +108,38 @@ app.get('/api/ai-config', (req, res) => {
   res.json(getClientConfig());
 });
 
+app.post('/api/generate-rule', async (req, res) => {
+    const { cveDescription, cwe } = req.body;
+    if (!cveDescription || !cwe) {
+        return res.status(400).json({ error: 'cveDescription and cwe are required' });
+    }
+
+    try {
+        const settings = getClientConfig();
+        const rule = await TaintRuleGenerationService.generateSemgrepRule(cveDescription, cwe, settings);
+        res.status(200).json({ rule });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to generate Semgrep rule' });
+    }
+});
+
 // Multer setup for file uploads
 const upload = multer({ dest: 'server/uploads/' });
+
+app.post('/api/explain-finding', async (req, res) => {
+    const { finding } = req.body;
+    if (!finding) {
+        return res.status(400).json({ error: 'finding is required' });
+    }
+
+    try {
+        const settings = getClientConfig();
+        const explanation = await ExplanationService.generateExplanation(finding, settings);
+        res.status(200).json({ explanation });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to generate explanation' });
+    }
+});
 
 async function generateSBOM(projectPath) {
     const lockFiles = [
@@ -171,6 +205,26 @@ async function scanForSinks(projectPath) {
     return findings;
 }
 
+async function runSemgrep(projectPath) {
+    return new Promise((resolve, reject) => {
+        const command = `semgrep scan --json --config "r/javascript.lang.security.audit.taint-analysis.taint-flow" "${projectPath}"`;
+        exec(command, (error, stdout, stderr) => {
+            if (error && error.code !== 1) { // Semgrep exits with 1 if findings are found
+                console.error(`Semgrep execution error: ${stderr}`);
+                reject(`Semgrep execution failed: ${stderr}`);
+                return;
+            }
+            try {
+                const results = JSON.parse(stdout);
+                resolve(results.results || []);
+            } catch (parseError) {
+                console.error(`Error parsing Semgrep output: ${parseError.message}`);
+                reject('Error parsing Semgrep output.');
+            }
+        });
+    });
+}
+
 app.post('/api/upload', upload.single('project'), (req, res) => {
     if (!req.file) {
         return res.status(400).send('No file uploaded.');
@@ -190,12 +244,16 @@ app.post('/api/upload', upload.single('project'), (req, res) => {
 
             const sbom = await generateSBOM(unzippedPath);
             const sinks = await scanForSinks(unzippedPath);
+            const semgrepResults = await runSemgrep(unzippedPath);
+            const correlationResults = await CorrelationService.correlate(sbom, semgrepResults);
 
             res.status(200).json({
                 message: 'Project uploaded and unzipped successfully.',
                 projectPath: unzippedPath,
                 sbom: sbom,
-                sinks: sinks
+                sinks: sinks,
+                semgrep: semgrepResults,
+                correlation: correlationResults
             });
         })
         .on('error', (err) => {
