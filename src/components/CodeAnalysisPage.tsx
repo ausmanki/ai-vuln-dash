@@ -236,24 +236,31 @@ const CodeAnalysisPage: React.FC<CodeAnalysisPageProps> = ({ onClose }) => {
             </div>
           )}
 
-          {sbom && (
+          {sbom && sbom.components && sbom.components.length > 0 && (
             <div style={{ width: '100%', maxWidth: '1000px', marginTop: '24px' }}>
                 <h3 style={{ ...styles.subtitle, textAlign: 'center', marginBottom: '16px' }}>
-                    Generated SBOM (Software Bill of Materials)
+                    SBOM Components
                 </h3>
-                <pre style={{
-                    background: settings.darkMode ? COLORS.dark.background : COLORS.light.background,
-                    border: `1px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}`,
-                    borderRadius: '8px',
-                    padding: '16px',
-                    maxHeight: '400px',
-                    overflowY: 'auto',
-                    whiteSpace: 'pre-wrap',
-                    wordBreak: 'break-all',
-                    fontSize: '0.85rem',
-                }}>
-                    {JSON.stringify(sbom, null, 2)}
-                </pre>
+                <div style={{ maxHeight: '400px', overflowY: 'auto', border: `1px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}`, borderRadius: '8px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                        <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
+                            <tr style={{ borderBottom: `2px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}`, background: settings.darkMode ? COLORS.dark.surface : COLORS.light.surface }}>
+                                <th style={{ padding: '12px', textAlign: 'left' }}>Component Name</th>
+                                <th style={{ padding: '12px', textAlign: 'left' }}>Version</th>
+                                <th style={{ padding: '12px', textAlign: 'left' }}>Package URL (PURL)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {sbom.components.map((component: any, index: number) => (
+                                <tr key={index} style={{ borderBottom: `1px solid ${settings.darkMode ? COLORS.dark.border : COLORS.light.border}` }}>
+                                    <td style={{ padding: '12px', fontFamily: 'monospace' }}>{component.name}</td>
+                                    <td style={{ padding: '12px', fontFamily: 'monospace' }}>{component.version}</td>
+                                    <td style={{ padding: '12px', fontFamily: 'monospace', fontSize: '0.8rem', wordBreak: 'break-all' }}>{component.purl}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
           )}
 
